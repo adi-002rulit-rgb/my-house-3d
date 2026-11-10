@@ -128,12 +128,14 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #abCompareSummary{padding:9px;margin-top:8px;background:#ffffff11;border:1px solid #ffffff1e;border-radius:8px;line-height:1.4;font-size:11px;color:#ecdfcb}
 #showroom #hdSnapshot{margin:8px 0 0;background:#6c583b;color:#fff7e9}
 #undoDesign:disabled,#redoDesign:disabled{opacity:.40;cursor:not-allowed}
+#showroom #sunDirection{width:100%;accent-color:#d4b37e}
+#showroom #exportClientSpec{margin-top:7px;background:#304a53}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V43</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V44</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -264,6 +266,9 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </select>
 <label for="clientLightStrength">Яркость светильников <output id="lightStrengthValue">100%</output></label>
 <input id="clientLightStrength" type="range" min="0.50" max="1.60" step="0.10" value="1" />
+<label for="sunDirection">Направление дневного света <output id="sunDirectionValue">130°</output></label>
+<input id="sunDirection" type="range" min="45" max="250" step="5" value="130" />
+<small>Управление солнцем — художественное освещение, без географической привязки.</small>
 <p class="interiorFinePrint">Мебель, шторы, молдинги и свет — дизайн-варианты, не окончательная спецификация проекта.</p>
 </section>
 <section data-show-content="doors" role="tabpanel" hidden>
@@ -272,7 +277,6 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <label for="clientDoorTarget">Для какого помещения</label>
 <select id="clientDoorTarget">
 <option value="all">Все комнаты</option><option value="living">Зал</option>
-<option value="livingWindows">Окна зала · низкий подоконник</option>
 <option value="kitchen">Кухня</option><option value="bedroom">Спальня</option>
 <option value="bathroom">Ванная</option><option value="wardrobe">Гардеробная</option>
 </select>
@@ -351,6 +355,11 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <button id="redoDesign" title="Повторить отменённое изменение">↷ Вернуть</button>
 </div>
 <button id="hdSnapshot" title="Сохранить качественный кадр для клиента">▣ Снимок в HD</button>
+<div class="showGrid">
+ <button id="saveFavoriteView" title="Сохранить положение камеры на этом устройстве">☆ Запомнить ракурс</button>
+ <button id="restoreFavoriteView" title="Вернуться к сохранённой камере">◉ Мой ракурс</button>
+</div>
+<button id="exportClientSpec" title="Скачать перечень выбранных материалов для клиента">↓ Паспорт отделки (CSV)</button>
 </section>
 <div id="styleSummary" role="status">Настройте стены, пол и двери.</div>
 <div id="clientGuide">Изменения видны сразу. Используйте вкладку «Просмотр» для сравнения A/B и показа заказчику.</div>
@@ -412,7 +421,7 @@ const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
 renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance',preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.45));
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,innerWidth<800?1.15:1.45));
 renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.14;
@@ -1420,7 +1429,13 @@ const curtainOptions={
  sand:['#d7c3a9',.93],off:['#eee5d7',.76]
 };
 const colorTemperatures={warm:'#ffdbaf',soft:'#ffedda',daylight:'#f6f6ee'};
-let clientFabric='linen',clientCurtains='sheer',clientMoldings='minimal',clientLighting='warm',lightStrength=1;
+let clientFabric='linen',clientCurtains='sheer',clientMoldings='minimal',clientLighting='warm',lightStrength=1,sunAngle=130;
+function applySunDirection(){
+ const radians=sunAngle*Math.PI/180;
+ sunlight.position.set(Math.cos(radians)*28,29,Math.sin(radians)*28);
+ E('sunDirectionValue').textContent=Math.round(sunAngle)+'°';
+ E('sunDirection').value=String(sunAngle);
+}
 function applyInteriorLighting(){
  const color=colorTemperatures[clientLighting]||colorTemperatures.warm;
  scene.children.filter(o=>o.isPointLight).forEach(l=>{
@@ -1447,7 +1462,7 @@ function applyInteriorOptions(save=true){
  curtainFabric.color.set(curtainColor);curtainFabric.opacity=opacity;curtainFabric.needsUpdate=true;
  livingMoldings.minimal.visible=clientMoldings==='minimal';
  livingMoldings.classic.visible=clientMoldings==='classic';
- applyInteriorLighting();
+ applyInteriorLighting();applySunDirection();
  if(save)saveCurrentDesign();
 }
 E('clientUpholstery').onchange=e=>{clientFabric=e.target.value;applyInteriorOptions()};
@@ -1457,6 +1472,9 @@ E('clientLighting').onchange=e=>{clientLighting=e.target.value;applyInteriorOpti
 E('clientDayNight').onclick=()=>updateNight(!night);
 E('clientLightStrength').oninput=e=>{
  lightStrength=Number(e.target.value);applyInteriorLighting();saveCurrentDesign()
+};
+E('sunDirection').oninput=e=>{
+ sunAngle=Number(e.target.value);applySunDirection();saveCurrentDesign();
 };
 const presetInteriors={
  linen:['linen','sheer','classic','warm'],
@@ -1653,6 +1671,7 @@ function validConcept(d){
  &&(!d.moldings||['minimal','classic','none'].includes(d.moldings))
  &&(!d.lighting||Object.prototype.hasOwnProperty.call(colorTemperatures,d.lighting))
  &&(d.lightStrength===undefined||(Number.isFinite(d.lightStrength)&&d.lightStrength>=.5&&d.lightStrength<=1.6))
+ &&(d.sunAngle===undefined||(Number.isFinite(d.sunAngle)&&d.sunAngle>=45&&d.sunAngle<=250))
  &&['linen','cashmere','dove','contrast'].includes(d.style)
   &&['mix','linen','cashmere','dove','mushroom','char'].includes(d.wall)
   &&Object.prototype.hasOwnProperty.call(woodChoices,d.floor)
@@ -1673,7 +1692,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=43');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=44');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1696,7 +1715,7 @@ function readSharedDesign(){
  }catch(e){return false}
 }
 
-function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,doors:JSON.parse(JSON.stringify(doorAssignments))}}
+function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  const previousSuspend=designHistorySuspend;designHistorySuspend=true;
@@ -1704,7 +1723,7 @@ function applyConcept(d){
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
  if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
- clientMoldings=d.moldings||'minimal';clientLighting=d.lighting||'warm';lightStrength=d.lightStrength??1;
+ clientMoldings=d.moldings||'minimal';clientLighting=d.lighting||'warm';lightStrength=d.lightStrength??1;sunAngle=d.sunAngle??130;
  applyInteriorOptions(false);updateNight(d.night);clientCamera(d.view);
  }finally{designHistorySuspend=previousSuspend;}
  if(!designHistorySuspend)saveCurrentDesign();
@@ -1827,6 +1846,79 @@ E('planCanvas').addEventListener('click',e=>{
  clientCamera(r.id);E('closePlan').click();
 });
 
+
+// Save one favourite camera on this device; architecture and dimensions remain untouched.
+const FAVORITE_VIEW_KEY='my-house-3d-favorite-camera-v1';
+let favoriteCamera=null;
+function cameraData(){
+ return {
+  mode:current,room:roomID,position:[camera.position.x,camera.position.y,camera.position.z],
+  target:[orbit.target.x,orbit.target.y,orbit.target.z],yaw,pitch,
+  fov:camera.fov
+ };
+}
+function validFavorite(v){
+ return v&&['overview','inside'].includes(v.mode)
+   &&Array.isArray(v.position)&&v.position.length===3
+   &&Array.isArray(v.target)&&v.target.length===3
+   &&[...v.position,...v.target,v.yaw,v.pitch,v.fov].every(Number.isFinite)
+   &&v.fov>=30&&v.fov<=95
+   &&Math.max(...v.position.map(Math.abs))<300;
+}
+function saveFavoriteCamera(){
+ favoriteCamera=cameraData();
+ try{localStorage.setItem(FAVORITE_VIEW_KEY,JSON.stringify(favoriteCamera))}catch(e){}
+ toast('Этот ракурс сохранён');
+}
+function restoreFavoriteCamera(){
+ if(!validFavorite(favoriteCamera)){toast('Сначала нажми «Запомнить ракурс»');return}
+ const c=favoriteCamera;
+ if(c.mode==='overview'){overview();orbit.target.set(...c.target);camera.position.set(...c.position);orbit.update()}
+ else{
+  const r=rooms.find(r=>r.id===c.room);
+  look(...c.position,c.yaw);yaw=c.yaw;pitch=c.pitch;camera.rotation.set(pitch,yaw,0,'YXZ');
+  if(r){roomID=r.id;showInfo()}
+ }
+ camera.fov=c.fov;camera.updateProjectionMatrix();
+ toast('Сохранённый ракурс восстановлен');
+}
+try{const c=JSON.parse(localStorage.getItem(FAVORITE_VIEW_KEY)||'null');if(validFavorite(c))favoriteCamera=c}catch(e){}
+E('saveFavoriteView').onclick=saveFavoriteCamera;
+E('restoreFavoriteView').onclick=restoreFavoriteCamera;
+
+// The client specification exports only chosen finishes, with no invented pricing or manufacturer SKU.
+function exportClientSpecification(){
+ const opt=id=>{const e=E(id);return e.selectedOptions[0]?.textContent||e.value||''};
+ const rows=[
+ ['Параметр','Выбранный вариант'],
+ ['Стены',opt('clientWalls')],['Цвет деревянного пола',opt('clientFloor')],
+ ['Покрытие',opt('floorCovering')],['Укладка',opt('floorPattern')],
+ ['Керамогранит',opt('clientTile')],['Обивка',opt('clientUpholstery')],
+ ['Шторы',opt('clientCurtains')],['Молдинги',opt('clientMoldings')],
+ ['Искусственный свет',opt('clientLighting')],['Яркость',Math.round(lightStrength*100)+'%'],
+ ['Дневное освещение','поворот '+sunAngle+'° (условно)'],
+ ['Режим',night?'Вечер':'День']
+ ];
+ for(const spec of roomDoorSpecs){
+  const c=doorAssignments[spec.room],r=rooms.find(x=>x.id===spec.room);
+  rows.push(['Дверь '+(r?.name||spec.room),c.design+' / '+c.color+' / '+c.metal+' / '+c.opening]);
+ }
+ rows.push(['Примечание','Предварительная визуализация; цены, бренды, высоты окон и отдельные размеры не подтверждены']);
+ // CSV formula injection protection for spreadsheet applications.
+ const safe=v=>{
+  let t=String(v).replace(/\r|\n/g,' ');
+  if(/^[=+\-@]/.test(t))t="'"+t;
+  return '"'+t.replace(/"/g,'""')+'"';
+ };
+ const csv='\ufeff'+rows.map(row=>row.map(safe).join(';')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='dom-pasport-otdelki.csv';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+ toast('Паспорт отделки сохранён');
+}
+E('exportClientSpec').onclick=exportClientSpecification;
+
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){bedroomWindowFocus.visible=false;model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
@@ -1859,7 +1951,8 @@ let raycaster=new THREE.Raycaster();
 canvas.addEventListener('pointerdown',e=>{dragStart={x:e.clientX,y:e.clientY,moved:false};if(current==='inside')canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
 canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){if(measureEnabled)clickMeasure(pointerPos(e));else{raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}}dragStart=null});
-function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;if(t-minimapTick>120){minimapTick=t;renderMinimap()}
+function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;
+if(document.hidden)return;if(t-minimapTick>120){minimapTick=t;renderMinimap()}
 if(playing){playTime+=dt;if(playTime>7.8){
  if(presentationStop<presentationStops.length-1)goTourStop(presentationStop+1);
  else stopAuto();
