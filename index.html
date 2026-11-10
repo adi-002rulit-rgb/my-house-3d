@@ -125,12 +125,15 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #quickHelp p{margin:9px 0}#quickHelp kbd{border:1px solid #ffffff60;padding:1px 5px;border-radius:4px}
 #quickHelp button{margin-top:8px}
 @media(max-width:900px){#clientQuickBar{right:7px;top:83px;flex-wrap:wrap;max-width:220px;justify-content:flex-end}#clientQuickBar button{padding:5px 7px;font-size:10px}#clientPlan,#quickHelp{right:6px;top:150px}#tourCaption{bottom:125px;padding:7px 10px;font-size:11px}}
+#abCompareSummary{padding:9px;margin-top:8px;background:#ffffff11;border:1px solid #ffffff1e;border-radius:8px;line-height:1.4;font-size:11px;color:#ecdfcb}
+#showroom #hdSnapshot{margin:8px 0 0;background:#6c583b;color:#fff7e9}
+#undoDesign:disabled,#redoDesign:disabled{opacity:.40;cursor:not-allowed}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V42</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V43</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -342,6 +345,12 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <button id="saveA">Запомнить A</button><button id="saveB">Запомнить B</button>
 <button id="viewA">Показать A</button><button id="viewB">Показать B</button>
 </div>
+<div id="abCompareSummary" role="status">Для сравнения сохрани вариант A и B.</div>
+<div class="showGrid">
+<button id="undoDesign" title="Отменить последнее изменение">↶ Отменить</button>
+<button id="redoDesign" title="Повторить отменённое изменение">↷ Вернуть</button>
+</div>
+<button id="hdSnapshot" title="Сохранить качественный кадр для клиента">▣ Снимок в HD</button>
 </section>
 <div id="styleSummary" role="status">Настройте стены, пол и двери.</div>
 <div id="clientGuide">Изменения видны сразу. Используйте вкладку «Просмотр» для сравнения A/B и показа заказчику.</div>
@@ -1167,6 +1176,20 @@ function focusRoom(){const r=rooms.find(x=>x.id===roomID)||rooms[0];if(current!=
 function topCamera(){if(current!=='overview')overview();orbit.target.set(7,0,1);camera.position.set(7,35,1.01);orbit.update();toast('План сверху')}
 function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target).multiplyScalar(k).add(orbit.target);orbit.update()}else{camera.fov=Math.max(42,Math.min(75,camera.fov*k));camera.updateProjectionMatrix()}}
 function screenshot(){try{renderer.render(scene,camera);let a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='3d-dom-'+roomID+'.png';a.click();toast('Снимок подготовлен')}catch(e){toast('Сохранение снимка недоступно')}}
+function screenshotHD(){
+ const oldRatio=renderer.getPixelRatio();
+ const maxDimension=Math.max(innerWidth,innerHeight);
+ const target=Math.max(oldRatio,Math.min(2.0,3000/maxDimension));
+ try{
+  renderer.setPixelRatio(target);renderer.setSize(innerWidth,innerHeight,false);
+  renderer.render(scene,camera);
+  const a=document.createElement('a');a.href=canvas.toDataURL('image/png');
+  a.download='dom-klient-'+roomID+'-HD.png';a.click();
+  toast('HD-кадр сохранён');
+ }catch(e){toast('Не удалось сохранить HD-кадр')}
+ finally{renderer.setPixelRatio(oldRatio);renderer.setSize(innerWidth,innerHeight,false)}
+}
+E('hdSnapshot').onclick=screenshotHD;
 function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false');
  E('quickTour').textContent='▶ Тур по дому';E('quickTour').setAttribute('aria-pressed','false');
  E('tourCaption').hidden=true}
@@ -1573,8 +1596,47 @@ function clientCamera(v){
 // Save two design concepts locally and reproduce an entire selected design via shared link.
 const SHOWROOM_STORAGE_KEY='my-house-3d-presets-v1';
 const CURRENT_DESIGN_STORAGE_KEY='my-house-3d-current-design-v1';
-function saveCurrentDesign(){
+
+let designHistory=[],designHistoryIndex=-1,designHistorySuspend=false;
+function persistDesignSnapshot(){
  try{localStorage.setItem(CURRENT_DESIGN_STORAGE_KEY,JSON.stringify(snapshotConcept()))}catch(e){}
+}
+function updateHistoryButtons(){
+ E('undoDesign').disabled=designHistoryIndex<=0;
+ E('redoDesign').disabled=designHistoryIndex>=designHistory.length-1;
+}
+function rememberDesign(){
+ if(designHistorySuspend)return;
+ const next=JSON.stringify(snapshotConcept());
+ if(designHistory[designHistoryIndex]&&JSON.stringify(designHistory[designHistoryIndex])===next)return;
+ designHistory.splice(designHistoryIndex+1);
+ designHistory.push(JSON.parse(next));
+ if(designHistory.length>24)designHistory.shift();
+ designHistoryIndex=designHistory.length-1;updateHistoryButtons();
+}
+function restoreFromHistory(index){
+ if(index<0||index>=designHistory.length)return;
+ designHistoryIndex=index;designHistorySuspend=true;
+ try{applyConcept(designHistory[index]);}finally{designHistorySuspend=false;}
+ persistDesignSnapshot();updateHistoryButtons();updateABStatus();
+}
+E('undoDesign').onclick=()=>restoreFromHistory(designHistoryIndex-1);
+E('redoDesign').onclick=()=>restoreFromHistory(designHistoryIndex+1);
+function describeAB(c){
+ if(!c)return 'не сохранён';
+ const walls=c.wall==='mix'?'смешанные':interiorSwatches[c.wall]?.name||c.wall;
+ const floorName=E('clientFloor').querySelector('option[value="'+c.floor+'"]')?.textContent?.split(' · ')[0]||c.floor;
+ return walls+', '+floorName;
+}
+function updateABStatus(){
+ E('abCompareSummary').textContent='A: '+describeAB(conceptA)+' | B: '+describeAB(conceptB);
+ E('viewA').disabled=!conceptA;E('viewB').disabled=!conceptB;
+}
+
+function saveCurrentDesign(){
+ if(designHistorySuspend)return;
+ persistDesignSnapshot();
+ rememberDesign();
 }
 function loadCurrentDesign(){
  try{
@@ -1611,7 +1673,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=42');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=43');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1637,11 +1699,15 @@ function readSharedDesign(){
 function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
+ const previousSuspend=designHistorySuspend;designHistorySuspend=true;
+ try{
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
  if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
  clientMoldings=d.moldings||'minimal';clientLighting=d.lighting||'warm';lightStrength=d.lightStrength??1;
  applyInteriorOptions(false);updateNight(d.night);clientCamera(d.view);
+ }finally{designHistorySuspend=previousSuspend;}
+ if(!designHistorySuspend)saveCurrentDesign();
  toast('Дизайн восстановлен');
 }
 E('clientStyle').onchange=e=>applyPreset(e.target.value);
@@ -1652,8 +1718,8 @@ E('floorPattern').onchange=e=>{floorPattern=e.target.value;changeWoodFloor()};
 E('clientTile').onchange=e=>setClientTile(e.target.value);
 E('clientView').onchange=e=>clientCamera(e.target.value);
 E('bedroomWindowShortcut').onclick=()=>{clientCamera('bedroomWindowOutside');toast('Новое окно спальни выделено на левом фасаде')};
-E('saveA').onclick=()=>{conceptA=snapshotConcept();savePresetsToDevice();toast('Вариант A сохранён в браузере')};
-E('saveB').onclick=()=>{conceptB=snapshotConcept();savePresetsToDevice();toast('Вариант B сохранён в браузере')};
+E('saveA').onclick=()=>{conceptA=snapshotConcept();savePresetsToDevice();updateABStatus();toast('Вариант A сохранён в браузере')};
+E('saveB').onclick=()=>{conceptB=snapshotConcept();savePresetsToDevice();updateABStatus();toast('Вариант B сохранён в браузере')};
 E('viewA').onclick=()=>applyConcept(conceptA);
 E('viewB').onclick=()=>applyConcept(conceptB);
 E('techToggle').onclick=()=>{
@@ -1784,6 +1850,8 @@ window.addEventListener('keydown',e=>{
  if(e.code==='KeyG')E('gridBtn').click();
  if(e.code==='KeyH')E('keysHelp').click();
  if(e.code==='KeyP')toggleClientPlan();
+ if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();restoreFromHistory(designHistoryIndex-1)}
+ if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();restoreFromHistory(designHistoryIndex+1)}
 });
 window.addEventListener('keyup',e=>keys[e.code]=false);
 function pointerPos(ev){let rc=canvas.getBoundingClientRect();return new THREE.Vector2((ev.clientX-rc.left)/rc.width*2-1,-((ev.clientY-rc.top)/rc.height)*2+1)}
@@ -1816,5 +1884,5 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
-overview();showInfo();updateWallSwatch();applyInteriorOptions(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();animate(0);E('loading').style.display='none';
+overview();showInfo();updateWallSwatch();applyInteriorOptions(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();animate(0);E('loading').style.display='none';
 </script></body></html>
