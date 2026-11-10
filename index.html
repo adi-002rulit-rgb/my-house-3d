@@ -76,8 +76,8 @@ body:not(.technical) #studio button{min-width:110px}
 #showroom h2{font-size:19px;letter-spacing:.02em}
 #showroom p{margin-bottom:9px}
 #showroom [data-show-content][hidden]{display:none!important}
-#showroom .showroomTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:13px 0 12px;position:sticky;top:-16px;padding:7px 0;background:#13222df5;z-index:2}
-#showroom .showroomTabs button{width:100%;font-size:11px;padding:9px 2px;background:#31434d;color:#dedbd3;border:1px solid #ffffff1d;transition:background .2s}
+#showroom .showroomTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:13px 0 12px;position:sticky;top:-16px;padding:7px 0;background:#13222df5;z-index:2}
+#showroom .showroomTabs button{width:100%;font-size:10px;padding:9px 2px;background:#31434d;color:#dedbd3;border:1px solid #ffffff1d;transition:background .2s}
 #showroom .showroomTabs button[aria-selected="true"]{background:#c6a979;color:#1a232b;border-color:#e5c99e;font-weight:700}
 #showroom [data-show-content] h3{font-size:13px;font-weight:600;color:#f1e0c7;margin:6px 0 11px}
 #showroom #styleSummary{position:sticky;bottom:-16px;background:#1f3341;padding:9px;margin:14px -8px -8px;border:1px solid #c6b18c4f;border-radius:9px;font-weight:500;line-height:1.45}
@@ -105,12 +105,15 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
  body:not(.technical) #studio{bottom:84px;max-width:55vw}
  body:not(.technical) #studio button{font-size:9px;min-width:60px}
 }
+#showroom input[type="range"]{width:100%;accent-color:#c8ac7d;cursor:pointer;margin:5px 0 9px}
+#showroom .interiorFinePrint{font-size:10px;line-height:1.5;color:#c4c8c5;padding:9px;background:#ffffff0b;border-radius:8px;margin:8px 0}
+@media(max-width:900px){#showroom .showroomTabs button{font-size:8.5px;padding:6px 1px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V35</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V36</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -120,6 +123,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <p>Создайте несколько вариантов будущего дома.</p>
 <div class="showroomTabs" role="tablist" aria-label="Разделы дизайн-студии">
 <button type="button" data-show-tab="finishes" aria-selected="true" role="tab">Отделка</button>
+<button type="button" data-show-tab="interior" aria-selected="false" role="tab">Интерьер</button>
 <button type="button" data-show-tab="doors" aria-selected="false" role="tab">Двери</button>
 <button type="button" data-show-tab="views" aria-selected="false" role="tab">Просмотр</button>
 </div>
@@ -188,6 +192,39 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </select>
 
 <button id="designReset" type="button">↺ Сбросить отделку</button>
+</section>
+<section data-show-content="interior" role="tabpanel" hidden>
+<h3>Мебель, текстиль и освещение</h3>
+<label for="clientUpholstery">Цвет мягкой мебели</label>
+<select id="clientUpholstery">
+<option value="linen">Светлый лён</option>
+<option value="cashmere">Кашемировый беж</option>
+<option value="taupe">Грейж / тауп</option>
+<option value="sage">Спокойный шалфей</option>
+<option value="mocha">Тёплый мокко</option>
+</select>
+<label for="clientCurtains">Шторы зала и кухни</label>
+<select id="clientCurtains">
+<option value="sheer">Лёгкие льняные, по краям</option>
+<option value="greige">Плотные грейж, по краям</option>
+<option value="sand">Тёплые песочные, по краям</option>
+<option value="off">Без штор</option>
+</select>
+<label for="clientMoldings">Оформление стен зала</label>
+<select id="clientMoldings">
+<option value="minimal">Тонкие декоративные молдинги</option>
+<option value="classic">Двойные молдинги · неоклассика</option>
+<option value="none">Ровные стены без молдингов</option>
+</select>
+<label for="clientLighting">Оттенок искусственного света</label>
+<select id="clientLighting">
+<option value="warm">Тёплый · около 2700 K</option>
+<option value="soft">Нейтрально-тёплый · около 3500 K</option>
+<option value="daylight">Нейтральный · около 4200 K</option>
+</select>
+<label for="clientLightStrength">Яркость светильников <output id="lightStrengthValue">100%</output></label>
+<input id="clientLightStrength" type="range" min="0.50" max="1.60" step="0.10" value="1" />
+<p class="interiorFinePrint">Мебель, шторы, молдинги и свет — дизайн-варианты, не окончательная спецификация проекта.</p>
 </section>
 <section data-show-content="doors" role="tabpanel" hidden>
 <section id="doorStudio">
@@ -782,7 +819,7 @@ function buildDoorLeaf(root,wide,style,color,metal){
  const woodMat=new THREE.MeshStandardMaterial({map:surfaceTexture('oak',doorColorHex[color]||'#c8ab85',1.0),roughness:.68});
  const baseMat=style==='veneer'?woodMat:style==='glass'?trim:paint;
  const isGlass=style==='glass'||style==='frost';
- addDoorShape(root,w/2,h/2,0,w,h,.052,baseMat);
+ if(!isGlass)addDoorShape(root,w/2,h/2,0,w,h,.052,baseMat);
  const strip=(x,y,width,height,depth,mat)=>addDoorShape(root,x,y,depth,width,height,.011,mat);
  if(style==='hidden'){
  // almost flush, very fine shadow-gap reveal
@@ -894,6 +931,67 @@ table(4.8,-1.95,.9,.53,.71,mat.oak);
 box(model,1.6,.11,-3.5,2.6,.02,2.5,textile,false);
 // Entrance: two floor vases and warm lamp tones
 plant(10.1,4.55);plant(12.8,4.55);
+
+
+// Presentation-only decorative layers: none of these alters the wall plan,
+// stair footprint, actual window openings or door positions.
+const curtainGroup=new THREE.Group();model.add(curtainGroup);
+const curtainFabric=new THREE.MeshStandardMaterial({
+  color:'#eee5d7',roughness:.96,transparent:true,opacity:.86,
+  side:THREE.DoubleSide,depthWrite:false
+});
+const curtainRail=M('#9a917f',.54,.32);
+function addWindowCurtains(cx,width){
+  // Tall, low-sill glazing: fabrics stack to the SIDES rather than cover the view.
+  box(curtainGroup,cx,3.32,5.20,width+.30,.026,.065,curtainRail,false);
+  for(const side of [-1,1]){
+    for(let j=0;j<7;j++){
+      const x=cx+side*(width/2-.16)+(j-3)*.038;
+      const z=5.12+(j%2)*.022;
+      box(curtainGroup,x,1.81,z,.046,2.77,.029,curtainFabric,false);
+    }
+  }
+}
+addWindowCurtains(3.20,2.30);
+addWindowCurtains(6.60,2.30);
+addWindowCurtains(16.175,3.00);
+
+const livingMoldings={minimal:new THREE.Group(),classic:new THREE.Group()};
+model.add(livingMoldings.minimal,livingMoldings.classic);
+const moldingPaint=M('#ded6c9',.87),moldingShadow=M('#bfb3a2',.86);
+function moldedFrame(group,cx,cy,w,h,double=false){
+ const z=-.664;
+ const hBar=(x,y,ww,material)=>box(group,x,y,z,ww,.035,.045,material,false);
+ const vBar=(x,y,hh,material)=>box(group,x,y,z,.035,hh,.045,material,false);
+ for(const inset of double?[0,.095]:[0]){
+   const ww=w-inset*2,hh=h-inset*2,m=inset?moldingShadow:moldingPaint;
+   hBar(cx,cy-hh/2,ww,m);hBar(cx,cy+hh/2,ww,m);
+   vBar(cx-ww/2,cy,hh,m);vBar(cx+ww/2,cy,hh,m);
+ }
+}
+for(const cx of [2.05,4.9,7.75]){
+ moldedFrame(livingMoldings.minimal,cx,1.92,2.30,2.00,false);
+ moldedFrame(livingMoldings.classic,cx,1.92,2.30,2.00,true);
+}
+// Small sofa details make upholstery changes tangible in presentation.
+const pillowMat=M('#d4c6b6',.97);
+for(const x of [3.50,4.35,5.20,6.05]){
+ box(model,x,.80,.46,.63,.19,.50,pillowMat,false);
+}
+for(const x of [3.13,6.68]){
+ box(model,x,.61,.55,.22,.46,1.08,mat.cloth,false);
+}
+// Additional warm sconces: emissive bulbs with unshadowed low-cost point lights.
+const sconceGlow=new THREE.MeshStandardMaterial({
+  color:'#ffe6c0',emissive:'#ffcf8e',emissiveIntensity:.75,roughness:.48
+});
+for(const pos of [[1.14,2.27,-.56],[8.66,2.27,-.56],[16.12,2.35,-.76]]){
+ box(model,pos[0],pos[1],pos[2],.18,.24,.10,mat.bronze,false);
+ const orb=new THREE.Mesh(new THREE.SphereGeometry(.085,10,8),sconceGlow);
+ orb.position.set(pos[0],pos[1]+.16,pos[2]+.07);model.add(orb);
+ const l=new THREE.PointLight('#ffe0b6',.35,5,2);
+ l.position.set(pos[0],pos[1]+.18,pos[2]+.27);scene.add(l);
+}
 
 // Keep the garage and summer-kitchen at courtyard level, independent of the elevated main house.
 const detachedStartIndex=model.children.length;
@@ -1177,7 +1275,7 @@ syncDoorControls();
 // Clear separation between client design tasks; architect controls remain optional.
 let showroomTab='finishes';
 function selectShowroomTab(tab){
- if(!['finishes','doors','views'].includes(tab))return;
+ if(!['finishes','interior','doors','views'].includes(tab))return;
  showroomTab=tab;
  document.querySelectorAll('[data-show-content]').forEach(el=>el.hidden=el.dataset.showContent!==tab);
  document.querySelectorAll('[data-show-tab]').forEach(btn=>{
