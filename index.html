@@ -22,12 +22,18 @@
 #toast{position:fixed;display:none;z-index:8;bottom:138px;left:50%;transform:translateX(-50%);padding:9px 13px;background:#132a38ea;border-radius:9px;font-size:12px;text-align:center;max-width:80vw}
 #projectMark{position:fixed;bottom:84px;right:14px;font-size:10px;opacity:.8;pointer-events:none}
 @media(max-width:700px){#studio{top:111px;right:7px;max-height:37dvh}#studio button,#studio select{font-size:10px;padding:7px 7px;min-width:91px}#roomInfo{top:174px;left:8px;max-width:49vw;padding:8px}#roomInfo p{font-size:10px}#projectMark{display:none}}
+#auditPanel{position:fixed;z-index:7;left:12px;top:135px;width:315px;max-width:54vw;max-height:65dvh;overflow:auto;background:#142631f2;border:1px solid #d9c59b77;border-radius:12px;padding:12px;color:#f8f3e8;font-size:12px}
+#auditPanel[hidden]{display:none}#auditPanel b{font-size:14px}#auditValues{margin:9px 0}
+.auditLine{display:flex;gap:10px;justify-content:space-between;border-bottom:1px solid #ffffff20;padding:5px 0}.auditLine span{color:#cfcdc5}
+.auditActions{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.auditActions button{font-size:10px;padding:7px}
+#auditPanel small{color:#e1c8a9}#auditPanel p{margin:7px 0}
+@media(max-width:700px){#auditPanel{top:165px;max-width:62vw;max-height:39dvh}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V18</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V19</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -40,7 +46,7 @@
 <option value="char">Soft Char · #6E655C</option>
 </select>
 <select id="palette"><option value="natural">Натуральная отделка</option><option value="light">Светлая отделка</option><option value="warm">Тёплая отделка</option><option value="contrast">Контрастная отделка</option></select>
-<button id="topMode">▦ Вид сверху</button>
+<button id="auditButton" aria-pressed="false">▤ Проверка размеров</button><button id="topMode">▦ Вид сверху</button>
 <button id="tour" aria-pressed="false">▶ Автообзор</button>
 <button id="roomLabels" aria-pressed="true">▤ Названия</button>
 <button id="focus">◎ Фокус комнаты</button>
@@ -50,7 +56,7 @@
 <button id="fullscreen">⛶ Полный экран</button>
 <button id="quality">◈ Качество: авто</button>
 <button id="prevRoom">← Пред. комната</button><button id="nextRoom">След. комната →</button><button id="presentation">◫ Без панелей</button><button id="share">↗ Поделиться</button>
-</div><div id="roomInfo"><b id="infoTitle"></b><p id="infoDescription"></p><button id="hideInfo">Закрыть</button></div>
+</div><div id="auditPanel" hidden><b>Размеры по чертежу · 1-й этаж</b><div id="auditValues"></div><p>Проверка проходов:</p><div class="auditActions"><button data-check="hall">Вход → лестница</button><button data-check="left">Проход слева</button><button data-check="bath">Ванная</button></div><small>Это визуальная проверка, не строительная документация.</small></div><div id="roomInfo"><b id="infoTitle"></b><p id="infoDescription"></p><button id="hideInfo">Закрыть</button></div>
 <div id="toast" role="status"></div><div id="projectMark">Предварительная визуализация · уточняются проёмы и размеры</div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
@@ -477,6 +483,21 @@ function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target
 function screenshot(){try{renderer.render(scene,camera);let a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='3d-dom-'+roomID+'.png';a.click();toast('Снимок подготовлен')}catch(e){toast('Сохранение снимка недоступно')}}
 function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false')}
 E('wallColors').onchange=e=>{setInteriorPalette(e.target.value);toast('Цвет внутренних стен: '+(e.target.value==='mix'?'комбинация':interiorSwatches[e.target.value].name))};
+const auditDims=[
+ ['Корпус','19,03 × 11,40 м'],
+ ['Зал','9,00 × 6,00 м'],
+ ['Спальня','5,20 × 4,20 м'],
+ ['Ванная','3,55 × 2,50 м'],
+ ['Кухня','4,91 × 6,15 м'],
+ ['Гардеробная','5,06 × 4,20 м'],
+ ['Коридор','ширина 3,52 м'],
+ ['Стены','400 / 250 мм'],
+];
+E('auditValues').innerHTML=auditDims.map(([name,value])=>'<div class="auditLine"><span>'+name+'</span><strong>'+value+'</strong></div>').join('')+
+' <small>Ванная: по размерам 8,88 м², в экспликации 9,38 м². Нужна сверка.</small>';
+const auditCameras={hall:[11.55,1.65,4.15,0],left:[9.07,1.65,-1.68,Math.PI/2],bath:[7.78,1.65,-1.67,0]};
+E('auditButton').onclick=()=>{const hidden=!E('auditPanel').hidden;E('auditPanel').hidden=hidden;E('auditButton').setAttribute('aria-pressed',String(!hidden));if(!hidden)topCamera()};
+document.querySelectorAll('[data-check]').forEach(b=>b.onclick=()=>{const [x,y,z,a]=auditCameras[b.dataset.check];look(x,y,z,a);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent='Проверка проёмов · '+b.textContent});
 E('daynight').onclick=()=>updateNight(!night);
 E('palette').onchange=e=>updateFinish(e.target.value);
 E('topMode').onclick=topCamera;
@@ -511,7 +532,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=18';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=19';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
