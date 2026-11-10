@@ -18,7 +18,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · интерактивный 3D-тур · V6</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · интерактивный 3D-тур · V7</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
@@ -136,7 +136,7 @@ const rooms=[
 {id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.25,range:[.4,9.4,-.75,5.25],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
 {id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.35,-1.15],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
 {id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.3,cz:-4.1,range:[6.0,8.5,-5.35,-2.35],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
-{id:'stair',name:'Лестница',area:'',cx:11.45,cz:-3.45,range:[9.8,13.32,-5.35,-1.15],floor:mat.stone,eye:[11.25,1.65,-3.5],yaw:0},
+{id:'stair',name:'Лестница',area:'',cx:11.45,cz:-3.45,range:[9.8,13.32,-5.35,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
 {id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.1,cz:-3.25,range:[13.72,18.63,-5.35,-1.15],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
 {id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.1,range:[9.8,13.32,-.75,5.25],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
 {id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.25,cz:2.175,range:[13.72,18.63,-.9,5.25],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
@@ -213,39 +213,42 @@ box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
-// FULL U-SHAPED STAIRCASE based on two-flight stair shown in IMG_6650
-// and stair specification 22R x 170, 21G x 300 from the 1st floor PDF.
-// First flight: from foyer (-1.2m Z) towards rear; return flight runs back toward foyer.
+// U-shaped stair: from the front entry looking toward the rear, ASCENT BEGINS ON THE RIGHT.
+// Source orientation confirmed by owner: right flight rises from foyer to rear landing,
+// left flight is the return flight rising back toward the front.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
-const ST=0.17, TREAD=0.300, FIRST=11, SX1=10.45, SX2=12.42, START=-1.35;
+const ST=0.17, TREAD=0.300, FIRST=11, LEFT=10.45, RIGHT=12.42, START=-1.35;
 const stairMat=M('#c2bdb3'), railMat=M('#68777b',.45,.45);
-// Floor-to-floor rise 22x170mm = 3.74m. Intermediate landing at 1.87m.
+const BACK=START-FIRST*TREAD;
+// First flight on the RIGHT: bottom near entrance, top toward back.
 for(let i=0;i<FIRST;i++){
  const z=START-(i+.5)*TREAD;
- box(stairsGroup,SX1,(i+1)*ST/2,z,1.42,(i+1)*ST,TREAD-.016,stairMat);
+ const elev=(i+1)*ST;
+ box(stairsGroup,RIGHT,elev/2,z,1.42,elev,TREAD-.016,stairMat);
 }
-const BACK=START-FIRST*TREAD;
-box(stairsGroup,(SX1+SX2)/2,1.83,BACK-.43,3.33,.14,.82,stairMat);
+// Intermediate return landing.
+box(stairsGroup,(LEFT+RIGHT)/2,1.83,BACK-.43,3.33,.14,.82,stairMat);
+// Second flight on LEFT: from rear landing toward the front, continuing upward.
 for(let i=0;i<FIRST;i++){
  const z=BACK+(i+.5)*TREAD;
  const elev=(FIRST+i+1)*ST;
- box(stairsGroup,SX2,elev/2,z,1.42,elev,TREAD-.016,stairMat);
+ box(stairsGroup,LEFT,elev/2,z,1.42,elev,TREAD-.016,stairMat);
 }
-// Balustrade: vertical balusters following both inclined flights.
+// Outer handrails on right of first flight and left of return flight.
 for(let i=0;i<FIRST;i++){
- let z1=START-(i+.5)*TREAD;
- let z2=BACK+(i+.5)*TREAD;
- box(stairsGroup,SX1-.74,(i+1)*ST+.46,z1,.045,.92,.045,railMat);
- box(stairsGroup,SX2+.74,(FIRST+i+1)*ST+.46,z2,.045,.92,.045,railMat);
+ const z1=START-(i+.5)*TREAD;
+ const z2=BACK+(i+.5)*TREAD;
+ box(stairsGroup,RIGHT+.74,(i+1)*ST+.46,z1,.045,.92,.045,railMat);
+ box(stairsGroup,LEFT-.74,(FIRST+i+1)*ST+.46,z2,.045,.92,.045,railMat);
 }
 for(let i=0;i<2;i++){
- const x=i===0?SX1-.74:SX2+.74;
- let a=box(stairsGroup,x,i===0?1.68:3.45,(START+BACK)/2,.055,.07,3.65,railMat);
- a.rotation.x=i===0?-.50:.50;
+ const x=i===0?RIGHT+.74:LEFT-.74;
+ const hand=box(stairsGroup,x,i===0?1.68:3.45,(START+BACK)/2,.055,.07,3.65,railMat);
+ hand.rotation.x=i===0?-.50:.50;
 }
-for(let j=0;j<7;j++)box(stairsGroup,SX1-.58+j*.3,2.38,BACK-.72,.042,1.1,.042,railMat);
-box(stairsGroup,(SX1+SX2)/2,2.94,BACK-.72,3.1,.075,.075,railMat);
-// Stair zone remains selected from room menu and is visible in top-down dollhouse mode.
+for(let j=0;j<7;j++)box(stairsGroup,LEFT-.58+j*.3,2.38,BACK-.72,.042,1.1,.042,railMat);
+box(stairsGroup,(LEFT+RIGHT)/2,2.94,BACK-.72,3.1,.075,.075,railMat);
+// Open hall continues from the main entrance directly to the bottom of the RIGHT flight.
 
 // Rear wardrobe, wall to wall shelving
 for(let xx of [14.20,18.16]){box(model,xx,1.02,-3.25,.45,2.05,3.2,mat.wood);
