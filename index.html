@@ -115,7 +115,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V40</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V41</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -498,6 +498,10 @@ function exteriorInteriorFaces(facing){
 }
 
 const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.74; // overall wall-line dimensions of main house from IMG_6632
+// Visual profile proportions checked against Reynaers MasterLine 8 window systems.
+// Dark anodised/satin painted aluminium; pale stone sill caps.
+const windowAluminium=M('#343a3d',.35,.56);
+const windowSillMaterial=finish('stone','#e8e3d9',1.2,.52);
 function segmented(x1,z1,x2,z2,openings=[],material=mat.wall,thickness=.25){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
 const bounds=[0,...openings.flatMap(o=>[o.at,o.at+o.width]),length].sort((a,b)=>a-b);
@@ -515,32 +519,62 @@ const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
 if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
 else{
- // Vertical geometry is per-window. The living-room glazing uses the real
- // photographed low sill and tall proportions; other windows keep defaults.
+ // Slim thermally-broken aluminium design, inspired by Reynaers MasterLine 8.
+ // 53 mm is the visible frame face, 77 mm the construction depth: they are NOT interchangeable.
+ // This is a presentation approximation, not a fabricator's shop drawing.
  const sill=o.sill??.83,head=o.head??2.40;
- const bottom=sill+.02,top=head-.02;
  if(!(sill>=.08&&head<=H-.10&&head-sill>1))throw Error('Invalid window height');
+ const visibleFrame=.053,depth=.077,glassThickness=.018;
+ const windowSpan=end-start,mid=(start+end)/2,windowHeight=head-sill;
+ const mainExterior=thickness>=.35&&(
+   (axis==='x'&&Math.abs(z1)>=5.45)||
+   (axis==='z'&&(x1<.35||x1>18.65))
+ );
+ // Place the glazing toward the OUTSIDE of a 400 mm wall.
+ // The deep interior reveal leaves physical room for a proper windowsill.
+ let outward=0;
+ if(mainExterior)outward=axis==='x'?Math.sign(z1)*(thickness/2-.095):
+   (x1<9.5?-1:1)*(thickness/2-.095);
+ const windowX=axis==='x'?x1+sign*mid:x1+outward;
+ const windowZ=axis==='z'?z1+sign*mid:z1+outward;
+ function slimPart(at,y,width,height,profileDepth,matRef){
+  if(width<=0||height<=0)return;
+  const px=axis==='x'?x1+sign*at:x1+outward;
+  const pz=axis==='z'?z1+sign*at:z1+outward;
+  box(model,px,y,pz,
+    axis==='x'?width:profileDepth,height,axis==='z'?width:profileDepth,matRef,false);
+ }
+ // Only wall portions below and above the aperture remain solid.
  piece(start,end,0,sill,material);
  piece(start,end,head,H,material);
- piece(start,start+.065,sill,head,mat.black);
- piece(end-.065,end,sill,head,mat.black);
- piece(start+.065,end-.065,bottom,top,mat.glass);
- // Horizontal frame only at actual head/sill (not across the centre).
- piece(start,end,sill,sill+.048,mat.black);
- piece(start,end,head-.048,head,mat.black);
- // Separate upright frames respect the aperture height and width.
- const sections=Math.max(2,Math.round((end-start)/.86));
+ // Actual thin-window construction instead of filling the entire 400 mm
+ // reveal with thick black blocks as in previous versions.
+ slimPart(mid,(head+sill)/2,windowSpan-visibleFrame*2,windowHeight-visibleFrame*2,glassThickness,mat.glass);
+ slimPart(start+visibleFrame/2,(head+sill)/2,visibleFrame,windowHeight,depth,windowAluminium);
+ slimPart(end-visibleFrame/2,(head+sill)/2,visibleFrame,windowHeight,depth,windowAluminium);
+ slimPart(mid,sill+visibleFrame/2,windowSpan,visibleFrame,depth,windowAluminium);
+ slimPart(mid,head-visibleFrame/2,windowSpan,visibleFrame,depth,windowAluminium);
+ // Approx. 50 mm sightline at vertical mullions; three sections for
+ // 2.30 m and 3.00 m windows, two for the smaller bedroom window.
+ const sections=Math.max(2,Math.ceil(windowSpan/1.08));
  for(let p=1;p<sections;p++){
-  const at=start+(end-start)*p/sections;
-  const px=axis==='x'?x1+sign*at:x1;
-  const pz=axis==='z'?z1+sign*at:z1;
-  box(model,px,(head+sill)/2,pz,axis==='x'?.042:thickness+.025,head-sill-.05,axis==='z'?.042:thickness+.025,mat.black,false);
+  const at=start+windowSpan*p/sections;
+  slimPart(at,(head+sill)/2,.050,windowHeight-visibleFrame*2,depth,windowAluminium);
  }
- // Slim upper transom, visible in the photograph of the actual living room.
+ // Upper horizontal division on the three tall photographed front windows.
  if(o.transom){
-   const railY=head-.43;
-   piece(start,end,railY,railY+.034,mat.black);
+  slimPart(mid,head-.43,windowSpan-visibleFrame,.043,depth,windowAluminium);
  }
+ // Windowsill at the actual bottom of the opening, with ~140–160 mm
+ // projection inside the main house; the 280 mm tall base wall is retained.
+ const inward=mainExterior?(axis==='x'?-Math.sign(z1):(x1<9.5?1:-1)):0;
+ const sillDepth=thickness+(mainExterior?.16:.08);
+ const centerShift=inward*(mainExterior?.08:0);
+ const ledgeX=axis==='x'?x1+sign*mid:x1+centerShift;
+ const ledgeZ=axis==='z'?z1+sign*mid:z1+centerShift;
+ box(model,ledgeX,sill-.012,ledgeZ,
+  axis==='x'?windowSpan+.10:sillDepth,.036,
+  axis==='z'?windowSpan+.10:sillDepth,windowSillMaterial,false);
 }
 }
 }
@@ -1049,8 +1083,8 @@ rooms.filter(r=>!['courtyard'].includes(r.id)).forEach(label);
 let roomID='living',night=false,playing=false,playTime=0,playIndex=0,labelsOn=true,infoOn=false,qualityMode='auto',cleanView=false;
 const tourRooms=['living','kitchen','hallway','stair','bedroom','bathroom','wardrobe','summer','garage','courtyard'];
 const descriptions={
-living:'Зал 54 м². Одна дверь из коридора. Два широких окна во двор по 2,30 м. По фото сделаны низкие подоконники около 28 см и высокие окна примерно 2,91 м; точные вертикальные размеры ещё необходимо сверить.',
-kitchen:'Кухня 30,20 м². Одна дверь из коридора и одно окно во двор шириной 3,00 м. Высота подоконника ~28 см, окно ~2,91 м, как в зале; точные отметки высоты уточняются.',
+living:'Зал 54 м². Два окна по 2,30 м. Тонкая алюминиевая рамка около 53 мм, глубина профиля около 77 мм; светлый внутренний подоконник. Высота окон и отметка подоконника пока оценочные.',
+kitchen:'Кухня 30,20 м². Одно окно шириной 3,00 м, тонкий алюминиевый профиль и каменный подоконник. Высота стекла около 2,91 м, нижний край около 28 см от чистого пола — предварительно.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
 stair:'П-образная лестница: подъём справа. Правый марш смещён к центру, перила вдоль правой стены убраны; к двери гардеробной/кладовой сохранён проход около 0,9 м по геометрии модели.',
 bedroom:'Спальня 21,84 м². По обновлённому проекту окно перенесено на левую (западную) наружную стену. Ширина 1,65 м пока предварительная; мебель — концепция.',
@@ -1542,7 +1576,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=40');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=41');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
