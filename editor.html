@@ -279,8 +279,8 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.1</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.2</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -503,7 +503,31 @@ function restoreCheckpoint(){
   status('Контрольная копия восстановлена');
  }catch(e){status('Не удалось вернуть копию: '+e.message)}
 }
+function restoreEmergency(){
+ try{
+  const available=[['Перед импортом',BEFORE_IMPORT],['Перед сбросом',BEFORE_RESET]]
+   .filter(([,key])=>localStorage.getItem(key));
+  if(!available.length){status('Аварийных копий пока нет');return}
+  let chosen=available[0];
+  if(available.length===2){
+   const answer=prompt('Выбери копию: 1 — перед импортом; 2 — перед сбросом','1');
+   if(answer===null)return;
+   chosen=available[Number(answer)-1];
+   if(!chosen){status('Выбери 1 или 2');return}
+  }
+  const restored=JSON.parse(localStorage.getItem(chosen[1]));validate(restored);
+  if(!confirm('Восстановить «'+chosen[0]+'»? Текущая версия перейдёт в контрольную копию.'))return;
+  localStorage.setItem(CHECKPOINT,JSON.stringify(state));
+  state=restored;selected=null;history=[JSON.stringify(state)];historyAt=0;
+  saveState();syncActions();refreshAll();fitPlan();
+  status('Восстановлена версия: '+chosen[0]);
+ }catch(err){status('Ошибка аварийного восстановления: '+err.message)}
+}
 function push(){if(loading)return;
+ try{validate(state)}catch(err){
+  try{state=JSON.parse(history[historyAt]);selected=null;refreshAll()}catch(_){}
+  status('Изменение отменено: '+err.message);return;
+ }
  processSceneValidation(true);
  const conflicts=refreshOpeningReport();
  if(conflicts.length)toastManager.show(conflicts[0],'warning');
@@ -654,8 +678,15 @@ const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
 if(isStair){
  const g=stairGeometry(o);
  ctx.restore();ctx.save();ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+ const thirdEnd=g.front+g.backRun*g.visibleLastN/g.lastN;
  const rs=[[g.right-g.w,g.right,g.front,g.front+o.lower],
-  [g.left,g.right,g.rear,g.front],[g.left,g.left+g.w,g.front,g.front+g.backRun]];
+  [g.left,g.right,g.rear,g.front],[g.left,g.left+g.w,g.front,thirdEnd]];
+ // A different fill distinguishes the second-floor slab from visible stairs.
+ if(thirdEnd<g.front+g.backRun-.01){
+  const landing=planPoint(g.left,thirdEnd);
+  ctx.fillStyle='#b8b3aa';
+  ctx.fillRect(landing.x,landing.y,g.w*scale,(g.front+g.backRun-thirdEnd)*scale);
+ }
  ctx.fillStyle='#d5c7ae';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';
  ctx.lineWidth=o.id===selected?3:1.5;
  for(const [xa,xb,za,zb] of rs){
@@ -670,7 +701,7 @@ if(isStair){
  ctx.fillStyle='#334';ctx.font='bold 11px system-ui';ctx.textAlign='center';
  let p1=planPoint(g.right-g.w/2,g.front+o.lower*.5);ctx.fillText('1',p1.x,p1.y);
  let p2=planPoint((g.right+g.left)/2,(g.rear+g.front)/2);ctx.fillText('2',p2.x,p2.y);
- let p3=planPoint(g.left+g.w/2,g.front+g.backRun*.5);ctx.fillText('3',p3.x,p3.y);
+ let p3=planPoint(g.left+g.w/2,g.front+(thirdEnd-g.front)*.5);ctx.fillText('3',p3.x,p3.y);
  ctx.restore();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
 }else{
  ctx.fillRect(-width/2,-depth/2,width,depth);
@@ -1637,6 +1668,7 @@ $('moveMode').onclick=()=>mode('translate');$('rotateMode').onclick=()=>mode('ro
 $('undo').onclick=()=>applyHistory(historyAt-1);$('redo').onclick=()=>applyHistory(historyAt+1);$('save').onclick=saveState;
 $('snapshot').onclick=makeCheckpoint;
 $('restoreSnapshot').onclick=restoreCheckpoint;
+$('restoreEmergency').onclick=restoreEmergency;
 $('restoreDefault').onclick=()=>{
  if(!confirm('Сбросить весь дом к исходной модели? Перед сбросом создаётся аварийная копия в браузере. Рекомендуем также скачать JSON.'))return;
  try{localStorage.setItem(BEFORE_RESET,JSON.stringify(state))}catch(e){status('Не удалось создать аварийную копию: '+e.message);return}
@@ -1650,6 +1682,8 @@ $('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
 try{
  if(file.size>2e6)throw Error('Файл слишком большой');
  const d=JSON.parse(await file.text());validate(d);
+ const summary=d.rooms.length+' помещений, '+d.walls.length+' стен, '+d.openings.length+' проёмов, '+d.stairs.length+' лестниц.';
+ if(!confirm('Загрузить проект «'+String(d.title||'Без названия').slice(0,80)+'»?\\n'+summary+'\\nТекущая модель сохранится в аварийной копии.'))return;
  localStorage.setItem(BEFORE_IMPORT,JSON.stringify(state));
  state=d;selected=null;history=[JSON.stringify(state)];historyAt=0;
  saveState();syncActions();refreshAll();fitPlan();
