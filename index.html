@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V12</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V13</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -199,17 +199,26 @@ segmented(19.03,-5.7,19.03,5.7,[]);
 segmented(0,-.95,9.6,-.95,[],mat.wall);
 // The living room has precisely ONE doorway on its corridor-facing EAST wall.
 // Do not model a separate swing-door leaf here: it was being perceived as an extra door.
-segmented(9.6,-5.7,9.6,5.7,[{at:7.7,width:1.45,kind:'door',leaf:false}],mat.wall);
+// Hall-to-living-room door ONLY at z≈2.0. A SECOND aperture on the same line,
+ // facing the left-hand bedroom/bath circulation passage, is deliberately open.
+ // Keep separate apertures: never merge with the living room entry.
+segmented(9.6,-5.7,9.6,5.7,[
+ {at:3.68,width:1.15,kind:'door',leaf:false}, // from stair hall into left-side bedroom vestibule (z=-2.02..-0.87)
+ {at:7.7,width:1.45,kind:'door',leaf:false}    // living room from main hall (z=2.00..3.45)
+],mat.wall);
 segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
 // Kitchen has ONE entrance only from the central corridor (west wall).
 // Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
 segmented(13.52,-1.05,19.03,-1.05,[],mat.wall);
-segmented(5.8,-5.7,5.8,-1.05,[{at:2.4,width:.92,kind:'door'}],mat.wall);
+// Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
+segmented(5.8,-5.7,5.8,-1.05,[{at:3.63,width:.95,kind:'door',leaf:false}],mat.wall);
 segmented(8.85,-5.7,8.85,-1.05,[{at:3.25,width:.92,kind:'door'}],mat.wall);
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
-segmented(5.8,-2.15,9.6,-2.15,[{at:1.4,width:1.0,kind:'door'}],mat.wall);
+// Bath wall remains, but accessible passage and stair junction stay open.
+ // The short dividing wall contains only the bathroom access door.
+segmented(5.8,-2.15,9.6,-2.15,[{at:1.35,width:1.05,kind:'door',leaf:false}],mat.wall);
 // Detached boiler room, behind the kitchen/wardrobe block
 slab(17.35,-7.55,3.1,2.8,mat.tile);
 segmented(15.7,-8.9,19.03,-8.9);
@@ -244,42 +253,62 @@ box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
-// U-shaped stair: from the front entry looking toward the rear, ASCENT BEGINS ON THE RIGHT.
-// Source orientation confirmed by owner: right flight rises from foyer to rear landing,
-// left flight is the return flight rising back toward the front.
+// Redesigned LIGHT OPEN stair: bottom flight on RIGHT as seen from main entry.
+// The left side of stair hall remains visually clear and usable to reach the bedroom vestibule.
+// Individual treads on slender metal stringers replace the old opaque triangular step masses.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
-const ST=0.17, TREAD=0.300, FIRST=11, LEFT=10.45, RIGHT=12.42, START=-1.35;
-const stairMat=M('#c2bdb3'), railMat=M('#68777b',.45,.45);
+const ST=.17, TREAD=.300, FIRST=11, LEFT=10.48, RIGHT=12.40, START=-1.35;
+const stairMat=mat.steps, railMat=M('#657378',.38,.48);
 const BACK=START-FIRST*TREAD;
-// First flight on the RIGHT: bottom near entrance, top toward back.
+function stairTread(x,y,z,width=1.32){
+ box(stairsGroup,x,y-.055,z,width,.11,TREAD-.025,stairMat);
+ // narrow concealed riser lip only, not floor-height infill
+ box(stairsGroup,x,y-.117,z+TREAD*.42,width,.065,.026,mat.edge,false);
+}
+// Right flight goes upward toward the rear.
 for(let i=0;i<FIRST;i++){
  const z=START-(i+.5)*TREAD;
- const elev=(i+1)*ST;
- box(stairsGroup,RIGHT,elev/2,z,1.42,elev,TREAD-.016,stairMat);
+ const y=(i+1)*ST;
+ stairTread(RIGHT,y,z);
 }
-// Intermediate return landing.
-box(stairsGroup,(LEFT+RIGHT)/2,1.83,BACK-.43,3.33,.14,.82,stairMat);
-// Second flight on LEFT: from rear landing toward the front, continuing upward.
+// Mid-platform turns from right to left at the rear.
+box(stairsGroup,(LEFT+RIGHT)/2,FIRST*ST-.075,BACK-.42,3.30,.15,.84,stairMat);
+// Upper left return flight continues toward the front.
+// Its underside remains OPEN, allowing visual access to the left-hand passage.
 for(let i=0;i<FIRST;i++){
  const z=BACK+(i+.5)*TREAD;
- const elev=(FIRST+i+1)*ST;
- box(stairsGroup,LEFT,elev/2,z,1.42,elev,TREAD-.016,stairMat);
+ const y=(FIRST+i+1)*ST;
+ stairTread(LEFT,y,z);
 }
-// Outer handrails on right of first flight and left of return flight.
+// Slim supporting side stringers, parallel to both runs.
+function stringer(x,fromZ,toZ,fromY,toY){
+ const midZ=(fromZ+toZ)/2,midY=(fromY+toY)/2;
+ const len=Math.hypot(toZ-fromZ,toY-fromY);
+ const beam=box(stairsGroup,x,midY,midZ,.075,.15,len,railMat,false);
+ beam.rotation.x=-Math.atan2(toY-fromY,toZ-fromZ);
+}
+stringer(RIGHT-.61,START, BACK, .08,1.95);
+stringer(RIGHT+.61,START, BACK, .08,1.95);
+stringer(LEFT-.61,BACK,START,1.95,3.82);
+stringer(LEFT+.61,BACK,START,1.95,3.82);
+// Rails mounted above treads, not at ground level across circulation openings.
 for(let i=0;i<FIRST;i++){
  const z1=START-(i+.5)*TREAD;
  const z2=BACK+(i+.5)*TREAD;
- box(stairsGroup,RIGHT+.74,(i+1)*ST+.46,z1,.045,.92,.045,railMat);
- box(stairsGroup,LEFT-.74,(FIRST+i+1)*ST+.46,z2,.045,.92,.045,railMat);
+ const h1=(i+1)*ST,h2=(FIRST+i+1)*ST;
+ box(stairsGroup,RIGHT+.71,h1+.45,z1,.035,.9,.035,railMat);
+ box(stairsGroup,LEFT-.71,h2+.45,z2,.035,.9,.035,railMat);
 }
-for(let i=0;i<2;i++){
- const x=i===0?RIGHT+.74:LEFT-.74;
- const hand=box(stairsGroup,x,i===0?1.68:3.45,(START+BACK)/2,.055,.07,3.65,railMat);
- hand.rotation.x=i===0?-.50:.50;
+function handRail(x,z1,z2,y1,y2){
+ const l=Math.hypot(z2-z1,y2-y1);
+ const rail=box(stairsGroup,x,(y1+y2)/2,(z1+z2)/2,.055,.06,l,railMat,false);
+ rail.rotation.x=-Math.atan2(y2-y1,z2-z1);
 }
-for(let j=0;j<7;j++)box(stairsGroup,LEFT-.58+j*.3,2.38,BACK-.72,.042,1.1,.042,railMat);
-box(stairsGroup,(LEFT+RIGHT)/2,2.94,BACK-.72,3.1,.075,.075,railMat);
-// Open hall continues from the main entrance directly to the bottom of the RIGHT flight.
+handRail(RIGHT+.71,START,BACK,1.1,2.97);
+handRail(LEFT-.71,BACK,START,2.97,4.84);
+for(let j=0;j<8;j++)box(stairsGroup,LEFT-.56+j*.28,2.37,BACK-.75,.035,.98,.035,railMat);
+box(stairsGroup,(LEFT+RIGHT)/2,2.90,BACK-.75,3.2,.055,.055,railMat);
+// No vertical infill panels or railing across the hall-side landing entry.
 
 // Rear wardrobe, wall to wall shelving
 for(let xx of [14.20,18.16]){box(model,xx,1.02,-3.25,.45,2.05,3.2,mat.wood);
@@ -351,8 +380,8 @@ const tourRooms=['living','kitchen','hallway','stair','bedroom','bathroom','ward
 const descriptions={
 living:'Зал 54 м². Одна дверь из коридора. Два окна на переднем фасаде.',
 kitchen:'Кухня 30,20 м². Только одна дверь из коридора и одно окно во двор.',
-hallway:'Коридор с непрерывным открытым проходом до лестницы.',
-stair:'Лестница П-образная. Подъём начинается справа при взгляде от входа.',
+hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
+stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
 bedroom:'Спальня 21,84 м². Отделка и мебель иллюстративны.',
 bathroom:'Ванная 9,38 м². Сантехника и материалы концептуальные.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
@@ -432,7 +461,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=12';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=13';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
