@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.8</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.9</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -382,7 +382,8 @@ mkOpen('bedWindow','window','Спальня · слева','west',2.3,1.65,.83,2
 mkOpen('livingD','door','Дверь зала 70+70','livingHall',2.9,1.4,0,2.2,2),
 mkOpen('kitchenD','door','Дверь кухни 70+70','kitchenHall',2.2,1.4,0,2.2,2),
 mkOpen('wardrobeD','door','Дверь кладовой','stairRight',3.14,1.12,0,2.2,1),
-mkOpen('bedD','door','Дверь спальни','stairLeft',3.43,.95,0,2.2,1),
+mkOpen('stairArch','passage','Открытый проход в спальню','stairLeft',3.43,.95,0,3.44,1),
+mkOpen('bedD','door','Дверь спальни','bedroomRight',3.43,.95,0,2.2,1),
 mkOpen('bathD','door','Дверь ванной','bathFront',1.575,1,0,2.2,1)
 ];
 const rooms=[
@@ -464,7 +465,7 @@ function quickFieldsFor(o){
  if(o.type==='stair')return ['x','z','width','lower','upper','returnRun','back','rot'];
  if(['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(o.type))return ['x','z','w','d','rot'];
  if(o.type==='wall')return ['x1','z1','x2','z2','t'];
- if(o.type==='door'||o.type==='window')return ['offset','width','sill','head'].filter(k=>k in o);
+ if(o.type==='door'||o.type==='window'||o.type==='passage')return ['offset','width','sill','head'].filter(k=>k in o);
  return ['x','z','w','h'].filter(k=>k in o);
 }
 function commitInspectorProperty(id,key,value){
@@ -473,7 +474,7 @@ function commitInspectorProperty(id,key,value){
  const val=key==='color'?value:Number(value);
  if(key!=='color'&&!Number.isFinite(val)){status('Введи корректное число');return}
  obj[key]=key==='rot'?val*Math.PI/180:val;
- if(obj.type==='door'||obj.type==='window'){
+ if(obj.type==='door'||obj.type==='window'||obj.type==='passage'){
   const w=wallFor(obj);
   if(w){
    obj.width=clamp(obj.width,.4,wallLength(w)-.05);
@@ -516,7 +517,7 @@ const o=find(selected);$('selectedTitle').textContent=o?'Выбрано: '+o.nam
 if(!o){$('inspector').innerHTML='<p class="hint">Нажми на объект в 2D или 3D. Стены можно двигать за углы, двери и окна — вдоль стены.</p>';return}
 let fields=['x','z','w','d','h','rot','color'];
 if(o.type==='wall')fields=['x1','z1','x2','z2','t'];
-if(o.type==='door'||o.type==='window')fields=['offset','width',...(o.type==='door'?['head','leaves']:['sill','head'])];
+if(o.type==='door'||o.type==='window'||o.type==='passage')fields=['offset','width',...(o.type==='door'?['head','leaves']:['sill','head'])];
 if(o.type==='stair')fields=['x','z','width','lower','upper','returnRun','back','rot'];
 if(state.rooms.some(r=>r.id===selected))fields=['x','z','w','h'];
 $('inspector').innerHTML='<label>Название<input id="editName" value="'+label(o.name)+'"></label><div class="fields">'+fields.map(k=>inspectorField(o,k)).join('')+'</div><div class="actions" style="margin-top:10px"><button id="focusObject">Показать</button><button id="removeObject">Удалить</button></div>';
@@ -562,7 +563,7 @@ for(const o of state.openings){
 const wall=wallFor(o);if(!wall)continue;const p=offsetPoint(wall,o.offset),a=planPoint(p.x,p.z);
 const ang=Math.atan2(wall.z2-wall.z1,wall.x2-wall.x1);
 ctx.save();ctx.translate(a.x,a.y);ctx.rotate(ang);ctx.fillStyle='#f0eee9';ctx.fillRect(-o.width*scale/2,-7,o.width*scale,14);
-ctx.strokeStyle=o.id===selected?'#d27626':o.type==='window'?'#3f98ba':'#9d7757';ctx.lineWidth=o.id===selected?5:3;ctx.beginPath();ctx.moveTo(-o.width*scale/2,0);ctx.lineTo(o.width*scale/2,0);ctx.stroke();ctx.restore();
+ctx.strokeStyle=o.id===selected?'#d27626':o.type==='window'?'#3f98ba':o.type==='passage'?'#6a9c7c':'#9d7757';ctx.lineWidth=o.id===selected?5:3;ctx.beginPath();ctx.moveTo(-o.width*scale/2,0);ctx.lineTo(o.width*scale/2,0);ctx.stroke();ctx.restore();
 }
 for(const o of [...state.furniture,...state.stairs]){
 const p=planPoint(o.x,o.z);const isStair=o.type==='stair';ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
@@ -765,7 +766,10 @@ cursor=Math.max(cursor,o.end);
 span(cursor,len);
 root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
 for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
-if(o.type==='window'){
+if(o.type==='passage'){
+ // Open architectural passage: wall opening with a 30cm lintel below ceiling.
+ // Intentionally no door leaf, frame, or trim.
+}else if(o.type==='window'){
 const isStairWindow=o.id==='stairWindow';
 const m=meshMat(isStairWindow?'#333b41':'#394952',.37,.24),
  glass=new THREE.MeshPhysicalMaterial({
@@ -1464,16 +1468,27 @@ try{
  const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');
  if(saved){
   validate(saved);state=saved;
-  // Restore the original bedroom door to the left wall of the stair hall.
-  // Move only the known misplaced default, preserving user-customized doors.
+  // As-built layout: an open passage in the stair hall with a 30cm lintel,
+  // followed by a real bedroom door farther inside, on bedroomRight.
+  // Correct only the previous default door geometry; keep manual placements.
   const bedroomDoor=state.openings.find(o=>o.id==='bedD'&&o.type==='door');
-  if(bedroomDoor&&bedroomDoor.wall==='bedroomRight'&&
-     Math.abs(bedroomDoor.offset-3.43)<.001&&
-     Math.abs(bedroomDoor.width-.95)<.001){
-   bedroomDoor.wall='stairLeft';
-   validate(state);
-   localStorage.setItem(STORAGE,JSON.stringify(state));
+  if(bedroomDoor&&bedroomDoor.wall==='stairLeft'&&
+     Math.abs(bedroomDoor.offset-3.43)<.001&&Math.abs(bedroomDoor.width-.95)<.001){
+   bedroomDoor.wall='bedroomRight';
   }
+  const oldArch=state.openings.find(o=>o.id==='stairArch');
+  if(!oldArch&&!state.openings.some(o=>o.wall==='stairLeft'&&
+      Math.abs(o.offset-3.43)<.001&&o.type!=='passage')){
+   state.openings.push(mkOpen('stairArch','passage','Открытый проход в спальню',
+       'stairLeft',3.43,.95,0,state.height-.30,1));
+  }
+  // If a previous build still has a door at this arch, remove its leaf,
+  // but only for the known original placement.
+  const misplaced=state.openings.find(o=>o.id==='bedD'&&o.wall==='stairLeft'&&
+       Math.abs(o.offset-3.43)<.001);
+  if(misplaced){misplaced.wall='bedroomRight';}
+  validate(state);
+  localStorage.setItem(STORAGE,JSON.stringify(state));
   // One-time non-destructive shortening of the first staircase run by 35 cm.
   // Do not replace customized lengths or modify other project objects.
   const stair=state.stairs.find(o=>o.id==='stair1');
