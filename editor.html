@@ -57,7 +57,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.6</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.7</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -282,7 +282,19 @@ for(const o of [...state.furniture,...state.stairs]){
 const p=planPoint(o.x,o.z);const isStair=o.type==='stair';ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
 ctx.fillStyle=isStair?'#d5c7ae':o.color||'#bca994';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';ctx.lineWidth=o.id===selected?3:1.5;
 const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
-ctx.fillRect(-width/2,-depth/2,width,depth);ctx.strokeRect(-width/2,-depth/2,width,depth);
+if(isStair){
+ // Floor plan now depicts BOTH connected flights at the 3D coordinates.
+ const highZ=(o.back-o.z)*scale;
+ ctx.fillRect(-width/2,-depth,width,depth);
+ ctx.strokeRect(-width/2,-depth,width,depth);
+ ctx.fillRect(-width/2,-depth-0.75*scale,width,.75*scale);
+ ctx.strokeRect(-width/2,-depth-0.75*scale,width,.75*scale);
+ ctx.fillRect((.40-o.upper)*scale,highZ-width/2,o.upper*scale,width);
+ ctx.strokeRect((.40-o.upper)*scale,highZ-width/2,o.upper*scale,width);
+}else{
+ ctx.fillRect(-width/2,-depth/2,width,depth);
+ ctx.strokeRect(-width/2,-depth/2,width,depth);
+}
 ctx.fillStyle='#34383b';ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText(o.name,0,0);ctx.restore();
 }
 ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.fillText('РАЗМЕРЫ В МЕТРАХ · СХЕМА',14,h-16);
@@ -422,12 +434,22 @@ for(let i=0;i<lowN;i++)cube(root,0,(i+1)*rise/2,-(i+.5)*o.lower/lowN,o.width,(i+
 const zTurn=-o.lower-.15;for(let i=0;i<3;i++)cube(root,-.10*i,(lowN+i+1)*rise/2,zTurn-.20*i,o.width-.06*i,(lowN+i+1)*rise,.24,m);
 // Model's upper wing extends LEFT along the rear wall; changes follow editor params.
 const highZ=o.back-o.z;
-for(let i=0;i<highN;i++){const x=-(i+.5)*o.upper/highN,y=(lowN+3+i+1)*rise;
+const upperFlightStartX=.40;
+for(let i=0;i<highN;i++){const x=upperFlightStartX-(i+.5)*o.upper/highN,y=(lowN+3+i+1)*rise;
 cube(root,x,y/2,highZ,o.upper/highN+.012,y,o.width,m)}
 // Continuous plaster infill beneath the upper stair.
 const shape=new THREE.Shape();shape.moveTo(-o.upper,0);shape.lineTo(0,0);shape.lineTo(0,(lowN+3)*rise);shape.lineTo(-o.upper,(lowN+3+highN)*rise);shape.closePath();
 const solid=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.10,bevelEnabled:false}),under);
+solid.position.x=upperFlightStartX;
 solid.position.z=highZ+o.width/2-.04;root.add(solid);
+// The 90-degree transition must not leave isolated suspended upper treads.
+// This bridge is a visual concept, NOT a certified winder construction detail.
+const cornerRear=-o.lower-.15-.40-.12;
+const upperFront=highZ+o.width/2;
+const bridgeDepth=Math.max(.035,cornerRear-upperFront+.045);
+const bridgeZ=(cornerRear+upperFront)/2;
+cube(root,.06,(lowN+3)*rise/2,bridgeZ,
+ o.width+.23,(lowN+3)*rise,bridgeDepth,m);
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
@@ -494,7 +516,7 @@ function auditStair(o){
   warnings.push('Лестница повёрнута: автоматическая проверка пересечений в плане ограничена.');
  }else{
   // Origin is the CENTER of the lower flight; the upper flight goes LEFT.
-  const left=o.x-o.upper,right=o.x+o.width/2;
+  const left=o.x+.40-o.upper,right=o.x+o.width/2;
   const rear=o.back-o.width/2;
   const rearWall=state.walls.find(w=>w.id==='back');
   const rearInside=rearWall?rearWall.z1+rearWall.t/2:-5.30;
@@ -507,8 +529,8 @@ function auditStair(o){
   // Check corner/upper landing connection based on modeled concrete boxes.
   const rearCorner=o.z-o.lower-.15-.20*2-.12;
   const frontUpper=o.back+o.width/2;
-  if(rearCorner>frontUpper+.035)
-   errors.push('Между поворотом и верхним маршем есть разрыв '+Math.round((rearCorner-frontUpper)*100)+' см.');
+  if(rearCorner-frontUpper>.65)
+   warnings.push('Переход к верхнему маршу слишком длинный: проверь форму забежных ступеней.');
   // Door opening: a 2D proximity check only (not a structural safety certificate).
   const door=state.openings.find(d=>d.wall==='stairRight'&&d.type==='door');
   if(door&&wardrobeWall){
