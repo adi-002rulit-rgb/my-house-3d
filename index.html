@@ -75,7 +75,7 @@ body:not(.technical) #studio button{min-width:110px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V26</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V27</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -144,6 +144,7 @@ body:not(.technical) #studio button{min-width:110px}
 <label for="clientDoorTarget">Для какого помещения</label>
 <select id="clientDoorTarget">
 <option value="all">Все комнаты</option><option value="living">Зал</option>
+<option value="livingWindows">Окна зала · низкий подоконник</option>
 <option value="kitchen">Кухня</option><option value="bedroom">Спальня</option>
 <option value="bathroom">Ванная</option><option value="wardrobe">Гардеробная</option>
 </select>
@@ -409,20 +410,31 @@ const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
 if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
 else{
- piece(start,end,0,.83,material);
- piece(start,end,2.4,H,material);
- piece(start,start+.065,.83,2.4,mat.black);
- piece(end-.065,end,.83,2.4,mat.black);
- piece(start+.07,end-.07,.85,2.37,mat.glass);
- piece(start,end,1.6,1.65,mat.black);
- // Mullions scale with the physical opening width: three panels for 2.3 m,
- // and three generously sized ~1 m panels for the 3.0 m kitchen window.
- const sections=Math.max(2,Math.round((end-start)/.98));
+ // Vertical geometry is per-window. The living-room glazing uses the real
+ // photographed low sill and tall proportions; other windows keep defaults.
+ const sill=o.sill??.83,head=o.head??2.40;
+ const bottom=sill+.02,top=head-.02;
+ if(!(sill>=.08&&head<=H-.10&&head-sill>1))throw Error('Invalid window height');
+ piece(start,end,0,sill,material);
+ piece(start,end,head,H,material);
+ piece(start,start+.065,sill,head,mat.black);
+ piece(end-.065,end,sill,head,mat.black);
+ piece(start+.065,end-.065,bottom,top,mat.glass);
+ // Horizontal frame only at actual head/sill (not across the centre).
+ piece(start,end,sill,sill+.048,mat.black);
+ piece(start,end,head-.048,head,mat.black);
+ // Separate upright frames respect the aperture height and width.
+ const sections=Math.max(2,Math.round((end-start)/.86));
  for(let p=1;p<sections;p++){
   const at=start+(end-start)*p/sections;
   const px=axis==='x'?x1+sign*at:x1;
   const pz=axis==='z'?z1+sign*at:z1;
-  box(model,px,1.625,pz,axis==='x'?.042:thickness+.025,1.53,axis==='z'?.042:thickness+.025,mat.black,false);
+  box(model,px,(head+sill)/2,pz,axis==='x'?.042:thickness+.025,head-sill-.05,axis==='z'?.042:thickness+.025,mat.black,false);
+ }
+ // Slim upper transom, visible in the photograph of the actual living room.
+ if(o.transom){
+   const railY=head-.43;
+   piece(start,end,railY,railY+.034,mat.black);
  }
 }
 }
@@ -468,8 +480,8 @@ segmented(.2,-5.5,18.83,-5.5,[
 // kitchen 955 + 3000 + 955 = 4910 mm.
 // 'at' is measured relative to x=.20, the exterior wall segment start.
 segmented(.2,5.5,18.83,5.5,[
-{at:1.85,width:2.30,kind:'window'}, // living window 1 x=2.05..4.35
-{at:5.25,width:2.30,kind:'window'}, // living window 2 x=5.45..7.75
+{at:1.85,width:2.30,kind:'window',sill:.28,head:3.19,transom:true}, // living 1: low glazing, 2.91 m tall; provisional vertical levels from photo
+{at:5.25,width:2.30,kind:'window',sill:.28,head:3.19,transom:true}, // living 2: same low sill and tall glazing
 {at:10.21,width:2.30,kind:'door',glass:true}, // entrance x=10.41..12.71
 {at:14.475,width:3.00,kind:'window'} // ONLY kitchen window x=14.675..17.675
 ],exteriorInteriorFaces('front'),.4);
@@ -832,7 +844,7 @@ rooms.filter(r=>!['courtyard'].includes(r.id)).forEach(label);
 let roomID='living',night=false,playing=false,playTime=0,playIndex=0,labelsOn=true,infoOn=false,qualityMode='auto',cleanView=false;
 const tourRooms=['living','kitchen','hallway','stair','bedroom','bathroom','wardrobe','summer','garage','courtyard'];
 const descriptions={
-living:'Зал 54 м². Одна дверь из коридора. Два окна во двор по 2,30 м каждое (по чертежу).',
+living:'Зал 54 м². Одна дверь из коридора. Два широких окна во двор по 2,30 м. По фото сделаны низкие подоконники около 28 см и высокие окна примерно 2,91 м; точные вертикальные размеры ещё необходимо сверить.',
 kitchen:'Кухня 30,20 м². Одна дверь из коридора и одно окно во двор шириной 3,00 м (по чертежу). Высота окна уточняется.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
 stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
@@ -936,7 +948,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=26';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=27';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -1145,6 +1157,13 @@ function clientCamera(v){
  bedroomWindowFocus.visible=(v==='bedroomWindowInside'||v==='bedroomWindowOutside');
  if(v==='general'){overview();}
  else if(v==='courtyard'){enter('courtyard')}
+ else if(v==='livingWindows'){
+  enter('living');
+  // The two windows lie on the courtyard (+Z) wall. Face that wall.
+  camera.position.set(4.92,1.65,1.75);
+  yaw=Math.PI;pitch=0;camera.rotation.set(0,yaw,0,'YXZ');
+  E('status').textContent='Зал · панорамные окна с низким подоконником';
+ }
  else if(v==='bedroomWindowInside'){
    enter('bedroom');
    // Positive yaw looks toward -X, directly toward the new LEFT wall window.
