@@ -278,9 +278,20 @@ label {color:#d1d1d8}
 @media(prefers-reduced-motion:reduce){
  #quickInspector{animation:none}
 }
+/* Full-screen-like focus mode: works on iOS without the Fullscreen API. */
+body.focus3d .shell{display:block;height:auto}
+body.focus3d .left,body.focus3d .rightPanel{display:none!important}
+body.focus3d .center{height:calc(100dvh - 130px);min-height:340px;width:100%}
+body.focus3d .views{display:block!important;height:100%}
+body.focus3d #pane2d{display:none!important}
+body.focus3d #pane3d{display:block!important;height:100%;width:100%}
+body.focus3d header .right button:not(#focusView),
+body.focus3d header .right a{display:none!important}
+body.focus3d #focusView{background:#467a6c}
+@media(max-width:480px){body.focus3d .center{height:calc(100dvh - 115px);min-height:320px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.3</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.4</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -836,7 +847,7 @@ if(!selected||!drag3d)return;const obj=find(selected),root=threeRoots.get(select
 const mode=transform.getMode();
 if(mode==='translate'){
 if(obj.type==='wall'){const dx=root.position.x-drag3d.x1,dz=root.position.z-drag3d.z1;obj.x1=snap(drag3d.x1+dx);obj.z1=snap(drag3d.z1+dz);obj.x2=snap(drag3d.x2+dx);obj.z2=snap(drag3d.z2+dz)}
-else if(obj.type==='door'||obj.type==='window'){
+else if(['door','window','passage'].includes(obj.type)){
 const w=wallFor(obj),len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
 const pt=offsetPoint(w,obj.offset);obj.offset=clamp(snap((root.position.x-w.x1)*ux+(root.position.z-w.z1)*uz),obj.width/2,len-obj.width/2);
 }else{obj.x=snap(root.position.x);obj.z=snap(root.position.z)}
@@ -971,8 +982,12 @@ span(cursor,len);
 root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
 for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
 if(o.type==='passage'){
- // Open architectural passage: opening without a leaf, frame or trim; lintel matches opening.head.
- // Intentionally no door leaf, frame, or trim.
+ // Invisible raycasting surface enables selection of an unframed opening.
+ // It does not render a door or physically close the passage.
+ const proxy=new THREE.Mesh(new THREE.PlaneGeometry(o.width,o.head-o.sill),
+  new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
+ proxy.position.y=(o.head+o.sill)/2;
+ proxy.userData.selectionProxy=true;oroot.add(proxy);
 }else if(o.type==='window'){
 const isStairWindow=o.id==='stairWindow';
 const m=meshMat(isStairWindow?'#333b41':'#394952',.37,.24),
@@ -1565,7 +1580,7 @@ resize3d();
 }
 function update3dObject(o){
  const mesh=threeRoots.get(o.id);
- if(mesh&&o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='room'){
+ if(mesh&&o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='passage'&&o.type!=='room'){
   mesh.position.x=o.x;mesh.position.z=o.z;
  }
  // Walls and openings are reconstructed only when the pointer is released.
@@ -1715,6 +1730,13 @@ $('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push(
 $('baseElevation').onchange=e=>{state.elevation=clamp(+e.target.value,0,1.5);push();refreshAll()};
 for(const [id,mode] of [['planOnly','plan'],['split','split'],['only3d','3d']])$(id).onclick=()=>{const a=$('pane2d'),b=$('pane3d');a.style.display=mode==='3d'?'none':'';b.style.display=mode==='plan'?'none':'';$('views').style.gridTemplateColumns=mode==='split'?'1fr 1fr':'1fr';for(const btn of ['planOnly','split','only3d'])$(btn).classList.toggle('active',btn===id);resize3d();drawPlan()};
 // Screen-relative camera panning. Keeps camera and orbit target at the same distance.
+$('focusView').onclick=()=>{
+ const focus=document.body.classList.toggle('focus3d');
+ $('focusView').textContent=focus?'↩ Весь редактор':'📱 Большой 3D';
+ $('focusView').setAttribute('aria-pressed',String(focus));
+ resize3d();drawPlan();
+ status(focus?'3D увеличен; поверни и приблизь дом жестами':'Панели редактора восстановлены');
+};
 function panCamera(dx,dz,amount=.7){
  if(transform.dragging)return;
  const vx=camera.position.x-orbit.target.x,vz=camera.position.z-orbit.target.z;
