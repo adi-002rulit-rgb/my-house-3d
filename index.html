@@ -110,7 +110,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V31</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V32</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -312,7 +312,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <button id="snapshot">▣ Снимок</button>
 <button id="fullscreen">⛶ Полный экран</button>
 <button id="quality">◈ Качество: авто</button>
-<button id="prevRoom">← Пред. комната</button><button id="nextRoom">След. комната →</button><button id="presentation">◫ Без панелей</button><button id="share">↗ Поделиться</button>
+<button id="prevRoom">← Пред. комната</button><button id="nextRoom">След. комната →</button><button id="presentation">◫ Без панелей</button><button id="share" title="Ссылка сохраняет выбранные стены, пол, двери и ракурс">↗ Поделиться</button>
 </div><div id="auditPanel" hidden><b>Размеры по чертежу · 1-й этаж</b><div id="auditValues"></div><p>Проверка проходов:</p><div class="auditActions"><button data-check="hall">Вход → лестница</button><button data-check="left">Проход слева</button><button data-check="bath">Ванная</button></div><small>Это визуальная проверка, не строительная документация.</small></div><div id="roomInfo"><b id="infoTitle"></b><p id="infoDescription"></p><button id="hideInfo">Закрыть</button></div>
 <div id="toast" role="status"></div><div id="projectMark">Предварительная визуализация · уточняются проёмы и размеры</div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
@@ -984,7 +984,7 @@ function topCamera(){if(current!=='overview')overview();orbit.target.set(7,0,1);
 function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target).multiplyScalar(k).add(orbit.target);orbit.update()}else{camera.fov=Math.max(42,Math.min(75,camera.fov*k));camera.updateProjectionMatrix()}}
 function screenshot(){try{renderer.render(scene,camera);let a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='3d-dom-'+roomID+'.png';a.click();toast('Снимок подготовлен')}catch(e){toast('Сохранение снимка недоступно')}}
 function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false')}
-E('wallColors').onchange=e=>{setInteriorPalette(e.target.value);toast('Цвет внутренних стен: '+(e.target.value==='mix'?'комбинация':interiorSwatches[e.target.value].name))};
+E('wallColors').onchange=e=>{setClientWalls(e.target.value);toast('Цвет внутренних стен: '+(e.target.value==='mix'?'комбинация':interiorSwatches[e.target.value].name))};
 const auditDims=[
  ['Корпус','19,03 × 11,40 м'],
  ['Зал','9,00 × 6,00 м'],
@@ -1040,7 +1040,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=31';
+const url=shareableDesignLink();
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -1301,6 +1301,55 @@ function clientCamera(v){
  else enter(v);
  E('clientView').value=v;syncDesign();
 }
+
+// Save two design concepts locally and reproduce an entire selected design via shared link.
+const SHOWROOM_STORAGE_KEY='my-house-3d-presets-v1';
+function validConcept(d){
+ if(!d||typeof d!=='object')return false;
+ const view=String(d.view||'');
+ return ['linen','cashmere','dove','contrast'].includes(d.style)
+  &&['mix','linen','cashmere','dove','mushroom','char'].includes(d.wall)
+  &&Object.prototype.hasOwnProperty.call(woodChoices,d.floor)
+  &&Object.prototype.hasOwnProperty.call(tileChoices,d.tile)
+  &&(!d.cover||['engineered','solid','laminate','lvt'].includes(d.cover))
+  &&(!d.pattern||['wide','plank','herringbone','chevron'].includes(d.pattern))
+  &&!!E('clientView').querySelector('option[value="'+view.replace(/[^a-zA-Z]/g,'')+'"]');
+}
+function savePresetsToDevice(){
+ try{localStorage.setItem(SHOWROOM_STORAGE_KEY,JSON.stringify({a:conceptA,b:conceptB}))}
+ catch(e){toast('В браузере нельзя сохранить варианты постоянно')}
+}
+function loadPresetsFromDevice(){
+ try{
+  const data=JSON.parse(localStorage.getItem(SHOWROOM_STORAGE_KEY)||'{}');
+  if(validConcept(data.a))conceptA=data.a;
+  if(validConcept(data.b))conceptB=data.b;
+ }catch(e){}
+}
+function shareableDesignLink(){
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=32');
+ url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
+ return url.toString();
+}
+function readSharedDesign(){
+ try{
+  if(!location.hash.startsWith('#design='))return false;
+  const raw=decodeURIComponent(location.hash.slice('#design='.length));
+  if(raw.length>8000)return false;
+  const d=JSON.parse(raw);if(!validConcept(d))return false;
+  if(d.doors){
+   for(const [r,v] of Object.entries(d.doors)){
+    if(!Object.prototype.hasOwnProperty.call(doorAssignments,r)||
+      !v||!['flush','hidden','lines','neo','classic','veneer','slats','glass','frost','accent'].includes(v.design)||
+      !Object.prototype.hasOwnProperty.call(doorColorHex,v.color)||
+      !Object.prototype.hasOwnProperty.call(hardwareHex,v.metal)||
+      !['open','closed','hide'].includes(v.opening))delete d.doors[r];
+   }
+  }
+  applyConcept(d);return true;
+ }catch(e){return false}
+}
+
 function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
@@ -1316,8 +1365,8 @@ E('floorPattern').onchange=e=>{floorPattern=e.target.value;changeWoodFloor()};
 E('clientTile').onchange=e=>setClientTile(e.target.value);
 E('clientView').onchange=e=>clientCamera(e.target.value);
 E('bedroomWindowShortcut').onclick=()=>{clientCamera('bedroomWindowOutside');toast('Новое окно спальни выделено на левом фасаде')};
-E('saveA').onclick=()=>{conceptA=snapshotConcept();toast('Вариант A сохранён')};
-E('saveB').onclick=()=>{conceptB=snapshotConcept();toast('Вариант B сохранён')};
+E('saveA').onclick=()=>{conceptA=snapshotConcept();savePresetsToDevice();toast('Вариант A сохранён в браузере')};
+E('saveB').onclick=()=>{conceptB=snapshotConcept();savePresetsToDevice();toast('Вариант B сохранён в браузере')};
 E('viewA').onclick=()=>applyConcept(conceptA);
 E('viewB').onclick=()=>applyConcept(conceptB);
 E('techToggle').onclick=()=>{
@@ -1331,7 +1380,7 @@ let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
-function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;showInfo();if(E('styleSummary'))syncDesign();look(r.eye[0],r.eye[1] + (r.id==='summer'||r.id==='garage'||r.id==='courtyard'?-COURTYARD_DROP:0),r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
+function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;if(E('clientView')&&E('clientView').querySelector('option[value="'+id+'"]')){clientView=id;E('clientView').value=id}showInfo();if(E('styleSummary'))syncDesign();look(r.eye[0],r.eye[1] + (r.id==='summer'||r.id==='garage'||r.id==='courtyard'?-COURTYARD_DROP:0),r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
 E('inside').onclick=()=>enter('living');
 E('roof').onclick=()=>{roofMode.on=!roofMode.on;roofs.visible=roofMode.on;E('roof').classList.toggle('active',roofMode.on);if(roofMode.on)overview()};
@@ -1378,5 +1427,5 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
-overview();showInfo();animate(0);E('loading').style.display='none';
+overview();showInfo();updateWallSwatch();loadPresetsFromDevice();readSharedDesign();animate(0);E('loading').style.display='none';
 </script></body></html>
