@@ -130,12 +130,18 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #undoDesign:disabled,#redoDesign:disabled{opacity:.40;cursor:not-allowed}
 #showroom #sunDirection{width:100%;accent-color:#d4b37e}
 #showroom #exportClientSpec{margin-top:7px;background:#304a53}
+#stairAdjustStudio{margin:8px 0 18px;padding:10px;border:1px solid #d9bc8c5c;border-radius:11px;background:#ffffff0b}
+#stairAdjustStudio h3{margin-top:0!important;font-size:14px!important;color:#e9c99b!important}
+#stairAdjustStudio label{display:block;font-size:11px;margin:12px 0 4px}
+#stairAdjustStudio input[type=range]{display:block;width:100%;accent-color:#d3af74;cursor:ew-resize}
+#stairAdjustStudio .stairHelp{font-size:10px;color:#e0d6c9;line-height:1.5;margin:7px 0}
+#stairClearance{display:block;color:#d4dfd3;padding:8px 0;line-height:1.4}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V49</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V50</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -330,6 +336,28 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </section>
 <section data-show-content="views" role="tabpanel" hidden>
 <h3>Ракурсы и варианты проекта</h3>
+<section id="stairAdjustStudio">
+<h3>Редактор лестницы</h3>
+<p class="stairHelp">Растягивай верхний марш вдоль стены, меняй его положение и ширину. Изменения сразу появятся в 3D. Размеры пока визуальные.</p>
+<label for="stairStretch">Длина верхнего марша: <output id="stairStretchValue">2,62 м</output></label>
+<input id="stairStretch" type="range" min="2.35" max="2.98" step="0.01" value="2.62">
+<label for="stairSetback">Положение у задней стены: <output id="stairSetbackValue">4,48 м</output></label>
+<input id="stairSetback" type="range" min="4.23" max="4.72" step="0.01" value="4.48">
+<label for="stairWidth">Ширина марша: <output id="stairWidthValue">1,10 м</output></label>
+<input id="stairWidth" type="range" min="0.95" max="1.13" step="0.01" value="1.10">
+<label for="stairLowerLength">Длина нижнего марша: <output id="stairLowerLengthValue">2,03 м</output></label>
+<input id="stairLowerLength" type="range" min="1.85" max="2.18" step="0.01" value="2.03">
+<div class="showGrid">
+<button id="stairPreview">◉ Смотреть лестницу</button>
+<button id="stairReset">↺ Сбросить</button>
+</div>
+<div class="showGrid">
+<button id="stairSave">✓ Сохранить размер</button>
+<button id="stairRestore">↶ Вернуть сохранённый</button>
+</div>
+<small id="stairClearance" role="status">Проход к кладовой — проверка</small>
+<p class="stairHelp">Ползунки меняют презентационную геометрию, не строительную лестницу. Перед изготовлением нужны точные замеры.</p>
+</section>
 <label for="clientView">Выбрать помещение</label>
 <button id="bedroomWindowShortcut" title="Открыть левый фасад и показать новое окно спальни" style="margin:5px 0 7px;background:#9d7b48;color:#fff8ea">◉ Показать новое окно спальни</button>
 <select id="clientView">
@@ -818,94 +846,116 @@ box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
-// Staircase reconstruction based on the PHOTO OF THE BUILT HOUSE (IMG_6671).
-// Key feature: the lower right-hand flight, winders, upper flight and its
-// closed diagonal underside form ONE CONTINUOUS CONCRETE STRUCTURE.
-// Unlike V48, there are no isolated, floating turn treads or hanging slabs.
-// Visual sizing is approximate: a fabrication drawing needs site dimensions.
+// Interactive staircase: client can adjust the real-house photo-inspired
+// 90° stair from the VIEW tab without editing source code.
+// IMPORTANT: these are conceptual dimensions, not certified stair calculations.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
-const concreteStep=M('#ddd8cf',.81),stairFace=M('#d2cbc1',.85);
-const stairSkim=M('#e8e2d9',.88), stairHandrailMetal=M('#998c7d',.44,.23);
-const treadLight=new THREE.MeshStandardMaterial({
- color:'#fff2df',emissive:'#ffd2a0',emissiveIntensity:.45,roughness:.4
-});
-const RISER=.17,ST_GOING=.29;
-const stairRight=12.06,flightWidth=1.10,flightStart=-1.32;
-const riseLower=7,riseTurn=3,riseUpper=12;
-const highZ=-4.48,highDepth=1.12;
-const highStartX=12.46,highEndX=9.84;
-const highGoing=(highStartX-highEndX)/riseUpper;
-const wardrobeClear=13.47-(stairRight+flightWidth/2);
-const rightDoor=13.595,doorCenterZ=-2.36;
-// Solid step blocks meet the previous riser, producing a buildable-looking
-// stepped concrete mass, rather than thin floating shelves.
-function concreteTread(x,y,z,w,d,axis){
- box(stairsGroup,x,y/2,z,w,y,d,concreteStep,false);
- const lip=axis==='x'?{x:x-w/2+.014,z}: {x,z:z+d/2-.014};
- box(stairsGroup,lip.x,y-.018,lip.z,axis==='x'?.018:w,.014,axis==='x'?d:.018,treadLight,false);
+const stairMaterial=M('#ddd8cf',.81),stairFace=M('#e8e2d9',.88);
+const stairHandrail=M('#998c7d',.44,.23);
+const stairLED=new THREE.MeshStandardMaterial({color:'#fff2df',emissive:'#ffd2a0',emissiveIntensity:.45,roughness:.4});
+const stairWindowGlass=new THREE.MeshPhysicalMaterial({color:'#d8e5e7',transparent:true,opacity:.25,roughness:.12,depthWrite:false,side:THREE.DoubleSide});
+const STAIR_DEFAULT={upperLength:2.62,backOffset:4.48,width:1.10,lowerLength:2.03};
+let stairSettings={...STAIR_DEFAULT};
+const STAIR_SAVED_KEY='my-house-3d-stair-v1';
+const stairData=()=>({...stairSettings});
+function validStairSettings(d){
+ return !!d&&Object.entries({
+  upperLength:[2.35,2.98],backOffset:[4.23,4.72],width:[.95,1.13],lowerLength:[1.85,2.18]
+ }).every(([key,[min,max]])=>typeof d[key]==='number'&&Number.isFinite(d[key])&&d[key]>=min&&d[key]<=max);
 }
-// Right-hand first flight ascends away from the corridor (toward rear).
-for(let i=0;i<riseLower;i++){
- const centerZ=flightStart-(i+.5)*ST_GOING;
- concreteTread(stairRight,(i+1)*RISER,centerZ,flightWidth,ST_GOING+.006,'z');
+function stairGeometryCheck(d){
+ // Conservative checks against the known main-floor internal walls and
+ // exterior facade: x >=9.65, right wall corridor x<=13.47, rear z>=-5.30.
+ const upperRightX=12.46,upperLeftX=upperRightX-d.upperLength;
+ const corridorClear=13.47-(12.06+d.width/2);
+ const upperBack=-d.backOffset-d.width/2;
+ const lowerStart=-1.32,lowerEnd=lowerStart-d.lowerLength;
+ return {corridorClear,upperLeftX,upperBack,lowerEnd,
+  allowed:corridorClear>=.84&&upperLeftX>=9.45&&upperBack>=-5.30&&lowerEnd>=-3.55};
 }
-// Corner turn. Three adjoining full-depth winders with increasingly high
-// elevations; unlike the old floating blocks, their bases meet the floor.
-// The corner stands inside x=11.46..12.62 and z=-4.31..-3.35.
-const cornerCentersZ=[-3.48,-3.77,-4.06];
-for(let j=0;j<riseTurn;j++){
- const x=stairRight-.07*j,y=(riseLower+j+1)*RISER;
- concreteTread(x,y,cornerCentersZ[j],flightWidth-.07*j,.30,'z');
+function disposeStair(){
+ while(stairsGroup.children.length){
+  const c=stairsGroup.children[0];
+  c.traverse(o=>{if(o.isMesh&&o.geometry)o.geometry.dispose()});
+  stairsGroup.remove(c);
+ }
 }
-// The upper run turns 90 degrees and ascends from RIGHT to LEFT beneath
-// the window. Each concrete tread has a CLOSED structural underside.
-// Full-height risers remove all gaps seen in the user's V48 screenshot.
-for(let j=0;j<riseUpper;j++){
- const x=highStartX-(j+.5)*highGoing,y=(riseLower+riseTurn+j+1)*RISER;
- concreteTread(x,y,highZ,highGoing+.012,highDepth,'x');
+function rebuildStaircase(){
+ const d=stairSettings,check=stairGeometryCheck(d);
+ if(!validStairSettings(d)||!check.allowed)throw Error('Stair setting outside room limits');
+ disposeStair();
+ const riser=.17,lowerN=7,turnN=3,upperN=12;
+ const lowGoing=d.lowerLength/lowerN,upperGoing=d.upperLength/upperN;
+ const rightX=12.06,lowerStart=-1.32,upperZ=-d.backOffset;
+ const upperRightX=12.46,upperLeftX=upperRightX-d.upperLength;
+ // Each stepped concrete block reaches the floor: no floating treads.
+ const step=(x,y,z,w,depth,axis)=>{
+  box(stairsGroup,x,y/2,z,w,y,depth,stairMaterial,false);
+  const lip=axis==='x'?{x:x-w/2+.012,z}: {x,z:z+depth/2-.012};
+  box(stairsGroup,lip.x,y-.018,lip.z,axis==='x'?.017:w,.015,axis==='x'?depth:.017,stairLED,false);
+ };
+ for(let i=0;i<lowerN;i++){
+  const z=lowerStart-(i+.5)*lowGoing;
+  step(rightX,(i+1)*riser,z,d.width,lowGoing+.005,'z');
+ }
+ // 90-degree turn: grounded concrete winders, contiguous in plan.
+ const backTurn=lowerStart-d.lowerLength;
+ for(let i=0;i<turnN;i++){
+  const z=backTurn-(i+.5)*.21;
+  step(rightX-i*.08,(lowerN+i+1)*riser,z,d.width-i*.045,.218,'z');
+ }
+ // Upper run follows rear wall and finishes at the left-hand passage.
+ for(let i=0;i<upperN;i++){
+  const x=upperRightX-(i+.5)*upperGoing;
+  step(x,(lowerN+turnN+i+1)*riser,upperZ,upperGoing+.008,d.width,'x');
+ }
+ // One continuous closed inclined infill under the upper run.
+ const sh=new THREE.Shape();
+ const startRise=(lowerN+turnN)*riser-.12;
+ const endRise=(lowerN+turnN+upperN)*riser-.18;
+ sh.moveTo(upperLeftX,0);sh.lineTo(upperRightX,0);
+ sh.lineTo(upperRightX,startRise);sh.lineTo(upperLeftX,endRise);sh.closePath();
+ const infill=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.09,bevelEnabled:false}),stairFace);
+ infill.position.z=upperZ+d.width/2-.066;
+ infill.castShadow=false;infill.receiveShadow=true;stairsGroup.add(infill);
+ // Open-side glass follows the upper edge, not the solid right wall.
+ for(let i=0;i<upperN;i++){
+  const x=upperRightX-(i+.5)*upperGoing;
+  const y=(lowerN+turnN+i+1)*riser;
+  box(stairsGroup,x,y+.39,upperZ+d.width/2+.025,upperGoing-.008,.74,.022,stairWindowGlass,false);
+ }
+ // Rail has the same slope as the upper run.
+ const railRise=upperN*riser,railLen=Math.hypot(d.upperLength,railRise);
+ const rail=new THREE.Mesh(new THREE.BoxGeometry(railLen,.043,.045),stairHandrail);
+ rail.position.set((upperRightX+upperLeftX)/2,(startRise+endRise)/2+.92,upperZ+d.width/2+.060);
+ rail.rotation.z=-Math.atan2(railRise,d.upperLength);stairsGroup.add(rail);
+ // Short right-side enclosure, not a railing.
+ box(stairsGroup,rightX+d.width/2-.045,.63,backTurn-.30,.08,1.26,.60,stairFace,false);
+ return check;
 }
-// Plastered, smooth diagonal under-stair face as on owner's REAL photo.
-// An extruded polygon has a continuous inclined top, unlike a series of
-// detached vertical filler strips that generated black gaps and floating steps.
-const underShape=new THREE.Shape();
-const minX=highEndX,maxX=highStartX;
-const minTop=(riseLower+riseTurn)*RISER-.10;
-const maxTop=(riseLower+riseTurn+riseUpper)*RISER-.18;
-underShape.moveTo(minX,0);
-underShape.lineTo(maxX,0);
-underShape.lineTo(maxX,minTop);
-underShape.lineTo(minX,maxTop);
-underShape.closePath();
-const concreteInfill=new THREE.Mesh(
- new THREE.ExtrudeGeometry(underShape,{depth:.095,bevelEnabled:false}),
- stairSkim
-);
-concreteInfill.position.z=highZ+highDepth/2-.065;
-concreteInfill.castShadow=false;concreteInfill.receiveShadow=true;
-stairsGroup.add(concreteInfill);
-// Stair-wall return by the lower right flight; does not extend into
-// the wardrobe-side corridor, which remains at least 0.86 m wide.
-box(stairsGroup,stairRight+flightWidth/2-.045,.63,-3.43,.085,1.26,1.20,stairSkim,false);
-// A slim single handrail follows the exposed upper-flight edge; no
-// balustrade or handrail is attached to the RIGHT wall of the lower flight.
-const ascent=Math.atan2(riseUpper*RISER,highStartX-highEndX);
-const railLength=Math.hypot(highStartX-highEndX,riseUpper*RISER);
-const rail=new THREE.Mesh(
- new THREE.BoxGeometry(railLength,.050,.055),stairHandrailMetal);
-rail.position.set((highStartX+highEndX)/2,(minTop+maxTop)/2+.91,highZ+highDepth/2+.05);
-rail.rotation.z=-ascent;
-stairsGroup.add(rail);
-// Low-cost ambient lighting for presentation, without one real light per tread.
+function syncStairControls(){
+ for(const [id,key] of [
+ ['stairStretch','upperLength'],['stairSetback','backOffset'],
+ ['stairWidth','width'],['stairLowerLength','lowerLength']]){
+  E(id).value=String(stairSettings[key]);
+  E(id+'Value').textContent=stairSettings[key].toFixed(2).replace('.',',')+' м';
+ }
+ const q=stairGeometryCheck(stairSettings);
+ E('stairClearance').textContent='Проход справа: '+q.corridorClear.toFixed(2).replace('.',',')+
+  ' м · левый край: '+q.upperLeftX.toFixed(2).replace('.',',')+' м';
+}
+function setStairDimension(key,value){
+ const previous={...stairSettings};
+ stairSettings[key]=Number(value);
+ if(!validStairSettings(stairSettings)||!stairGeometryCheck(stairSettings).allowed){
+  stairSettings=previous;syncStairControls();toast('Дальше нельзя: лестница выходит за границы помещения');return;
+ }
+ rebuildStaircase();syncStairControls();
+ // Persist the settings and update design history at the end of interaction.
+}
 const stairLight=new THREE.PointLight('#ffe2be',.52,4.8,2);
 stairLight.position.set(11.38,2.45,-3.77);scene.add(stairLight);
-// Architecture invariants tested before model is rendered.
-if(wardrobeClear<.85)throw Error('Right stairs block wardrobe path');
-if(highEndX-highGoing/2<9.65)throw Error('Left stairs block bedroom passage');
-if(highZ-highDepth/2< -5.30)throw Error('Stairs intersect rear exterior wall');
-// They overlap on the Z axis when the back edge of the corner tread
-// reaches or crosses the front edge of the upper-flight concrete.
-if(cornerCentersZ[2]-.15 > highZ+highDepth/2)throw Error('Stair turn disconnected from upper flight');
-if(doorCenterZ<-3.0||doorCenterZ>-1.0)throw Error('Door placement altered');
+rebuildStaircase();
 
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
 // Architectural opening count/size and wall collisions are unchanged.
@@ -1704,7 +1754,8 @@ function loadCurrentDesign(){
 function validConcept(d){
  if(!d||typeof d!=='object')return false;
  const view=String(d.view||'');
- return (!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
+ return (!d.stair||(validStairSettings(d.stair)&&stairGeometryCheck(d.stair).allowed))
+ &&(!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
  &&(!d.curtains||Object.prototype.hasOwnProperty.call(curtainOptions,d.curtains))
  &&(!d.moldings||['minimal','classic','none'].includes(d.moldings))
  &&(!d.lighting||Object.prototype.hasOwnProperty.call(colorTemperatures,d.lighting))
@@ -1730,7 +1781,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=49');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=50');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1753,11 +1804,38 @@ function readSharedDesign(){
  }catch(e){return false}
 }
 
-function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
+
+for(const [id,key] of [
+ ['stairStretch','upperLength'],['stairSetback','backOffset'],
+ ['stairWidth','width'],['stairLowerLength','lowerLength']]){
+ E(id).oninput=e=>setStairDimension(key,e.target.value);
+ E(id).onchange=()=>saveCurrentDesign();
+}
+E('stairPreview').onclick=()=>{clientCamera('stair');toast('Лестница · настрой размеры ползунками')};
+E('stairReset').onclick=()=>{
+ stairSettings={...STAIR_DEFAULT};rebuildStaircase();syncStairControls();saveCurrentDesign();
+ toast('Размеры лестницы возвращены к исходным');
+};
+E('stairSave').onclick=()=>{
+ try{localStorage.setItem(STAIR_SAVED_KEY,JSON.stringify(stairSettings));toast('Настройки лестницы сохранены на этом устройстве')}
+ catch(e){toast('Не удалось сохранить настройки в браузере')}
+};
+E('stairRestore').onclick=()=>{
+ try{
+  const saved=JSON.parse(localStorage.getItem(STAIR_SAVED_KEY)||'null');
+  if(!validStairSettings(saved)||!stairGeometryCheck(saved).allowed){toast('Нет сохранённых размеров');return}
+  stairSettings={...saved};rebuildStaircase();syncStairControls();saveCurrentDesign();
+  toast('Размеры лестницы восстановлены');
+ }catch(e){toast('Не удалось восстановить настройки')}
+};
+syncStairControls();
+
+function snapshotConcept(){return{stair:stairData(),style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  const previousSuspend=designHistorySuspend;designHistorySuspend=true;
  try{
+ if(validStairSettings(d.stair)){stairSettings={...d.stair};rebuildStaircase();syncStairControls();}
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
  if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
