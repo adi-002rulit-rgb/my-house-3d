@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V11</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V12</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -41,7 +41,7 @@
 <button id="snapshot">▣ Снимок</button>
 <button id="fullscreen">⛶ Полный экран</button>
 <button id="quality">◈ Качество: авто</button>
-<button id="share">↗ Поделиться</button>
+<button id="prevRoom">← Пред. комната</button><button id="nextRoom">След. комната →</button><button id="presentation">◫ Без панелей</button><button id="share">↗ Поделиться</button>
 </div><div id="roomInfo"><b id="infoTitle"></b><p id="infoDescription"></p><button id="hideInfo">Закрыть</button></div>
 <div id="toast" role="status"></div><div id="projectMark">Предварительная визуализация · уточняются проёмы и размеры</div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
@@ -346,7 +346,7 @@ let texture=new THREE.CanvasTexture(cv);texture.colorSpace=THREE.SRGBColorSpace;
 rooms.filter(r=>!['courtyard'].includes(r.id)).forEach(label);
 
 /* Client presentation feature panel; all changes are UI, camera, and material controls. */
-let roomID='living',night=false,playing=false,playTime=0,playIndex=0,labelsOn=true,infoOn=false,qualityMode='auto';
+let roomID='living',night=false,playing=false,playTime=0,playIndex=0,labelsOn=true,infoOn=false,qualityMode='auto',cleanView=false;
 const tourRooms=['living','kitchen','hallway','stair','bedroom','bathroom','wardrobe','summer','garage','courtyard'];
 const descriptions={
 living:'Зал 54 м². Одна дверь из коридора. Два окна на переднем фасаде.',
@@ -392,7 +392,7 @@ E('infoTitle').textContent=r.name+(r.area?' · '+r.area:'');
 E('infoDescription').textContent=descriptions[r.id]||'Параметры уточняются.';
 E('roomDetails').setAttribute('aria-pressed',String(infoOn));
 }
-function updateLabels(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=labelsOn&&current==='overview');E('roomLabels').setAttribute('aria-pressed',String(labelsOn));}
+function updateLabels(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=labelsOn&&current==='overview'&&!cleanView);E('roomLabels').setAttribute('aria-pressed',String(labelsOn));}
 function focusRoom(){const r=rooms.find(x=>x.id===roomID)||rooms[0];if(current!=='overview')overview();orbit.target.set(r.cx,0,r.cz);camera.position.set(r.cx+5,12,r.cz+8);orbit.update();toast('Комната: '+r.name)}
 function topCamera(){if(current!=='overview')overview();orbit.target.set(7,0,1);camera.position.set(7,35,1.01);orbit.update();toast('План сверху')}
 function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target).multiplyScalar(k).add(orbit.target);orbit.update()}else{camera.fov=Math.max(42,Math.min(75,camera.fov*k));camera.updateProjectionMatrix()}}
@@ -417,15 +417,29 @@ renderer.setSize(innerWidth,innerHeight);
 sunlight.castShadow=qualityMode!=='eco';
 E('quality').textContent='◈ Качество: '+({auto:'авто',eco:'эконом',high:'высокое'}[qualityMode]);
 };
+E('prevRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(tourRooms[(i-1+tourRooms.length)%tourRooms.length])};
+E('nextRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(tourRooms[(i+1)%tourRooms.length])};
+E('presentation').onclick=()=>{
+ cleanView=!cleanView;
+ for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo']){
+   const el=E(id);if(el)el.style.display=cleanView?'none':'';
+ }
+ for(const id of ['controls']){E(id).style.display=cleanView?'none':''}
+ for(const child of E('studio').children){if(child.id!=='presentation')child.style.display=cleanView?'none':''}
+ E('presentation').textContent=cleanView?'◩ Вернуть панели':'◫ Без панелей';
+ E('studio').style.maxHeight=cleanView?'none':'';
+ labelsVisibleSafe();
+};
+function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=11';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=12';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
 
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
-function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
+function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
 function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;showInfo();look(r.eye[0],r.eye[1],r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
