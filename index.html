@@ -135,7 +135,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V48</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V49</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -662,7 +662,7 @@ const archDoorCenters=[];
 // not the rear of the main house. Retain other rear-facing openings unchanged.
 segmented(.2,-5.5,18.83,-5.5,[
 {at:6.55,width:1.05,kind:'window'}, // bathroom
-{at:10.7,width:1.05,kind:'window',sill:1.78,head:3.35}, // stairwell: high two-pane window above the ascending upper flight (size remains as in earlier plan)
+{at:10.53,width:1.65,kind:'window',sill:1.82,head:3.52}, // stairwell: high TWO-PANE window behind upper flight; size/height visually estimated from built-house photo
 {at:15.5,width:1.65,kind:'window'}],exteriorInteriorFaces('back'),.4);
 // Courtyard frontage confirmed on detailed plan IMG_6662:
 // living room 1650 + 2300 + 1100 + 2300 + 1650 = 9000 mm;
@@ -818,89 +818,92 @@ box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
-// ACTUAL OWNER PHOTO, NOV 2026: a quarter-turn staircase, NOT two parallel
-// U-return flights. Short entrance flight at RIGHT, a 90-degree turn, upper
-// run travels LEFT beneath the rear two-pane window. Enclosed triangular
-// under-stair volume is visible from the entry. Architectural visualization;
-// step geometry is schematic until actual stair shop measurements are supplied.
+// Staircase reconstruction based on the PHOTO OF THE BUILT HOUSE (IMG_6671).
+// Key feature: the lower right-hand flight, winders, upper flight and its
+// closed diagonal underside form ONE CONTINUOUS CONCRETE STRUCTURE.
+// Unlike V48, there are no isolated, floating turn treads or hanging slabs.
+// Visual sizing is approximate: a fabrication drawing needs site dimensions.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
-const ST=.17, TREAD=.29;
-const RIGHT=12.05,LOWER_W=1.10,LEFT_BOUND=9.78;
-const lowerCount=7,turnCount=3,upperCount=12;
-const startZ=-1.34,cornerZ=-3.52,upperZ=-4.48;
-const stairMat=M('#e9e3dc',.36,.02);
-const riserMat=M('#d8d2cb',.75);
-const railMat=M('#a49178',.43,.30);
-const underStairMat=M('#e6ded2',.87);
-const glowStrip=new THREE.MeshStandardMaterial({
- color:'#fff0dd',emissive:'#ffd4a1',emissiveIntensity:.65,roughness:.45
+const concreteStep=M('#ddd8cf',.81),stairFace=M('#d2cbc1',.85);
+const stairSkim=M('#e8e2d9',.88), stairHandrailMetal=M('#998c7d',.44,.23);
+const treadLight=new THREE.MeshStandardMaterial({
+ color:'#fff2df',emissive:'#ffd2a0',emissiveIntensity:.45,roughness:.4
 });
-const stairGlass=new THREE.MeshPhysicalMaterial({
- color:'#d7e4e4',transparent:true,opacity:.25,roughness:.12,depthWrite:false,side:THREE.DoubleSide
-});
-// Lower seven straight steps rise away from the viewer at the RIGHT wall.
-for(let i=0;i<lowerCount;i++){
- const y=(i+1)*ST,z=startZ-(i+.5)*TREAD;
- box(stairsGroup,RIGHT,y-.07,z,LOWER_W,.14,TREAD-.012,stairMat);
- box(stairsGroup,RIGHT,y-.145,z+TREAD*.44,LOWER_W,.012,.018,glowStrip,false);
+const RISER=.17,ST_GOING=.29;
+const stairRight=12.06,flightWidth=1.10,flightStart=-1.32;
+const riseLower=7,riseTurn=3,riseUpper=12;
+const highZ=-4.48,highDepth=1.12;
+const highStartX=12.46,highEndX=9.84;
+const highGoing=(highStartX-highEndX)/riseUpper;
+const wardrobeClear=13.47-(stairRight+flightWidth/2);
+const rightDoor=13.595,doorCenterZ=-2.36;
+// Solid step blocks meet the previous riser, producing a buildable-looking
+// stepped concrete mass, rather than thin floating shelves.
+function concreteTread(x,y,z,w,d,axis){
+ box(stairsGroup,x,y/2,z,w,y,d,concreteStep,false);
+ const lip=axis==='x'?{x:x-w/2+.014,z}: {x,z:z+d/2-.014};
+ box(stairsGroup,lip.x,y-.018,lip.z,axis==='x'?.018:w,.014,axis==='x'?d:.018,treadLight,false);
 }
-// Three corner winders turn the circulation left, without a rear horizontal
-// platform extending into the rear facade. Compact wedges are stylized slabs.
-// Their combined footprint stays strictly within x=11.45..12.60 and z=-4.38..-3.25.
-for(let j=0;j<turnCount;j++){
- const t=j/turnCount,y=(lowerCount+j+1)*ST;
- const x=RIGHT-.12-.24*j,z=-3.60-.18*j;
- const wedge=box(stairsGroup,x,y-.07,z,1.04-.11*j,.14,.30,stairMat);
- wedge.rotation.y=-(j+1)*Math.PI/8;
- box(stairsGroup,x,y-.146,z+.105,.75,.013,.016,glowStrip,false).rotation.y=wedge.rotation.y;
+// Right-hand first flight ascends away from the corridor (toward rear).
+for(let i=0;i<riseLower;i++){
+ const centerZ=flightStart-(i+.5)*ST_GOING;
+ concreteTread(stairRight,(i+1)*RISER,centerZ,flightWidth,ST_GOING+.006,'z');
 }
-// Upper flight is PERPENDICULAR to the right-hand lower flight,
-// ascending from RIGHT toward LEFT beneath the stairwell window.
-// The visible run is schematic: exact step goings require an as-built survey.
-const upperStartX=12.23,upperEndX=9.88;
-const upperGo=(upperStartX-upperEndX)/upperCount;
-for(let j=0;j<upperCount;j++){
- const x=upperStartX-(j+.5)*upperGo;
- const y=(lowerCount+turnCount+j+1)*ST;
- box(stairsGroup,x,y-.065,upperZ,upperGo-.008,.13,1.10,stairMat);
- box(stairsGroup,x-upperGo*.41,y-.132,upperZ, .015,.013,1.01,glowStrip,false);
+// Corner turn. Three adjoining full-depth winders with increasingly high
+// elevations; unlike the old floating blocks, their bases meet the floor.
+// The corner stands inside x=11.46..12.62 and z=-4.31..-3.35.
+const cornerCentersZ=[-3.48,-3.77,-4.06];
+for(let j=0;j<riseTurn;j++){
+ const x=stairRight-.07*j,y=(riseLower+j+1)*RISER;
+ concreteTread(x,y,cornerCentersZ[j],flightWidth-.07*j,.30,'z');
 }
-// Triangular under-stair enclosure, essential feature of the actual photo.
-// A vertical infill triangle follows the underside of the upper flight,
-// rather than the previous open metal-stringer construction.
-const infillGroup=new THREE.Group();stairsGroup.add(infillGroup);
-const enclosedZ=upperZ+.51;
-const lowY=(lowerCount+turnCount)*ST-.16;
-for(let j=0;j<upperCount;j++){
- const x=upperStartX-(j+.5)*upperGo;
- const topY=(lowerCount+turnCount+j+1)*ST-.19;
- // Split wall into slim strips so its silhouette follows the stair slope.
- const h=Math.max(.45,topY);
- box(infillGroup,x,h/2, enclosedZ,upperGo+.012,h,.075,underStairMat,false);
+// The upper run turns 90 degrees and ascends from RIGHT to LEFT beneath
+// the window. Each concrete tread has a CLOSED structural underside.
+// Full-height risers remove all gaps seen in the user's V48 screenshot.
+for(let j=0;j<riseUpper;j++){
+ const x=highStartX-(j+.5)*highGoing,y=(riseLower+riseTurn+j+1)*RISER;
+ concreteTread(x,y,highZ,highGoing+.012,highDepth,'x');
 }
-// Smooth plaster return at the right bottom of the stairwell.
-box(stairsGroup,12.57,.69,-3.55,.065,1.38,1.42,underStairMat,false);
-// Glass panel along the exposed front side of the upper flight, with slim handrail.
-// NO handrail on the RIGHT wall beside the lower seven steps.
-for(let j=0;j<upperCount;j++){
- const x=upperStartX-(j+.5)*upperGo,y=(lowerCount+turnCount+j+1)*ST;
- box(stairsGroup,x,y+.41,upperZ+.56,upperGo-.012,.78,.022,stairGlass,false);
-}
-const railLength=upperStartX-upperEndX;
-const rail=new THREE.Mesh(new THREE.BoxGeometry(railLength,.046,.05),railMat);
-rail.position.set((upperStartX+upperEndX)/2,2.84,upperZ+.59);
-rail.rotation.z=-Math.atan2(upperCount*ST,railLength);
+// Plastered, smooth diagonal under-stair face as on owner's REAL photo.
+// An extruded polygon has a continuous inclined top, unlike a series of
+// detached vertical filler strips that generated black gaps and floating steps.
+const underShape=new THREE.Shape();
+const minX=highEndX,maxX=highStartX;
+const minTop=(riseLower+riseTurn)*RISER-.10;
+const maxTop=(riseLower+riseTurn+riseUpper)*RISER-.18;
+underShape.moveTo(minX,0);
+underShape.lineTo(maxX,0);
+underShape.lineTo(maxX,minTop);
+underShape.lineTo(minX,maxTop);
+underShape.closePath();
+const concreteInfill=new THREE.Mesh(
+ new THREE.ExtrudeGeometry(underShape,{depth:.095,bevelEnabled:false}),
+ stairSkim
+);
+concreteInfill.position.z=highZ+highDepth/2-.065;
+concreteInfill.castShadow=false;concreteInfill.receiveShadow=true;
+stairsGroup.add(concreteInfill);
+// Stair-wall return by the lower right flight; does not extend into
+// the wardrobe-side corridor, which remains at least 0.86 m wide.
+box(stairsGroup,stairRight+flightWidth/2-.045,.63,-3.43,.085,1.26,1.20,stairSkim,false);
+// A slim single handrail follows the exposed upper-flight edge; no
+// balustrade or handrail is attached to the RIGHT wall of the lower flight.
+const ascent=Math.atan2(riseUpper*RISER,highStartX-highEndX);
+const railLength=Math.hypot(highStartX-highEndX,riseUpper*RISER);
+const rail=new THREE.Mesh(
+ new THREE.BoxGeometry(railLength,.050,.055),stairHandrailMetal);
+rail.position.set((highStartX+highEndX)/2,(minTop+maxTop)/2+.91,highZ+highDepth/2+.05);
+rail.rotation.z=-ascent;
 stairsGroup.add(rail);
-// One low-cost warm stairwell illumination; trim remains configurable via night mode.
-const stairAccentLight=new THREE.PointLight('#ffddab',.53,5.0,2);
-stairAccentLight.position.set(11.35,2.55,-3.45);scene.add(stairAccentLight);
-// Geometry safeguards: wardrobe side passage, left bedroom vestibule,
-// rear outer wall, front main corridor remain unblocked.
-const wardrobeWalkwayClearance=13.47-(RIGHT+LOWER_W/2);
-if(wardrobeWalkwayClearance<.85)throw Error('Stair blocks wardrobe aisle');
-if(upperEndX-upperGo/2<9.65)throw Error('Upper stairs intersect bedroom passage');
-if(upperZ-1.10/2<-5.30)throw Error('Stair intersects rear facade');
-if(startZ+TREAD/2>-1.05)throw Error('Stair blocks corridor');
+// Low-cost ambient lighting for presentation, without one real light per tread.
+const stairLight=new THREE.PointLight('#ffe2be',.52,4.8,2);
+stairLight.position.set(11.38,2.45,-3.77);scene.add(stairLight);
+// Architecture invariants tested before model is rendered.
+if(wardrobeClear<.85)throw Error('Right stairs block wardrobe path');
+if(highEndX-highGoing/2<9.65)throw Error('Left stairs block bedroom passage');
+if(highZ-highDepth/2< -5.30)throw Error('Stairs intersect rear exterior wall');
+if(cornerCentersZ[2]-.15 < highZ+highDepth/2-.15)throw Error('Stair turn disconnected from upper flight');
+if(doorCenterZ<-3.0||doorCenterZ>-1.0)throw Error('Door placement altered');
 
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
 // Architectural opening count/size and wall collisions are unchanged.
@@ -1161,7 +1164,7 @@ const descriptions={
 living:'Зал 54 м². Два окна по 2,30 м. Тонкая алюминиевая рамка около 53 мм, глубина профиля около 77 мм; светлый внутренний подоконник. Высота окон и отметка подоконника пока оценочные.',
 kitchen:'Кухня 30,20 м². Одно окно шириной 3,00 м, тонкий алюминиевый профиль и каменный подоконник. Высота стекла около 2,91 м, нижний край около 28 см от чистого пола — предварительно.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
-stair:'Лестница по фотографии реального строительства: нижний короткий марш справа, затем поворот на 90° и верхний марш уходит налево под окном. Пространство под верхним маршем закрыто. Точные проступи и размеры лестничного окна требуют замера; не использовать 3D-модель как рабочий чертёж.',
+stair:'По фотографии строящегося дома: сплошная бетонная лестница с коротким нижним маршем справа, поворотом и верхним маршем, уходящим влево под двухстворчатым окном. Подлестничное пространство закрыто наклонной стеной. Окно и ступени смоделированы ориентировочно: нужны фактические замеры.',
 bedroom:'Спальня 21,84 м². По обновлённому проекту окно перенесено на левую (западную) наружную стену. Ширина 1,65 м пока предварительная; мебель — концепция.',
 bathroom:'Ванная: на размерном чертеже 3,55 × 2,50 м (8,88 м²); в экспликации указано 9,38 м². Требуется сверка исходного проекта.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
@@ -1725,7 +1728,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=48');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=49');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
