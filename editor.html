@@ -202,7 +202,7 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.8</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.9</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -700,6 +700,33 @@ function stairPolygon(root,poly,height,material,baseHeight=0){
  mesh.position.y=baseHeight;
  mesh.receiveShadow=true;root.add(mesh);
 }
+// Extruded monolithic stringer whose TOP follows the treads and UNDERSIDE is smooth.
+// Cross-section is in run/height coordinates, then oriented into world X/Z.
+function stairRunShell(root,{count,depth,rise,startLevel,width,originX,originZ,yaw,material}){
+ const total=count*depth,shape=new THREE.Shape();
+ const bottomAtStart=Math.max(0,startLevel-.20);
+ shape.moveTo(0,bottomAtStart);
+ shape.lineTo(0,startLevel+rise);
+ for(let i=0;i<count;i++){
+  const t=(i+1)*depth;
+  shape.lineTo(t,startLevel+(i+1)*rise);
+  if(i<count-1)shape.lineTo(t,startLevel+(i+2)*rise);
+ }
+ const endLevel=startLevel+count*rise;
+ // The stringer thickness is intentionally visible below the steps.
+ const thick=.22;
+ shape.lineTo(total,endLevel-thick);
+ const y0=bottomAtStart,y1=endLevel-thick;
+ // Smoothly bowed soffit, with a small concavity near its midspan.
+ shape.quadraticCurveTo(total*.54,(y0+y1)/2-.12,0,y0);
+ shape.closePath();
+ const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:width,bevelEnabled:false,steps:1}),material);
+ mesh.rotation.y=yaw;
+ mesh.position.set(originX,0,originZ);
+ mesh.castShadow=true;mesh.receiveShadow=true;
+ root.add(mesh);
+ return mesh;
+}
 function buildStair(o){
  const root=new THREE.Group();
  root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;
@@ -710,13 +737,14 @@ function buildStair(o){
  const material=meshMat(o.color||'#ded8cf',.72);
  const underside=meshMat('#c1b9ad',.92);
  const treadFinish=meshMat('#eae3da',.55);
- // Lower flight extends toward the rear (-Z), with each tread on solid infill.
+ // Lower run is ONE monolithic profile instead of a stack of floor-height cubes.
  const lowerDepth=o.lower/g.lowerN;
+ stairRunShell(root,{count:g.lowerN,depth:lowerDepth,rise,startLevel:0,
+  width:o.width,originX:-o.width/2,originZ:0,yaw:Math.PI/2,material:underside});
  for(let i=0;i<g.lowerN;i++){
   const near=o.z-(i*lowerDepth),far=near-lowerDepth;
   const y=(i+1)*rise;
-  cube(root,0,y/2,(near+far)/2-o.z,o.width,y,lowerDepth+.004,material);
-  // Thin visible tread sits on the continuous structural block underneath.
+  // Finished tread and riser: the monolithic shell carries the smooth underside.
   cube(root,0,y-.019,(near+far)/2-o.z,o.width-.025,.045,lowerDepth-.012,treadFinish);
  }
  // Three triangular turning treads (winders) occupy the actual square corner.
@@ -725,17 +753,19 @@ function buildStair(o){
   stairPolygon(root,g.winders[i],level,material);
   stairPolygon(root,g.winders[i],.042,treadFinish,level-.037);
  }
- // Upper flight continues LEFT along the back wall, resting on solid infill.
+ // Upper flight uses the same smooth monolithic profile, oriented toward -X.
  const depth=o.upper/g.upperN;
+ stairRunShell(root,{count:g.upperN,depth,rise,
+  startLevel:(g.lowerN+g.winderN)*rise,
+  width:o.width,originX:-o.width/2,originZ:g.turnFront,
+  yaw:Math.PI,material:underside});
  for(let i=0;i<g.upperN;i++){
   const right=-o.width/2-i*depth,left=right-depth;
   const y=(g.lowerN+g.winderN+i+1)*rise;
-  cube(root,(left+right)/2,y/2,(g.turnBack+g.turnFront)/2,o.upper/g.upperN+.004,y,o.width,material);
   cube(root,(left+right)/2,y-.019,(g.turnBack+g.turnFront)/2,depth-.012,.045,o.width-.025,treadFinish);
  }
- // Thin outer plinth facing for a continuous concrete-like side, not loose slabs.
- // Cross-section is already solid from bottom to each tread via stepped infill.
- cube(root,0,.045,0,o.width,.09,.02,underside);
+ // Winders retain their existing solid infill; the curved turn soffit still needs
+ // measured geometry before it can be represented accurately.
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
