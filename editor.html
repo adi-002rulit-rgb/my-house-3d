@@ -292,12 +292,12 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const c
 // Synchronized 3D preview
 let renderer,camera,scene,orbit,transform,threeRoots=new Map(),raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 const canvas3d=$('view3d');
-const buildingGroup=new THREE.Group();scene.add(buildingGroup);
 let yardMesh=null;
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
 renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.23;
 scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
+const buildingGroup=new THREE.Group();scene.add(buildingGroup);
 scene.add(new THREE.HemisphereLight('#fff8ec','#8d9897',2));
 const sun=new THREE.DirectionalLight('#fff2dc',3.0);sun.position.set(14,24,13);sun.castShadow=true;scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
