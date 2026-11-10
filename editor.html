@@ -94,7 +94,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.9</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.0</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -153,6 +153,12 @@ const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.r
 const uid=()=>String(Date.now().toString(36)+Math.random().toString(36).slice(2,7));
 const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:'wall',name,x1,z1,x2,z2,t});
 const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});
+function defaultStair(){
+ // Concept only: 12 lower risers, 3 winders, 6 upper risers (21 total).
+ // Grounded in the existing hallway walls and door; actual stair measurements not provided.
+ return {id:'stair1',type:'stair',name:'Лестница · 90° · забежные ступени',
+  x:11.95,z:-1.11,width:1.05,lower:3.12,upper:1.70,back:-4.755,rot:0,color:'#ded8cf'};
+}
 function original(){
 const walls=[
 mkWall('front','Фасад во двор',0,5.5,19.03,5.5,.4),
@@ -195,7 +201,7 @@ const furniture=[
 {id:'f3',type:'bed',name:'Кровать',x:2.6,z:-3.4,w:2.1,d:2.0,h:.65,rot:0,color:'#bca791'},
 {id:'f4',type:'cabinet',name:'Шкаф кухни',x:17,z:-.15,w:2.8,d:.6,h:2.15,rot:0,color:'#d6c6b7'},
 {id:'f5',type:'table',name:'Обеденный стол',x:16,z:2.8,w:1.9,d:.9,h:.75,rot:0,color:'#b9a48c'}];
-const stairs=[{id:'stair1',type:'stair',name:'Лестница · 90°',x:12.05,z:-1.28,width:1.1,lower:2.03,upper:2.64,back:-4.76,rot:0,color:'#ddd7cc'}];
+const stairs=[defaultStair()];
 return {version:1,title:'Мой дом',height:3.74,elevation:.6,walls,openings,rooms,furniture,stairs};
 }
 let state=original(),selected=null,tool='select',history=[],historyAt=-1,loading=false;
@@ -320,14 +326,24 @@ const p=planPoint(o.x,o.z);const isStair=o.type==='stair';ctx.save();ctx.transla
 ctx.fillStyle=isStair?'#d5c7ae':o.color||'#bca994';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';ctx.lineWidth=o.id===selected?3:1.5;
 const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
 if(isStair){
- // Floor plan now depicts BOTH connected flights at the 3D coordinates.
- const highZ=(o.back-o.z)*scale;
- ctx.fillRect(-width/2,-depth,width,depth);
- ctx.strokeRect(-width/2,-depth,width,depth);
- ctx.fillRect(-width/2,-depth-0.75*scale,width,.75*scale);
- ctx.strokeRect(-width/2,-depth-0.75*scale,width,.75*scale);
- ctx.fillRect((.40-o.upper)*scale,highZ-width/2,o.upper*scale,width);
- ctx.strokeRect((.40-o.upper)*scale,highZ-width/2,o.upper*scale,width);
+ // One footprint definition used by the 3D construction and the 2D plan.
+ const g=stairGeometry(o);
+ const lowerZ=(g.turnFront-o.z)*scale;
+ const upperBack=(g.turnBack-o.z)*scale;
+ ctx.fillRect(-width/2,lowerZ,width,(o.lower)*scale);
+ ctx.strokeRect(-width/2,lowerZ,width,(o.lower)*scale);
+ ctx.fillRect(-width/2,upperBack,width,width);
+ ctx.strokeRect(-width/2,upperBack,width,width);
+ ctx.fillRect((-o.width/2-o.upper)*scale,upperBack,o.upper*scale,width);
+ ctx.strokeRect((-o.width/2-o.upper)*scale,upperBack,o.upper*scale,width);
+ ctx.strokeStyle='#9a806b';
+ for(const poly of g.winders){
+  ctx.beginPath();poly.forEach((p,i)=>i?ctx.lineTo(p[0]*scale,(p[1]-o.z)*scale):ctx.moveTo(p[0]*scale,(p[1]-o.z)*scale));
+  ctx.closePath();ctx.stroke();
+ }
+ ctx.strokeStyle='#aa957d';
+ for(let i=1;i<g.lowerN;i++){const zz=(g.turnFront+o.lower*i/g.lowerN-o.z)*scale;ctx.beginPath();ctx.moveTo(-width/2,zz);ctx.lineTo(width/2,zz);ctx.stroke()}
+ for(let i=1;i<g.upperN;i++){const xx=(-o.width/2-i*o.upper/g.upperN)*scale;ctx.beginPath();ctx.moveTo(xx,upperBack);ctx.lineTo(xx,upperBack+width);ctx.stroke()}
 }else{
  ctx.fillRect(-width/2,-depth/2,width,depth);
  ctx.strokeRect(-width/2,-depth/2,width,depth);
@@ -463,30 +479,64 @@ for(const x of [-o.width/2,o.width/2])cube(oroot,x,o.head/2,0,.06,o.head,.08,mes
 cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 }
 }}
+
+// Parametric 90-degree staircase with 12+3+6 risers and 3 winders.
+// Geometric concept only: NOT engineering-ready and NOT verified as-built.
+function stairGeometry(o){
+ const width=o.width,low=o.lower,up=o.upper;
+ const turnFront=o.back+width/2,turnBack=o.back-width/2;
+ const centerX=-width/2; // left edge of lower flight, origin x=centre
+ const rightX=width/2,localFront=turnFront-o.z,localBack=turnBack-o.z;
+ const pivot=[centerX,localFront];
+ const t30=width/Math.sqrt(3);
+ const p1=[rightX,localFront],p2=[rightX,localFront-t30];
+ const p3=[rightX,localBack],p4=[centerX+t30,localBack],p5=[centerX,localBack];
+ return {
+  lowerN:12,winderN:3,upperN:6,total:21,
+  width,turnFront:localFront,turnBack:localBack,
+  winders:[[pivot,p1,p2],[pivot,p2,p3,p4],[pivot,p4,p5]]
+ };
+}
+function stairPolygon(root,poly,height,material){
+ // Extrusion around Y: local Shape coordinates X/-Z, rotate -90° about X.
+ const shape=new THREE.Shape();
+ poly.forEach((p,i)=>i?shape.lineTo(p[0],-p[1]):shape.moveTo(p[0],-p[1]));
+ shape.closePath();
+ const geometry=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.rotation.x=-Math.PI/2;
+ mesh.receiveShadow=true;root.add(mesh);
+}
 function buildStair(o){
-const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
-const m=meshMat(o.color||'#ddd7cc'),under=meshMat('#e5e0d8');
-const lowN=7,highN=12,rise=state.height/(lowN+3+highN);
-for(let i=0;i<lowN;i++)cube(root,0,(i+1)*rise/2,-(i+.5)*o.lower/lowN,o.width,(i+1)*rise,o.lower/lowN+.015,m);
-const zTurn=-o.lower-.15;for(let i=0;i<3;i++)cube(root,-.10*i,(lowN+i+1)*rise/2,zTurn-.20*i,o.width-.06*i,(lowN+i+1)*rise,.24,m);
-// Model's upper wing extends LEFT along the rear wall; changes follow editor params.
-const highZ=o.back-o.z;
-const upperFlightStartX=.40;
-for(let i=0;i<highN;i++){const x=upperFlightStartX-(i+.5)*o.upper/highN,y=(lowN+3+i+1)*rise;
-cube(root,x,y/2,highZ,o.upper/highN+.012,y,o.width,m)}
-// Continuous plaster infill beneath the upper stair.
-const shape=new THREE.Shape();shape.moveTo(-o.upper,0);shape.lineTo(0,0);shape.lineTo(0,(lowN+3)*rise);shape.lineTo(-o.upper,(lowN+3+highN)*rise);shape.closePath();
-const solid=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.10,bevelEnabled:false}),under);
-solid.position.x=upperFlightStartX;
-solid.position.z=highZ+o.width/2-.04;root.add(solid);
-// The 90-degree transition must not leave isolated suspended upper treads.
-// This bridge is a visual concept, NOT a certified winder construction detail.
-const cornerRear=-o.lower-.15-.40-.12;
-const upperFront=highZ+o.width/2;
-const bridgeDepth=Math.max(.035,cornerRear-upperFront+.045);
-const bridgeZ=(cornerRear+upperFront)/2;
-cube(root,.06,(lowN+3)*rise/2,bridgeZ,
- o.width+.23,(lowN+3)*rise,bridgeDepth,m);
+ const root=new THREE.Group();
+ root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;
+ root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
+ if(!Number.isFinite(o.width)||o.width<=0||o.lower<=0||o.upper<=0)return;
+ const g=stairGeometry(o);
+ const rise=state.height/g.total;
+ const material=meshMat(o.color||'#ded8cf',.72);
+ const underside=meshMat('#c1b9ad',.92);
+ // Lower flight extends toward the rear (-Z), with each tread on solid infill.
+ const lowerDepth=o.lower/g.lowerN;
+ for(let i=0;i<g.lowerN;i++){
+  const near=o.z-(i*lowerDepth),far=near-lowerDepth;
+  const y=(i+1)*rise;
+  cube(root,0,y/2,(near+far)/2-o.z,o.width,y,lowerDepth+.004,material);
+ }
+ // Three triangular turning treads (winders) occupy the actual square corner.
+ for(let i=0;i<g.winderN;i++){
+  stairPolygon(root,g.winders[i],(g.lowerN+i+1)*rise,material);
+ }
+ // Upper flight continues LEFT along the back wall, resting on solid infill.
+ const depth=o.upper/g.upperN;
+ for(let i=0;i<g.upperN;i++){
+  const right=-o.width/2-i*depth,left=right-depth;
+  const y=(g.lowerN+g.winderN+i+1)*rise;
+  cube(root,(left+right)/2,y/2,(g.turnBack+g.turnFront)/2,o.upper/g.upperN+.004,y,o.width,material);
+ }
+ // Thin outer plinth facing for a continuous concrete-like side, not loose slabs.
+ // Cross-section is already solid from bottom to each tread via stepped infill.
+ cube(root,0,.045,0,o.width,.09,.02,underside);
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
@@ -538,50 +588,45 @@ function highlightStair(id){
 }
 function auditStair(o){
  const errors=[],warnings=[];
- const positive=['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))&&o.width>0&&o.lower>0&&o.upper>0;
- if(!positive)return {errors:['Недопустимые числовые параметры лестницы.'],warnings,metrics:null};
- const rise=state.height/22;
- const lowerTread=o.lower/7,upperTread=o.upper/12;
+ if(!o||!['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))||o.width<=0||o.lower<=0||o.upper<=0)
+  return {errors:['Некорректные параметры лестницы.'],warnings,metrics:null};
+ const g=stairGeometry(o),rise=state.height/g.total;
+ const lowerTread=o.lower/g.lowerN,upperTread=o.upper/g.upperN;
  const scoreLower=2*rise+lowerTread,scoreUpper=2*rise+upperTread;
- const metrics={rise,lowerTread,upperTread,scoreLower,scoreUpper};
- if(o.width<.90)warnings.push('Ширина марша меньше ориентировочных 0,90 м.');
- if(lowerTread<.25)warnings.push('Проступь нижнего марша менее 25 см.');
- if(upperTread<.25)warnings.push('Проступь верхнего марша менее 25 см.');
- if(scoreLower<.60||scoreLower>.64)warnings.push('Нижний марш: 2h + b вне ориентировочного диапазона 60–64 см.');
- if(scoreUpper<.60||scoreUpper>.64)warnings.push('Верхний марш: 2h + b вне ориентировочного диапазона 60–64 см.');
- if(Math.abs(Math.sin(o.rot||0))>.001){
-  warnings.push('Лестница повёрнута: автоматическая проверка пересечений в плане ограничена.');
- }else{
-  // Origin is the CENTER of the lower flight; the upper flight goes LEFT.
-  const left=o.x+.40-o.upper,right=o.x+o.width/2;
-  const rear=o.back-o.width/2;
-  const rearWall=state.walls.find(w=>w.id==='back');
-  const rearInside=rearWall?rearWall.z1+rearWall.t/2:-5.30;
-  if(left<9.52)errors.push('Верхний марш пересекает левую перегородку лестничного холла.');
-  if(rear<rearInside-.02)errors.push('Верхний марш пересекает заднюю стену.');
-  if(rear>rearInside+.08)warnings.push('Зазор между лестницей и задней стеной больше 8 см.');
-  const wardrobeWall=state.walls.find(w=>w.id==='stairRight');
-  const wardrobeInner=wardrobeWall?wardrobeWall.x1-wardrobeWall.t/2:13.47;
-  if(right>wardrobeInner-.02)errors.push('Нижний марш пересекает стену у гардеробной.');
-  else if(wardrobeInner-right>.20)
-   warnings.push('До правой стены от нижнего марша '+Math.round((wardrobeInner-right)*100)+' см. Сверь с расположением двери гардеробной.');
-  // Check corner/upper landing connection based on modeled concrete boxes.
-  const rearCorner=o.z-o.lower-.15-.20*2-.12;
-  const frontUpper=o.back+o.width/2;
-  if(rearCorner-frontUpper>.65)
-   warnings.push('Переход к верхнему маршу слишком длинный: проверь форму забежных ступеней.');
-  // Door opening: a 2D proximity check only (not a structural safety certificate).
-  const door=state.openings.find(d=>d.wall==='stairRight'&&d.type==='door');
-  if(door&&wardrobeWall){
-   const pt=offsetPoint(wardrobeWall,door.offset);
-   const minZ=pt.z-door.width/2,maxZ=pt.z+door.width/2;
-   const lowerMinZ=o.z-o.lower-.10,lowerMaxZ=o.z+.10;
-   if(right>wardrobeInner-.10&&minZ<lowerMaxZ&&maxZ>lowerMinZ)
-    errors.push('Нижний марш слишком близко к дверному проёму гардеробной.');
-  }
-  const windows=state.openings.filter(d=>d.wall==='back'&&d.type==='window');
-  if(windows.length&&state.height<3.5)warnings.push('Проверь высоту лестницы под окном и перекрытием на месте.');
+ const metrics={rise,lowerTread,upperTread,scoreLower,scoreUpper,total:g.total};
+ if(o.width<.9)warnings.push('Ширина марша меньше 90 см (ориентир, не универсальная норма).');
+ for(const [name,tread,score] of [['Нижний марш',lowerTread,scoreLower],['Верхний марш',upperTread,scoreUpper]]){
+  if(tread<.25)warnings.push(name+': проступь менее 25 см.');
+  if(score<.60||score>.64)warnings.push(name+': 2h+b вне ориентировочного диапазона 60–64 см.');
  }
+ const ward=state.walls.find(w=>w.id==='stairRight');
+ const left=state.walls.find(w=>w.id==='stairLeft');
+ const back=state.walls.find(w=>w.id==='back');
+ if(Math.abs(o.rot)>.001)warnings.push('Поворот лестницы вручную: пространственные проверки для произвольного угла пока не реализованы.');
+ else{
+  const xLeft=o.x-o.width/2-o.upper,xRight=o.x+o.width/2;
+  const zRear=o.back-o.width/2,zFront=o.z;
+  const leftLimit=left?left.x1+left.t/2:9.65;
+  const rightLimit=ward?ward.x1-ward.t/2:13.47;
+  const backLimit=back?back.z1+back.t/2:-5.3;
+  if(xLeft<leftLimit-.01)errors.push('Верхний марш пересекает левую стену лестничного холла.');
+  if(xRight>rightLimit+.01)errors.push('Нижний марш пересекает правую стену лестничного холла.');
+  if(zRear<backLimit-.01)errors.push('Забежные ступени пересекают заднюю стену.');
+  if(o.z>-.9)errors.push('Начало нижнего марша выходит за границу лестничного холла.');
+  const door=state.openings.find(d=>d.wall==='stairRight'&&d.type==='door');
+  if(door&&ward){
+   const pt=offsetPoint(ward,door.offset);
+   const gap=rightLimit-xRight;
+   const doorMin=pt.z-door.width/2,doorMax=pt.z+door.width/2;
+   if(doorMin<zFront&&doorMax>zRear){
+    if(gap<.80)errors.push('У двери гардеробной проход уже 80 см.');
+    else if(gap<door.width)warnings.push('До лестницы от стены у двери '+Math.round(gap*100)+' см — проверь открывание двери ('+Math.round(door.width*100)+' см).');
+   }
+  }
+  const win=state.openings.find(d=>d.wall==='back'&&d.type==='window');
+  if(win)warnings.push('Проверь примыкание верхних ступеней к окну лестничного холла: требуется обмер.');
+ }
+ warnings.push('Забежные ступени: ширина проступи по линии движения, ограждения и высота прохода не проверены для строительства.');
  return {errors,warnings,metrics};
 }
 let lastValidationSignature='';
@@ -601,7 +646,7 @@ function processSceneValidation(notify=false){
  if(!reports.length){report.innerHTML='<p>В проекте нет лестницы.</p>';return}
  const first=reports[0].r;
  const fmt=n=>(n*100).toFixed(1).replace('.',',')+' см';
- const metrics=first.metrics?'<p class="ok">Расчёт при 22 подступенках: высота '+fmt(first.metrics.rise)+
+ const metrics=first.metrics?'<p class="ok">Расчёт при '+first.metrics.total+' подступенках: высота '+fmt(first.metrics.rise)+
   ', нижняя проступь '+fmt(first.metrics.lowerTread)+', верхняя '+fmt(first.metrics.upperTread)+'.</p>':'';
  report.innerHTML=metrics+(issues.length?issues.map(i=>'<p class="'+i.kind+'">'+label(i.message)+'</p>').join(''):
   '<p class="ok">Предусмотренные упрощённые проверки пройдены. Для строительства необходим обмер и инженерный проект.</p>');
@@ -728,7 +773,12 @@ const preset={sofa:[2.6,1,.85],table:[1.5,.9,.75],bed:[2.1,2.1,.55],cabinet:[1.8
 const o={id:uid(),type,name:{sofa:'Диван',table:'Стол',bed:'Кровать',cabinet:'Шкаф',chair:'Кресло',island:'Кухонный остров',rug:'Ковёр',plant:'Растение'}[type],x:11,z:2,w:preset[0],d:preset[1],h:preset[2],rot:0,color:'#c6b6a1'};
 state.furniture.push(o);selected=o.id;push();refreshAll();
 }
-function addStair(){const o={id:uid(),type:'stair',name:'Лестница',x:12,z:-1.4,width:1.1,lower:2.1,upper:2.6,back:-4.75,rot:0,color:'#dcd7cb'};state.stairs.push(o);selected=o.id;push();refreshAll()}
+function addStair(){
+ if(state.stairs.length){selected=state.stairs[0].id;select(selected);status('Лестница уже существует. Выбрана для редактирования.');return}
+ const o=defaultStair();
+ if(find(o.id))o.id=uid();
+ state.stairs.push(o);selected=o.id;push();refreshAll();status('Новая лестница создана в холле — проверь размеры и предупреждения');
+}
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;wallFirst=null;document.querySelectorAll('[data-tool]').forEach(a=>a.classList.toggle('active',a===b));status(tool==='wall'?'Нажми начальную и конечную точки стены':'Режим выбора объектов')});
 $('addDoor').onclick=()=>addOpening('door');$('addWindow').onclick=()=>addOpening('window');$('addFurniture').onclick=addItem;$('addStair').onclick=addStair;
 $('delete').onclick=removeSelected;$('duplicate').onclick=duplicateSelected;
