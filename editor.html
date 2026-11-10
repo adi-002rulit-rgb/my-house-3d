@@ -189,8 +189,20 @@ label {color:#d1d1d8}
  button,.toast-notification {transition:none!important}
 }
 
+
+#quickInspectorToggle{position:absolute;top:48px;right:12px;z-index:17;padding:7px 11px;background:#17191fe8;border-color:#767b86}
+#quickInspector{position:absolute;z-index:18;top:86px;right:12px;width:min(290px,calc(100% - 24px));max-height:min(64vh,420px);overflow:auto;padding:13px;border-radius:14px;background:rgba(22,22,24,.94);border:1px solid var(--ui-border);box-shadow:var(--ui-shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#quickInspector[hidden]{display:none!important}
+.quickInspectorHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.quickInspectorHead strong{font-size:13px;overflow-wrap:anywhere}
+.quickInspectorHead button{padding:4px 9px;font-size:12px}
+#quickInspectorFields{display:grid;grid-template-columns:1fr 1fr;gap:0 9px}
+#quickInspectorFields label{font-size:11px;line-height:1.4}
+#quickInspectorFields input{width:100%;min-width:0}
+#quickInspector .hint{margin:8px 0 0}
+@media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.6</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.7</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -216,7 +228,13 @@ label {color:#d1d1d8}
 <div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
-<div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · стрелки двигают камеру над домом</div>
+<div class="pane" id="pane3d"><canvas id="view3d"></canvas>
+<button id="quickInspectorToggle" type="button" title="Показать быстрые свойства выбранного объекта" aria-expanded="false">⚙ Свойства</button>
+<div id="quickInspector" hidden>
+ <div class="quickInspectorHead"><strong id="quickInspectorName">Быстрые свойства</strong><button id="quickInspectorClose" type="button" aria-label="Закрыть">✕</button></div>
+ <div id="quickInspectorFields"></div>
+ <p class="hint">Изменения сохраняются в истории Undo/Redo.</p>
+</div><div class="paneTitle">3D · стрелки двигают камеру над домом</div>
 <div id="cameraArrowPad" aria-label="Двигать вид над домом">
  <button type="button" id="cameraUp" aria-label="Камера вперёд">↑</button>
  <div class="cameraArrowRow"><button type="button" id="cameraLeft" aria-label="Камера влево">←</button>
@@ -362,7 +380,61 @@ function inspectorField(o,key){
  if(key==='leaves')return '<label>'+name+'<select data-prop="leaves"><option value="1"'+(v===1?' selected':'')+'>Одна</option><option value="2"'+(v===2?' selected':'')+'>Две</option></select></label>';
  return '<label>'+name+'<input data-prop="'+key+'" type="number" step="'+(key==='rot'?'5':'.05')+'" value="'+(key==='rot'?Math.round(v*180/Math.PI):v)+'"></label>';
 }
+// Quick 3D inspector shares the original validation/history pipeline.
+let quickInspectorOpen=false;
+function quickFieldsFor(o){
+ if(!o)return[];
+ if(o.type==='stair')return ['x','z','width','lower','upper','back','rot'];
+ if(['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(o.type))return ['x','z','w','d','rot'];
+ if(o.type==='wall')return ['x1','z1','x2','z2','t'];
+ if(o.type==='door'||o.type==='window')return ['offset','width','sill','head'].filter(k=>k in o);
+ return ['x','z','w','h'].filter(k=>k in o);
+}
+function commitInspectorProperty(id,key,value){
+ const obj=find(id);if(!obj||!(key in obj))return;
+ const prev=clone(state);
+ const val=key==='color'?value:Number(value);
+ if(key!=='color'&&!Number.isFinite(val)){status('Введи корректное число');return}
+ obj[key]=key==='rot'?val*Math.PI/180:val;
+ if(obj.type==='door'||obj.type==='window'){
+  const w=wallFor(obj);
+  if(w){
+   obj.width=clamp(obj.width,.4,wallLength(w)-.05);
+   obj.offset=clamp(obj.offset,obj.width/2,wallLength(w)-obj.width/2);
+   obj.sill=clamp(obj.sill,0,state.height-.5);
+   obj.head=clamp(obj.head,obj.sill+.3,state.height);
+  }
+ }
+ try{validate(state);push();refreshAll()}
+ catch(err){state=prev;refreshAll();status(err.message)}
+}
+function refreshQuickInspector(){
+ const panel=$('quickInspector'),o=activeFloor===1?find(selected):null;
+ const visible=quickInspectorOpen&&!!o;
+ panel.hidden=!visible;
+ $('quickInspectorToggle').setAttribute('aria-expanded',String(visible));
+ if(!visible)return;
+ $('quickInspectorName').textContent=o.name||o.type;
+ const container=$('quickInspectorFields');
+ container.replaceChildren();
+ for(const key of quickFieldsFor(o)){
+  const lab=document.createElement('label');
+  lab.textContent=propertyNames[key]||key;
+  const input=document.createElement('input');
+  input.type='number';input.step=key==='rot'?'5':'0.05';
+  input.value=key==='rot'?(o.rot*180/Math.PI).toFixed(1):o[key];
+  input.setAttribute('aria-label',propertyNames[key]||key);
+  input.addEventListener('change',()=>commitInspectorProperty(o.id,key,input.value));
+  lab.appendChild(input);container.appendChild(lab);
+ }
+}
+$('quickInspectorToggle').onclick=()=>{
+ if(!find(selected)||activeFloor===2){status('Выбери объект на первом этаже');return}
+ quickInspectorOpen=!quickInspectorOpen;refreshQuickInspector();
+};
+$('quickInspectorClose').onclick=()=>{quickInspectorOpen=false;refreshQuickInspector()};
 function refreshInspector(){
+refreshQuickInspector();
 const o=find(selected);$('selectedTitle').textContent=o?'Выбрано: '+o.name:'Свойства объекта';
 if(!o){$('inspector').innerHTML='<p class="hint">Нажми на объект в 2D или 3D. Стены можно двигать за углы, двери и окна — вдоль стены.</p>';return}
 let fields=['x','z','w','d','h','rot','color'];
@@ -372,17 +444,7 @@ if(o.type==='stair')fields=['x','z','width','lower','upper','back','rot'];
 if(state.rooms.some(r=>r.id===selected))fields=['x','z','w','h'];
 $('inspector').innerHTML='<label>Название<input id="editName" value="'+label(o.name)+'"></label><div class="fields">'+fields.map(k=>inspectorField(o,k)).join('')+'</div><div class="actions" style="margin-top:10px"><button id="focusObject">Показать</button><button id="removeObject">Удалить</button></div>';
 $('editName').onchange=e=>{o.name=e.target.value.slice(0,100);push();refreshInspector();refreshList()};
-$('inspector').querySelectorAll('[data-prop]').forEach(input=>input.onchange=e=>{
-const key=input.dataset.prop,prev=clone(state),val=key==='color'?input.value:Number(input.value);
-if(key!=='color'&&!Number.isFinite(val))return;
-o[key]=key==='rot'?val*Math.PI/180:val;
-if(o.type==='door'||o.type==='window'){
-const w=wallFor(o);o.width=clamp(o.width,.4,wallLength(w)-.05);
-o.offset=clamp(o.offset,o.width/2,wallLength(w)-o.width/2);
-o.sill=clamp(o.sill,0,state.height-.5);o.head=clamp(o.head,o.sill+.3,state.height);
-}
-try{validate(state);push();refreshAll()}catch(err){state=prev;refreshAll();status(err.message)}
-});
+$('inspector').querySelectorAll('[data-prop]').forEach(input=>input.onchange=()=>commitInspectorProperty(o.id,input.dataset.prop,input.value));
 $('focusObject').onclick=()=>{if(o.type==='room'){pan.x=30-o.x*scale;pan.y=25-(o.z+5.7)*scale}drawPlan()};
 $('removeObject').onclick=removeSelected;
 }
