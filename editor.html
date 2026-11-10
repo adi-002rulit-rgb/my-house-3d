@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.6</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.7</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -1074,12 +1074,16 @@ function buildStair(o){
   ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
   stairPolygon(root,poly,.042,finish,level*rise-.036)
  }
- // The visible third flight stops four tread positions before its old end.
- // The rest is an upper-floor slab, not additional stair treads.
+ // Last six visible treads now climb exactly to the second-floor slab.
+ // The first two flights and window-side stair heights remain unchanged.
+ // This is a visual approximation: the upper six risers are taller than
+ // the lower risers, so real step heights must eventually be measured.
  const d3=g.backRun/g.lastN,visibleLength=d3*g.visibleLastN;
- stairRunShell(root,{count:g.visibleLastN,depth:d3,rise,startLevel:level*rise,
+ const startLevel=level*rise;
+ const upperRise=(state.height-startLevel)/g.visibleLastN;
+ stairRunShell(root,{count:g.visibleLastN,depth:d3,rise:upperRise,startLevel,
   width:w,originX:g.left+w,originZ:g.front,yaw:-Math.PI/2,material:concrete});
- for(let i=0;i<g.visibleLastN;i++)cube(root,g.left+w/2,(level+i+1)*rise-.02,
+ for(let i=0;i<g.visibleLastN;i++)cube(root,g.left+w/2,startLevel+(i+1)*upperRise-.02,
   g.front+(i+.5)*d3,w-.02,.043,d3-.012,finish);
  // Show the portion of second-floor concrete slab replacing the treads
  // in first-floor inspection mode (upperFloorGroup is otherwise hidden).
@@ -1178,7 +1182,10 @@ function auditStair(o){
     warnings.push('Третий марш выходит за угол левого проёма на '+Math.round((endZ-cornerZ)*100)+' см');
   }
  }
- warnings.push('Последние четыре ступени визуально заменены плитой второго этажа. Переход по высоте пока условный — нужен замер существующей лестницы.');
+ const upperRise=(state.height-(g.firstN+g.turnN+g.midN+g.turnN)*rise)/g.visibleLastN;
+ if(upperRise>.21){
+  warnings.push('Визуальная модель: подъём третьего марша '+Math.round(upperRise*100)+' см против '+Math.round(rise*100)+' см на остальных маршах. Требуются реальные замеры ступеней.');
+ }
  const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
  steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
  if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
