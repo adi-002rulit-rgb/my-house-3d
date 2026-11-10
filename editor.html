@@ -278,19 +278,27 @@ label {color:#d1d1d8}
 @media(prefers-reduced-motion:reduce){
  #quickInspector{animation:none}
 }
+/* On phones show the house before the toolbars; users no longer need to
+   scroll through all object controls to reach the actual 3D project. */
+@media(max-width:770px){
+ .shell>.center{order:0}
+ .shell>.left{order:1}
+ .shell>.rightPanel{order:2}
+}
 /* Full-screen-like focus mode: works on iOS without the Fullscreen API. */
 body.focus3d .shell{display:block;height:auto}
 body.focus3d .left,body.focus3d .rightPanel{display:none!important}
-body.focus3d .center{height:calc(100dvh - 130px);min-height:340px;width:100%}
+body.focus3d .center{height:calc(100dvh - 100px);min-height:340px;width:100%}
 body.focus3d .views{display:block!important;height:100%}
+body.focus3d .viewHeader{display:none!important}
 body.focus3d #pane2d{display:none!important}
 body.focus3d #pane3d{display:block!important;height:100%;width:100%}
 body.focus3d header .right button:not(#focusView),
 body.focus3d header .right a{display:none!important}
 body.focus3d #focusView{background:#467a6c}
-@media(max-width:480px){body.focus3d .center{height:calc(100dvh - 115px);min-height:320px}}
+@media(max-width:480px){body.focus3d .center{height:calc(100dvh - 110px);min-height:320px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.4</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.5</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -645,8 +653,9 @@ const roomFloorDefaults={
 };
 function roomFloorPattern(r){return r.floorPattern||roomFloorDefaults[r.id]||'solid'}
 function refreshRoomUI(){
+const previousRoom=$('room').value;
 $('room').innerHTML=state.rooms.map((r,i)=>'<option value="'+label(r.id)+'">'+label(r.name)+'</option>').join('');
-const room=state.rooms.find(r=>r.id===$('room').value)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor;$('floorPattern').value=roomFloorPattern(room)}
+const room=state.rooms.find(r=>r.id===previousRoom)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor;$('floorPattern').value=roomFloorPattern(room)}
 $('buildingHeight').value=state.height;$('baseElevation').value=state.elevation;
 }
 function planPoint(x,z){return{x:pan.x+x*scale,y:pan.y+(z+5.7)*scale}}
