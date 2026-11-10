@@ -94,7 +94,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.1</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.2</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -117,6 +117,7 @@ input[type=checkbox]{width:auto}
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
 <div class="viewMode"><button id="fitPlan">Вписать план</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
 <div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · выбор объекта и стрелки для перемещения</div></div>
@@ -309,6 +310,7 @@ function drawPlan(){
 const bb=canvas.getBoundingClientRect();if(!bb.width||!bb.height)return;
 const w=bb.width,h=bb.height;canvas.width=Math.round(w*devicePixelRatio);canvas.height=Math.round(h*devicePixelRatio);
 ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);paintGrid(w,h);
+if(activeFloor===2){drawUpperFloorPlan(w,h);return}
 for(const r of state.rooms){const a=planPoint(r.x,r.z);ctx.fillStyle=r.floor;ctx.globalAlpha=.65;ctx.fillRect(a.x,a.y,r.w*scale,r.h*scale);ctx.globalAlpha=1;
 ctx.fillStyle='#6c665e';ctx.font='11px system-ui';ctx.fillText(r.name,a.x+7,a.y+17)}
 for(const w0 of state.walls){
@@ -364,6 +366,7 @@ return null;
 }
 function coords(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 canvas.addEventListener('pointerdown',e=>{
+if(activeFloor===2){status('2 этаж пока схематичный. Нажми «1 этаж» для редактирования.');return}
 const p=coords(e),w=worldPoint(p.x,p.y);
 if(e.shiftKey||e.button===1){
  drag={pan:true,startPixels:p,panBefore:{...pan},moved:false};
@@ -407,11 +410,15 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const c
 let renderer,camera,scene,orbit,transform,threeRoots=new Map(),raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 const canvas3d=$('view3d');
 let yardMesh=null;
+const upperFloorGroup=new THREE.Group();
+let activeFloor=1;
+let upperFloorMeshes=[];
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
 renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.23;
 scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
 const buildingGroup=new THREE.Group();scene.add(buildingGroup);
+buildingGroup.add(upperFloorGroup);
 scene.add(new THREE.HemisphereLight('#fff8ec','#8d9897',2));
 const sun=new THREE.DirectionalLight('#fff2dc',3.0);sun.position.set(14,24,13);sun.castShadow=true;scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
@@ -497,7 +504,7 @@ function stairGeometry(o){
   winders:[[pivot,p1,p2],[pivot,p2,p3,p4],[pivot,p4,p5]]
  };
 }
-function stairPolygon(root,poly,height,material){
+function stairPolygon(root,poly,height,material,baseHeight=0){
  // Extrusion around Y: local Shape coordinates X/-Z, rotate -90° about X.
  const shape=new THREE.Shape();
  poly.forEach((p,i)=>i?shape.lineTo(p[0],-p[1]):shape.moveTo(p[0],-p[1]));
@@ -505,6 +512,7 @@ function stairPolygon(root,poly,height,material){
  const geometry=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
  const mesh=new THREE.Mesh(geometry,material);
  mesh.rotation.x=-Math.PI/2;
+ mesh.position.y=baseHeight;
  mesh.receiveShadow=true;root.add(mesh);
 }
 function buildStair(o){
@@ -516,16 +524,21 @@ function buildStair(o){
  const rise=state.height/g.total;
  const material=meshMat(o.color||'#ded8cf',.72);
  const underside=meshMat('#c1b9ad',.92);
+ const treadFinish=meshMat('#eae3da',.55);
  // Lower flight extends toward the rear (-Z), with each tread on solid infill.
  const lowerDepth=o.lower/g.lowerN;
  for(let i=0;i<g.lowerN;i++){
   const near=o.z-(i*lowerDepth),far=near-lowerDepth;
   const y=(i+1)*rise;
   cube(root,0,y/2,(near+far)/2-o.z,o.width,y,lowerDepth+.004,material);
+  // Thin visible tread sits on the continuous structural block underneath.
+  cube(root,0,y-.019,(near+far)/2-o.z,o.width-.025,.045,lowerDepth-.012,treadFinish);
  }
  // Three triangular turning treads (winders) occupy the actual square corner.
  for(let i=0;i<g.winderN;i++){
-  stairPolygon(root,g.winders[i],(g.lowerN+i+1)*rise,material);
+  const level=(g.lowerN+i+1)*rise;
+  stairPolygon(root,g.winders[i],level,material);
+  stairPolygon(root,g.winders[i],.042,treadFinish,level-.037);
  }
  // Upper flight continues LEFT along the back wall, resting on solid infill.
  const depth=o.upper/g.upperN;
@@ -533,6 +546,7 @@ function buildStair(o){
   const right=-o.width/2-i*depth,left=right-depth;
   const y=(g.lowerN+g.winderN+i+1)*rise;
   cube(root,(left+right)/2,y/2,(g.turnBack+g.turnFront)/2,o.upper/g.upperN+.004,y,o.width,material);
+  cube(root,(left+right)/2,y-.019,(g.turnBack+g.turnFront)/2,depth-.012,.045,o.width-.025,treadFinish);
  }
  // Thin outer plinth facing for a continuous concrete-like side, not loose slabs.
  // Cross-section is already solid from bottom to each tread via stepped infill.
@@ -656,11 +670,100 @@ function processSceneValidation(notify=false){
  lastValidationSignature=signature;
 }
 
+
+function upperFloorOpening(){
+ // Stair footprint from the same parametric data as buildStair / drawPlan.
+ const st=state.stairs[0];
+ if(!st)return null;
+ return {
+  x0:st.x-st.width/2-st.upper,
+  x1:st.x-st.width/2,
+  x2:st.x+st.width/2,
+  z0:st.back-st.width/2,
+  z1:st.back+st.width/2,
+  z2:st.z
+ };
+}
+function buildUpperFloor(){
+ const floorY=state.height-.09;
+ const deckMaterial=meshMat('#d5c8b7',.78);
+ const opening=upperFloorOpening();
+ const left=.2,right=18.83,rear=-5.30,front=5.30;
+ function slab(x0,x1,z0,z1){
+  if(x1-x0<.03||z1-z0<.03)return;
+  upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,floorY,(z0+z1)/2,
+   x1-x0,.18,z1-z0,deckMaterial));
+ }
+ if(!opening){slab(left,right,rear,front);return}
+ const x0=clamp(opening.x0,left,right),x1=clamp(opening.x1,left,right),x2=clamp(opening.x2,left,right);
+ const z0=clamp(opening.z0,rear,front),z1=clamp(opening.z1,rear,front),z2=clamp(opening.z2,rear,front);
+ // Segmented L-shaped void instead of a slab blocking the staircase.
+ slab(left,x0,rear,front);
+ slab(x0,x1,rear,z0);slab(x0,x1,z1,front);
+ slab(x1,x2,rear,z0);slab(x1,x2,z2,front);
+ slab(x2,right,rear,front);
+ // Mark the upper landing at the end of the left-running upper flight.
+ // The real upstairs partition walls/rooms are intentionally NOT invented.
+ const edge=meshMat('#ab8f6f',.85);
+ const landingZ=z1+.12,landingX=x0+.60;
+ upperFloorMeshes.push(cube(upperFloorGroup,landingX,state.height+.012,landingZ,
+  Math.min(1.10,x1-x0-.08),.024,.20,edge));
+}
+function drawUpperFloorPlan(w,h){
+ const opening=upperFloorOpening();
+ const a=planPoint(.2,-5.30),b=planPoint(18.83,5.30);
+ ctx.fillStyle='#d6c8b5';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);
+ ctx.strokeStyle='#455561';ctx.lineWidth=3;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
+ if(opening){
+  const p0=planPoint(opening.x0,opening.z0);
+  const p1=planPoint(opening.x1,opening.z1);
+  const p2=planPoint(opening.x2,opening.z2);
+  ctx.fillStyle='#0d1720';
+  ctx.fillRect(p0.x,p0.y,(opening.x2-opening.x0)*scale,(opening.z1-opening.z0)*scale);
+  ctx.fillRect(p1.x,p1.y,(opening.x2-opening.x1)*scale,(opening.z2-opening.z1)*scale);
+  ctx.strokeStyle='#d48735';ctx.lineWidth=3;
+  ctx.strokeRect(p0.x,p0.y,(opening.x2-opening.x0)*scale,(opening.z1-opening.z0)*scale);
+  ctx.strokeRect(p1.x,p1.y,(opening.x2-opening.x1)*scale,(opening.z2-opening.z1)*scale);
+  const exit=planPoint(opening.x0+.6,opening.z1+.55);
+  ctx.fillStyle='#203e37';ctx.font='bold 13px system-ui';ctx.textAlign='left';
+  ctx.fillText('↗ ВЫХОД ИЗ ЛЕСТНИЦЫ',exit.x,exit.y);
+  ctx.fillStyle='#546575';ctx.font='11px system-ui';
+  ctx.fillText('Лестничный проём — схема',exit.x,exit.y+19);
+ }else{
+  ctx.fillStyle='#34444a';ctx.font='14px system-ui';ctx.textAlign='left';
+  ctx.fillText('Лестница удалена. Восстанови её на 1 этаже.',a.x+20,a.y+36);
+ }
+ ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.textAlign='left';
+ ctx.fillText('2 ЭТАЖ · ПЕРЕКРЫТИЕ БЕЗ ПЛАНИРОВКИ КОМНАТ',14,h-16);
+}
+function setFloorView(floor){
+ activeFloor=floor===2?2:1;
+ $('floor1').classList.toggle('active',activeFloor===1);
+ $('floor2').classList.toggle('active',activeFloor===2);
+ $('floorCaption').textContent=activeFloor===1?'Редактирование первого этажа':
+  'Схематичный второй этаж · без выдуманных помещений';
+ transform.detach();
+ selected=null;refreshInspector();refreshList();
+ for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
+ for(const root of floorMeshes)root.visible=activeFloor===1;
+ upperFloorGroup.visible=activeFloor===2;
+ if(activeFloor===2){
+  orbit.target.set(11.1,state.elevation+state.height,-2.8);
+  camera.position.set(16,state.elevation+state.height+9,1.2);
+ }else{
+  orbit.target.set(9.6,0,0);
+  camera.position.set(25,23,25);
+ }
+ orbit.update();drawPlan();
+}
+$('floor1').onclick=()=>setFloorView(1);
+$('floor2').onclick=()=>setFloorView(2);
+
 function build3d(){
 transform.detach();
 clearStairHighlights();
 const disposedGeometry=new Set(),disposedMaterial=new Set(),disposedTextures=new Set();
-for(const o of [...threeRoots.values(),...floorMeshes]){
+for(const o of [...threeRoots.values(),...floorMeshes,...upperFloorMeshes]){
  o.parent?.remove(o);
  o.traverse(child=>{
   if(!child.isMesh)return;
@@ -677,7 +780,7 @@ for(const o of [...threeRoots.values(),...floorMeshes]){
   }
  });
 }
-threeRoots.clear();floorMeshes=[];
+threeRoots.clear();floorMeshes=[];upperFloorMeshes=[];
  buildingGroup.position.y=state.elevation;
  if(yardMesh){scene.remove(yardMesh);yardMesh.geometry.dispose();yardMesh.material.dispose()}
  yardMesh=cube(scene,9.5,-.08,0,38,.12,26,meshMat('#c2c0b5'));
@@ -687,7 +790,12 @@ const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor)
 for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
 for(const o of state.furniture)buildFurniture(o);
-const active=threeRoots.get(selected);if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
+buildUpperFloor();
+// Reapply visibility without resetting the camera each time state changes.
+for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(t=>t.id===id);
+for(const root of floorMeshes)root.visible=activeFloor===1;
+upperFloorGroup.visible=activeFloor===2;
+const active=activeFloor===1?threeRoots.get(selected):null;if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
 if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
 processSceneValidation(false);
 resize3d();
@@ -705,6 +813,7 @@ canvas3d.addEventListener('pointerdown',e=>{
  pointer3DStart={x:e.clientX,y:e.clientY};
 });
 canvas3d.addEventListener('pointerup',e=>{
+ if(activeFloor===2)return;
  if(transform.dragging||performance.now()-lastTransformEnd<350)return;
  if(pointer3DStart&&Math.hypot(e.clientX-pointer3DStart.x,e.clientY-pointer3DStart.y)>7)return;
 const r=canvas3d.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
