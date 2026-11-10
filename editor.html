@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.5</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.6</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -807,12 +807,18 @@ function stairGeometry(o){
  const bridge=o.upper,left=right-2*w-bridge;
  const rear=o.back-w/2,front=o.back+w/2;
  const backRun=Number.isFinite(o.returnRun)&&o.returnRun>0?o.returnRun:o.lower;
- // More uniform, lower rise throughout: 24 risers at 3.74m (15.58cm each).
- // This keeps the start and second-floor landing unchanged and moves the
- // flight in front of the window lower by allocating more risers to the return.
+ // 24 equal risers at 3.74m (15.58cm each); distribute them to
+ // reproduce the lower stair profile visible under the existing window.
+ // These are visual study parameters, not measured as-built step counts.
  const total=Math.max(16,Math.round(state.height/.156)),turnN=3;
- const straight=total-turnN*2,firstN=Math.max(3,Math.round(straight*.39));
- const midN=Math.max(2,Math.round(straight*.17)),lastN=straight-firstN-midN;
+ const straight=total-turnN*2;
+ // Preserve the same 24 identical rises, but keep the window-side treads
+ // below the existing stair-window sill (1.82m in the original house).
+ // With 3.74m storey height: 5 first + 3 turning + 3 middle = 11 rises
+ // = 1.714m. The remaining 10 straight rises are on the return flight.
+ const firstN=Math.max(3,Math.round(straight*.28));
+ const midN=Math.max(2,Math.round(straight*.17));
+ const lastN=straight-firstN-midN;
  const cast=(cx,cz,a)=>{
   const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
   return [cx+dx*r,cz+dz*r]
@@ -1025,6 +1031,12 @@ function auditStair(o){
  if(rightWall&&g.right>rightWall.x1-rightWall.t/2+.01)errors.push('Первый марш пересекает правую стену');
  if(g.front+o.lower>-.9)errors.push('Начало первого марша выходит за лестничный холл');
  if(g.front+g.backRun>-.9)errors.push('Третий марш выходит за лестничный холл');
+ const stairWindow=state.openings.find(v=>v.id==='stairWindow');
+ if(stairWindow){
+  const windowSideHeight=(g.firstN+g.turnN+g.midN)*rise;
+  if(windowSideHeight>stairWindow.sill-.03)
+   warnings.push('Лестница под окном: верх среднего марша '+Math.round(windowSideHeight*100)+' см, подоконник '+Math.round(stairWindow.sill*100)+' см.');
+ }
  const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
  steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
  if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
