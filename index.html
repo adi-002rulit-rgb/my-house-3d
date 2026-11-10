@@ -113,7 +113,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V36</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V37</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -1066,7 +1066,7 @@ for(const [k,m] of Object.entries(finishMats)){
 function updateNight(v){
 night=v;sunlight.intensity=v?.15:2.9;
 scene.children.filter(o=>o.isHemisphereLight).forEach(o=>o.intensity=v?.48:1.55);
-scene.children.filter(o=>o.isPointLight).forEach(o=>o.intensity=v?2.8:.55);
+applyInteriorLighting();
 scene.background.set(v?'#182738':'#cbd9e0');scene.fog.color.set(v?'#182738':'#cbd9e0');
 renderer.toneMappingExposure=v?.94:1.14;
 E('daynight').textContent=v?'☾ Вечер':'☀ День';E('daynight').setAttribute('aria-pressed',String(v));
@@ -1297,6 +1297,64 @@ E('designReset').onclick=()=>{
  toast('Отделка возвращена к светлому варианту');
 };
 
+
+/* Premium furnishing and lighting, independent from architectural dimensions. */
+const fabricOptions={
+ linen:['#e7ded1','#c4b7a6','#d8c9b7'],
+ cashmere:['#d3c3b3','#b5a491','#e2d4c5'],
+ taupe:['#ab9b8e','#857d71','#c5b7aa'],
+ sage:['#b9c0b2','#7f9281','#d8dbc9'],
+ mocha:['#88776d','#655b56','#b2a59c']
+};
+const curtainOptions={
+ sheer:['#eee5d7',.76],greige:['#c1b8aa',.95],
+ sand:['#d7c3a9',.93],off:['#eee5d7',.76]
+};
+const colorTemperatures={warm:'#ffdbaf',soft:'#ffedda',daylight:'#f6f6ee'};
+let clientFabric='linen',clientCurtains='sheer',clientMoldings='minimal',clientLighting='warm',lightStrength=1;
+function applyInteriorLighting(){
+ const color=colorTemperatures[clientLighting]||colorTemperatures.warm;
+ scene.children.filter(o=>o.isPointLight).forEach(l=>{
+  l.color.set(color);l.intensity=(night?2.3:.62)*lightStrength;
+ });
+ sconceGlow.emissive.set(color);
+ E('lightStrengthValue').textContent=Math.round(lightStrength*100)+'%';
+}
+function applyInteriorOptions(save=true){
+ if(!fabricOptions[clientFabric])clientFabric='linen';
+ if(!curtainOptions[clientCurtains])clientCurtains='sheer';
+ if(!['minimal','classic','none'].includes(clientMoldings))clientMoldings='minimal';
+ if(!colorTemperatures[clientLighting])clientLighting='warm';
+ lightStrength=Math.max(.5,Math.min(1.6,Number(lightStrength)||1));
+ E('clientUpholstery').value=clientFabric;
+ E('clientCurtains').value=clientCurtains;
+ E('clientMoldings').value=clientMoldings;
+ E('clientLighting').value=clientLighting;
+ E('clientLightStrength').value=String(lightStrength);
+ const [main,accent,pillow]=fabricOptions[clientFabric];
+ mat.cloth.color.set(main);mat.cloth2.color.set(accent);pillowMat.color.set(pillow);
+ curtainGroup.visible=clientCurtains!=='off';
+ const [curtainColor,opacity]=curtainOptions[clientCurtains];
+ curtainFabric.color.set(curtainColor);curtainFabric.opacity=opacity;curtainFabric.needsUpdate=true;
+ livingMoldings.minimal.visible=clientMoldings==='minimal';
+ livingMoldings.classic.visible=clientMoldings==='classic';
+ applyInteriorLighting();
+ if(save)saveCurrentDesign();
+}
+E('clientUpholstery').onchange=e=>{clientFabric=e.target.value;applyInteriorOptions()};
+E('clientCurtains').onchange=e=>{clientCurtains=e.target.value;applyInteriorOptions()};
+E('clientMoldings').onchange=e=>{clientMoldings=e.target.value;applyInteriorOptions()};
+E('clientLighting').onchange=e=>{clientLighting=e.target.value;applyInteriorOptions()};
+E('clientLightStrength').oninput=e=>{
+ lightStrength=Number(e.target.value);applyInteriorLighting();saveCurrentDesign()
+};
+const presetInteriors={
+ linen:['linen','sheer','classic','warm'],
+ cashmere:['cashmere','sand','minimal','warm'],
+ dove:['sage','greige','minimal','soft'],
+ contrast:['taupe','greige','none','soft']
+};
+
 /* Client showroom — independent internal wall / wood floor / ceramic controls. */
 let clientStyle='linen', clientWall='mix',clientFloor='honeyOak',clientTile='sand',clientView='general';
 const stylePresets={
@@ -1373,6 +1431,10 @@ function syncDesign(){
 function applyPreset(v){
  clientStyle=v;const p=stylePresets[v];if(!p)return;
  setClientWalls(p.wall);setClientFloor(p.wood);setClientTile(p.tile);
+ const inner=presetInteriors[v];if(inner){
+ [clientFabric,clientCurtains,clientMoldings,clientLighting]=inner;
+ applyInteriorOptions();
+ }
  E('clientStyle').value=v;
  toast('Вариант дизайна применён');
 }
@@ -1411,7 +1473,7 @@ function clientCamera(v){
    E('status').textContent='Спальня · левый фасад · окно видно снаружи';
  }
  else enter(v);
- E('clientView').value=v;syncDesign();
+ clientView=v;E('clientView').value=v;syncDesign();
 }
 
 // Save two design concepts locally and reproduce an entire selected design via shared link.
@@ -1430,7 +1492,12 @@ function loadCurrentDesign(){
 function validConcept(d){
  if(!d||typeof d!=='object')return false;
  const view=String(d.view||'');
- return ['linen','cashmere','dove','contrast'].includes(d.style)
+ return (!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
+ &&(!d.curtains||Object.prototype.hasOwnProperty.call(curtainOptions,d.curtains))
+ &&(!d.moldings||['minimal','classic','none'].includes(d.moldings))
+ &&(!d.lighting||Object.prototype.hasOwnProperty.call(colorTemperatures,d.lighting))
+ &&(d.lightStrength===undefined||(Number.isFinite(d.lightStrength)&&d.lightStrength>=.5&&d.lightStrength<=1.6))
+ &&['linen','cashmere','dove','contrast'].includes(d.style)
   &&['mix','linen','cashmere','dove','mushroom','char'].includes(d.wall)
   &&Object.prototype.hasOwnProperty.call(woodChoices,d.floor)
   &&Object.prototype.hasOwnProperty.call(tileChoices,d.tile)
@@ -1450,7 +1517,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=35');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=37');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1473,12 +1540,15 @@ function readSharedDesign(){
  }catch(e){return false}
 }
 
-function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,doors:JSON.parse(JSON.stringify(doorAssignments))}}
+function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
- if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}updateNight(d.night);clientCamera(d.view);toast('Вариант отделки восстановлен');
+ if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
+ clientMoldings=d.moldings||'minimal';clientLighting=d.lighting||'warm';lightStrength=d.lightStrength??1;
+ applyInteriorOptions(false);updateNight(d.night);clientCamera(d.view);
+ toast('Дизайн восстановлен');
 }
 E('clientStyle').onchange=e=>applyPreset(e.target.value);
 E('clientWalls').onchange=e=>setClientWalls(e.target.value);
@@ -1550,5 +1620,5 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
-overview();showInfo();updateWallSwatch();loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();animate(0);E('loading').style.display='none';
+overview();showInfo();updateWallSwatch();applyInteriorOptions(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();animate(0);E('loading').style.display='none';
 </script></body></html>
