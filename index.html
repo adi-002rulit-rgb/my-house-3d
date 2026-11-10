@@ -115,7 +115,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V38</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V39</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -302,6 +302,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <option value="bedroomWindowInside">Окно спальни · изнутри</option>
 <option value="bedroomWindowOutside">Окно спальни · снаружи</option>
 <option value="stair">Лестница</option>
+<option value="stairDoor">Лестница · проход к кладовой</option>
 <option value="courtyard">Двор</option>
 </select>
 <div class="showGrid">
@@ -736,7 +737,12 @@ box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
 // The left side of stair hall remains visually clear and usable to reach the bedroom vestibule.
 // Individual treads on slender metal stringers replace the old opaque triangular step masses.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
-const ST=.17, TREAD=.300, FIRST=11, LEFT=10.48, RIGHT=12.40, START=-1.35;
+// Revision: narrower lower/right run moved inward to clear the wardrobe door.
+const ST=.17, TREAD=.300, FIRST=11, LEFT=10.48, RIGHT=12.02, START=-1.35;
+const LOWER_RUN_WIDTH=1.08; // right flight x=11.48..12.56
+// Wardrobe wall inner face x≈13.47: remaining clear strip ≈0.91 m.
+const wardrobeWalkwayClearance=13.47-(RIGHT+LOWER_RUN_WIDTH/2);
+if(wardrobeWalkwayClearance<.85)throw Error('Wardrobe door path obstructed by stair flight');
 const stairMat=mat.steps, railMat=M('#657378',.38,.48);
 const BACK=START-FIRST*TREAD;
 function stairTread(x,y,z,width=1.32){
@@ -748,7 +754,7 @@ function stairTread(x,y,z,width=1.32){
 for(let i=0;i<FIRST;i++){
  const z=START-(i+.5)*TREAD;
  const y=(i+1)*ST;
- stairTread(RIGHT,y,z);
+ stairTread(RIGHT,y,z,LOWER_RUN_WIDTH);
 }
 // Mid-platform turns from right to left at the rear.
 box(stairsGroup,(LEFT+RIGHT)/2,FIRST*ST-.075,BACK-.42,3.30,.15,.84,stairMat);
@@ -766,8 +772,9 @@ function stringer(x,fromZ,toZ,fromY,toY){
  const beam=box(stairsGroup,x,midY,midZ,.075,.15,len,railMat,false);
  beam.rotation.x=-Math.atan2(toY-fromY,toZ-fromZ);
 }
-stringer(RIGHT-.61,START, BACK, .08,1.95);
-stringer(RIGHT+.61,START, BACK, .08,1.95);
+stringer(RIGHT-.49,START,BACK,.08,1.95);
+stringer(RIGHT+.49,START,BACK,.08,1.95);
+// These are load-bearing under-step supports, not vertical balustrades.
 stringer(LEFT-.61,BACK,START,1.95,3.82);
 stringer(LEFT+.61,BACK,START,1.95,3.82);
 // Rails mounted above treads, not at ground level across circulation openings.
@@ -775,7 +782,8 @@ for(let i=0;i<FIRST;i++){
  const z1=START-(i+.5)*TREAD;
  const z2=BACK+(i+.5)*TREAD;
  const h1=(i+1)*ST,h2=(FIRST+i+1)*ST;
- box(stairsGroup,RIGHT+.71,h1+.45,z1,.035,.9,.035,railMat);
+ // The right wall side has NO railing, handrail or posts.
+ // Open edge of upper return flight retains its balustrade.
  box(stairsGroup,LEFT-.71,h2+.45,z2,.035,.9,.035,railMat);
 }
 function handRail(x,z1,z2,y1,y2){
@@ -783,10 +791,11 @@ function handRail(x,z1,z2,y1,y2){
  const rail=box(stairsGroup,x,(y1+y2)/2,(z1+z2)/2,.055,.06,l,railMat,false);
  rail.rotation.x=-Math.atan2(y2-y1,z2-z1);
 }
-handRail(RIGHT+.71,START,BACK,1.1,2.97);
+// Removed: right-wall rail had blocked the approach to wardrobe/utility door.
 handRail(LEFT-.71,BACK,START,2.97,4.84);
-for(let j=0;j<8;j++)box(stairsGroup,LEFT-.56+j*.28,2.37,BACK-.75,.035,.98,.035,railMat);
-box(stairsGroup,(LEFT+RIGHT)/2,2.90,BACK-.75,3.2,.055,.055,railMat);
+// Rear landing guard is set back from the wardrobe-side circulation aisle.
+for(let j=0;j<6;j++)box(stairsGroup,LEFT-.56+j*.22,2.37,BACK-.75,.035,.98,.035,railMat);
+box(stairsGroup,LEFT+.03,2.90,BACK-.75,1.72,.055,.055,railMat);
 // No vertical infill panels or railing across the hall-side landing entry.
 
 
@@ -1042,7 +1051,7 @@ const descriptions={
 living:'Зал 54 м². Одна дверь из коридора. Два широких окна во двор по 2,30 м. По фото сделаны низкие подоконники около 28 см и высокие окна примерно 2,91 м; точные вертикальные размеры ещё необходимо сверить.',
 kitchen:'Кухня 30,20 м². Одна дверь из коридора и одно окно во двор шириной 3,00 м. Высота подоконника ~28 см, окно ~2,91 м, как в зале; точные отметки высоты уточняются.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
-stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
+stair:'П-образная лестница: подъём справа. Правый марш смещён к центру, перила вдоль правой стены убраны; к двери гардеробной/кладовой сохранён проход около 0,9 м по геометрии модели.',
 bedroom:'Спальня 21,84 м². По обновлённому проекту окно перенесено на левую (западную) наружную стену. Ширина 1,65 м пока предварительная; мебель — концепция.',
 bathroom:'Ванная: на размерном чертеже 3,55 × 2,50 м (8,88 м²); в экспликации указано 9,38 м². Требуется сверка исходного проекта.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
@@ -1464,6 +1473,13 @@ function clientCamera(v){
    yaw=Math.PI;pitch=0;camera.rotation.set(0,yaw,0,'YXZ');
    E('status').textContent='Кухня · единственное окно шириной 3 метра';
  }
+ else if(v==='stairDoor'){
+   enter('stair');
+   // Look diagonally down the cleared ~0.9m walkway toward the wardrobe door.
+   camera.position.set(13.05,1.65,-1.19);
+   yaw=-.53;pitch=-.08;camera.rotation.set(pitch,yaw,0,'YXZ');
+   E('status').textContent='Лестница: правый проход к кладовой свободен';
+ }
  else if(v==='bedroomWindowInside'){
    enter('bedroom');
    // Positive yaw looks toward -X, directly toward the new LEFT wall window.
@@ -1525,7 +1541,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=38');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=39');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
