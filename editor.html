@@ -706,9 +706,10 @@ cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 // Geometric concept only: NOT engineering-ready and NOT verified as-built.
 // Two left 90-degree turns: -Z -> -X -> +Z. No intermediate landings.
 function stairGeometry(o){
- const w=o.width,wallL=state.walls.find(v=>v.id==='stairLeft');
- const left=wallL?wallL.x1+wallL.t/2+.08:9.73,right=o.x+w/2;
- const rear=o.back-w/2,front=o.back+w/2,bridge=right-left-2*w;
+ const w=o.width,right=o.x+w/2;
+ // Middle run length is editable; its end locates the third flight by the left wall.
+ const bridge=o.upper,left=right-2*w-bridge;
+ const rear=o.back-w/2,front=o.back+w/2;
  const backRun=Number.isFinite(o.returnRun)&&o.returnRun>0?o.returnRun:o.lower;
  const total=Math.max(12,Math.round(state.height/.17)),turnN=3;
  const straight=total-turnN*2,firstN=Math.max(3,Math.round(straight*.42));
@@ -919,6 +920,8 @@ function auditStair(o){
  const g=stairGeometry(o),rise=state.height/g.total;
  if(g.bridge<=.15)errors.push('Не хватает ширины для среднего марша');
  if(g.rear< -5.30-.01)errors.push('Поворот пересекает заднюю стену');
+ const leftWall=state.walls.find(w=>w.id==='stairLeft');
+ if(leftWall&&g.left<leftWall.x1+leftWall.t/2-.01)errors.push('Третий марш пересекает левую стену');
  const rightWall=state.walls.find(w=>w.id==='stairRight');
  if(rightWall&&g.right>rightWall.x1-rightWall.t/2+.01)errors.push('Первый марш пересекает правую стену');
  if(g.front+o.lower>-.9)errors.push('Начало первого марша выходит за лестничный холл');
