@@ -279,14 +279,14 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.1</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.2</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
 <button data-tool="select" class="active">↖ Выбрать</button><button data-tool="wall">▥ Стена</button>
 <button id="addDoor">+ Дверь</button><button id="addWindow">+ Окно</button>
-<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button><button id="rebuildStair" type="button">↺ Перестроить П-лестницу</button>
+<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button><button id="viewHall" type="button">📷 Вид из холла</button><button id="hallFinish" type="button" aria-pressed="false">✦ Светлая отделка холла</button><button id="rebuildStair" type="button">↺ Перестроить П-лестницу</button>
 </div><p class="hint">Выбери объект на плане, перетащи его или введи точные координаты справа. Стену можно двигать за концы.</p></section>
 <section><h3>Добавить мебель</h3><select id="furnitureType">
 <option value="sofa">Диван</option><option value="table">Стол</option><option value="bed">Кровать</option>
@@ -658,6 +658,7 @@ let groundGrid=null;
 const upperFloorGroup=new THREE.Group();
 let activeFloor=1;
 let stairPreview=false;
+let hallFinished=false;
 let upperFloorMeshes=[];
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
 // The renderer already owns #view3d; never create/append a second canvas.
@@ -765,12 +766,30 @@ span(cursor,len);
 root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
 for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
 if(o.type==='window'){
-const m=meshMat('#394952',.36),glass=new THREE.MeshPhysicalMaterial({color:'#a9d4de',transparent:true,opacity:.24,roughness:.10,side:THREE.DoubleSide});
+const isStairWindow=o.id==='stairWindow';
+const m=meshMat(isStairWindow?'#333b41':'#394952',.37,.24),
+ glass=new THREE.MeshPhysicalMaterial({
+  color:isStairWindow?'#c7dfe6':'#a9d4de',transparent:true,
+  opacity:isStairWindow?.29:.24,roughness:.09,metalness:0,
+  side:THREE.DoubleSide,depthWrite:false,clearcoat:.35,clearcoatRoughness:.14
+ });
 const ht=o.head-o.sill;cube(oroot,0,(o.head+o.sill)/2,0,o.width-.10,ht-.08,.018,glass);
 for(const x of [-o.width/2+.025,o.width/2-.025])cube(oroot,x,(o.head+o.sill)/2,0,.050,ht,.075,m);
 for(const y of [o.sill+.025,o.head-.025])cube(oroot,0,y,0,o.width,.05,.075,m);
 cube(oroot,0,(o.head+o.sill)/2,0,.042,ht,.075,m);
 cube(oroot,0,o.sill,0,o.width+.08,.042,w.t+.14,meshMat('#dcd6cb'));
+if(isStairWindow){
+ // Discreet plaster reveal and deep sill around the existing, unchanged opening.
+ const trim=meshMat(hallFinished?'#efebe5':'#d8d3ca',.87);
+ const inset=w.t/2+.016;
+ for(const x of [-o.width/2-.028,o.width/2+.028]){
+  cube(oroot,x,(o.sill+o.head)/2,inset,.055,ht+.09,.045,trim);
+ }
+ cube(oroot,0,o.head+.027,inset,o.width+.10,.055,.045,trim);
+ cube(oroot,0,o.sill-.027,inset,o.width+.10,.055,.05,trim);
+ // Thin secondary frame detail on the inside face.
+ cube(oroot,0,(o.sill+o.head)/2,inset+.03,.025,ht-.06,.024,m);
+}
 }else{
 const wood=meshMat('#b8a18b');let leaves=o.leaves===2?2:1,leafW=o.width/leaves;
 for(let i=0;i<leaves;i++){const x=-o.width/2+(i+.5)*leafW;cube(oroot,x,o.head/2,0,leafW-.018,o.head-.08,.053,wood)}
@@ -910,7 +929,7 @@ function buildStair(o){
  if(!Number.isFinite(o.width)||o.width<=0||o.lower<=0||o.upper<=0)return;
  const g=stairGeometry(o);if(g.bridge<=.15||g.lastN<=0)return;
  const rise=state.height/g.total,w=g.w;
- const concrete=meshMat(o.color||'#ded8cf',.8),finish=meshMat('#ebe4da',.6);
+ const concrete=meshMat(hallFinished?'#d6c8b6':(o.color||'#ded8cf'),.82),finish=meshMat(hallFinished?'#e6ddd0':'#ebe4da',.58);
  // First run descends in plan towards the window (-Z).
  const d1=o.lower/g.firstN;
  stairRunShell(root,{count:g.firstN,depth:d1,rise,startLevel:0,
@@ -1078,6 +1097,69 @@ function drawUpperFloorPlan(w,h){
  ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.textAlign='left';
  ctx.fillText('2 ЭТАЖ · П-ОБРАЗНЫЙ ПРОЁМ',14,h-16);
 }
+// Inspection modes use camera and visibility only; no changes to house state.
+function exitStairPreview(){
+ stairPreview=false;
+ $('exitStairView').hidden=true;
+ if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
+ for(const [id,root] of threeRoots)
+  root.visible=activeFloor===1||state.stairs.some(st=>st.id===id);
+ for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
+ upperFloorGroup.visible=activeFloor===2;
+}
+function showStairPreview(){
+ const st=state.stairs[0];
+ if(!st){status('Лестница не найдена — восстанови её перед просмотром.');return}
+ stairPreview=true;activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('exitStairView').hidden=false;
+ $('floorCaption').textContent='Отдельный осмотр лестницы';
+ if(groundGrid)groundGrid.visible=false;
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const [id,root] of threeRoots)root.visible=state.stairs.some(v=>v.id===id);
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=false;
+ const g=stairGeometry(st);
+ orbit.target.set((g.left+g.right)/2,state.elevation+state.height*.48,
+  g.front+.75);
+ camera.position.set(g.right+2.8,state.elevation+state.height+2.2,g.front+5);
+ orbit.update();drawPlan();
+ status('Лестница без стен. Верни весь дом кнопкой над 3D-экраном.');
+}
+function showHallInside(){
+ exitStairPreview();
+ activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('floorCaption').textContent='Вид из лестничного холла · существующая планировка';
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const root of threeRoots.values())root.visible=true;
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=false;
+ if(groundGrid)groundGrid.visible=false;
+ const st=state.stairs[0];
+ const g=st?stairGeometry(st):null;
+ const cx=g?(g.left+g.right)/2:11.5;
+ orbit.target.set(cx,state.elevation+2.0,-4.1);
+ camera.position.set(cx,state.elevation+2.15,-.36);
+ orbit.update();drawPlan();
+ status('Вид на лестницу и окно из холла. Поворачивай камеру внутри помещения.');
+}
+$('viewStair').onclick=showStairPreview;
+$('viewHall').onclick=showHallInside;
+$('exitStairView').onclick=()=>{
+ exitStairPreview();
+ $('floorCaption').textContent='Редактирование первого этажа';
+ status('Полный дом восстановлен.');
+};
+$('hallFinish').onclick=()=>{
+ hallFinished=!hallFinished;
+ $('hallFinish').classList.toggle('active',hallFinished);
+ $('hallFinish').setAttribute('aria-pressed',String(hallFinished));
+ $('hallFinish').textContent=hallFinished?'✦ Светлая отделка: вкл.':'✦ Светлая отделка холла';
+ refreshAll();
+ status(hallFinished?'Показан концепт светлой отделки холла':'Возвращён базовый вид холла');
+};
+
 function setFloorView(floor){
  exitStairPreview();
  activeFloor=floor===2?2:1;
@@ -1102,6 +1184,46 @@ function setFloorView(floor){
 }
 $('floor1').onclick=()=>setFloorView(1);
 $('floor2').onclick=()=>setFloorView(2);
+
+// Reversible visual finishes: these meshes are NOT part of the saved floorplan.
+function buildHallInterior(){
+ if(!hallFinished)return;
+ const room=state.rooms.find(r=>r.id==='stair');
+ if(!room)return;
+ const group=new THREE.Group();
+ buildingGroup.add(group);
+ floorMeshes.push(group); // 3D rebuild disposes these preview-only meshes.
+ // Restrained light stone tiles with narrow, even grout lines.
+ const tile=meshMat('#d8d1c7',.32,.025);
+ const grout=meshMat('#bdb5a8',.84);
+ const unit=.66,gap=.008;
+ const x0=room.x,z0=room.z,x1=room.x+room.w,z1=room.z+room.h;
+ // Existing floor top is Y=.08; tiles are superficial finishes.
+ cube(group,(x0+x1)/2,.080,(z0+z1)/2,room.w,.009,room.h,grout);
+ for(let x=x0;x<x1-.02;x+=unit){
+  for(let z=z0;z<z1-.02;z+=unit){
+   const tw=Math.min(unit,x1-x),td=Math.min(unit,z1-z);
+   cube(group,x+tw/2,.087,z+td/2,Math.max(.01,tw-gap),.008,
+    Math.max(.01,td-gap),tile);
+  }
+ }
+ // Fine plaster skirting on the inner faces, stopping short of door openings.
+ const skirting=meshMat('#ebe5dc',.88);
+ const walls=state.walls.filter(w=>['stairLeft','stairRight'].includes(w.id));
+ for(const wall of walls){
+  const endA=Math.min(wall.z1,wall.z2),endB=Math.max(wall.z1,wall.z2);
+  const doorSpans=state.openings.filter(o=>o.wall===wall.id&&o.type==='door').map(o=>{
+   const c=offsetPoint(wall,o.offset);
+   return [c.z-o.width/2-.04,c.z+o.width/2+.04]
+  });
+  const x=wall.id==='stairLeft'?wall.x1+wall.t/2+.017:wall.x1-wall.t/2-.017;
+  for(let z=endA+.05;z<endB-.05;z+=.4){
+   const za=z,zb=Math.min(z+.4,endB-.05);
+   if(doorSpans.some(([a,b])=>za<b&&zb>a))continue;
+   cube(group,x,.13,(za+zb)/2,.027,.13,zb-za,skirting);
+  }
+ }
+}
 
 function build3d(){
 transform.detach();
@@ -1134,6 +1256,7 @@ const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor,
 for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
 for(const o of state.furniture)buildFurniture(o);
+buildHallInterior();
 // The previous renderer had shadows enabled but every cube had castShadow=false.
 // Enable casting selectively for movable furniture and stairs; avoid wall-heavy shadow maps.
 for(const object of [...state.stairs,...state.furniture]){
