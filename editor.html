@@ -202,14 +202,14 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.7</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.8</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
 <button data-tool="select" class="active">↖ Выбрать</button><button data-tool="wall">▥ Стена</button>
 <button id="addDoor">+ Дверь</button><button id="addWindow">+ Окно</button>
-<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button>
+<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button>
 </div><p class="hint">Выбери объект на плане, перетащи его или введи точные координаты справа. Стену можно двигать за концы.</p></section>
 <section><h3>Добавить мебель</h3><select id="furnitureType">
 <option value="sofa">Диван</option><option value="table">Стол</option><option value="bed">Кровать</option>
@@ -225,7 +225,7 @@ label {color:#d1d1d8}
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
 <div class="viewMode"><button id="fitPlan">Вписать план</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
-<div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
+<div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><button id="exitStairView" type="button" hidden>Вернуть весь дом</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
 <div class="pane" id="pane3d"><canvas id="view3d"></canvas>
@@ -576,6 +576,7 @@ const canvas3d=$('view3d');
 let yardMesh=null;
 const upperFloorGroup=new THREE.Group();
 let activeFloor=1;
+let stairPreview=false;
 let upperFloorMeshes=[];
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
 // The renderer already owns #view3d; never create/append a second canvas.
@@ -920,7 +921,43 @@ function drawUpperFloorPlan(w,h){
  ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.textAlign='left';
  ctx.fillText('2 ЭТАЖ · ПЕРЕКРЫТИЕ БЕЗ ПЛАНИРОВКИ КОМНАТ',14,h-16);
 }
+function exitStairPreview(){
+ stairPreview=false;
+ $('exitStairView').hidden=true;
+ for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
+ for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
+ upperFloorGroup.visible=activeFloor===2;
+}
+function showStairPreview(){
+ if(!state.stairs.length){
+  status('Лестница удалена. Сначала нажми «Создать / восстановить лестницу».');
+  return;
+ }
+ // Do not change saved house data: this is a camera-only inspection mode.
+ stairPreview=true;activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('floorCaption').textContent='Просмотр лестницы без стен и мебели';
+ $('exitStairView').hidden=false;
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const [id,root] of threeRoots)root.visible=state.stairs.some(s=>s.id===id);
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=false;
+ const st=state.stairs[0];
+ const cx=st.x-st.upper*.38,cz=st.back+st.width*.8;
+ orbit.target.set(cx,state.elevation+state.height*.48,cz);
+ // Look from the hall end to expose the lower + turning + upper flights.
+ camera.position.set(cx+4.5,state.elevation+state.height+3.6,cz+5.8);
+ orbit.update();
+ status('Лестница крупным планом. Вращай 3D пальцем/мышью; «Вернуть весь дом» — выход.');
+}
+$('viewStair').onclick=showStairPreview;
+$('exitStairView').onclick=()=>{
+ exitStairPreview();
+ $('floorCaption').textContent=activeFloor===1?'Редактирование первого этажа':'Схематичный второй этаж';
+ status('Полный дом снова виден.');
+};
 function setFloorView(floor){
+ exitStairPreview();
  activeFloor=floor===2?2:1;
  $('floor1').classList.toggle('active',activeFloor===1);
  $('floor2').classList.toggle('active',activeFloor===2);
@@ -982,9 +1019,9 @@ for(const object of [...state.stairs,...state.furniture]){
 }
 buildUpperFloor();
 // Reapply visibility without resetting the camera each time state changes.
-for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(t=>t.id===id);
-for(const root of floorMeshes)root.visible=activeFloor===1;
-upperFloorGroup.visible=activeFloor===2;
+for(const [id,root] of threeRoots)root.visible=stairPreview?state.stairs.some(t=>t.id===id):(activeFloor===1||state.stairs.some(t=>t.id===id));
+for(const root of floorMeshes)root.visible=stairPreview||activeFloor===1;
+upperFloorGroup.visible=!stairPreview&&activeFloor===2;
 const active=activeFloor===1?threeRoots.get(selected):null;if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
 if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
 processSceneValidation(false);
