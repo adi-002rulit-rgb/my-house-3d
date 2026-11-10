@@ -28,13 +28,53 @@
 .auditActions{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}.auditActions button{font-size:10px;padding:7px}
 #auditPanel small{color:#e1c8a9}#auditPanel p{margin:7px 0}
 @media(max-width:700px){#auditPanel{top:165px;max-width:62vw;max-height:39dvh}}
+
+/* Desktop architectural inspection tools */
+#inspectPanel{position:fixed;z-index:5;left:12px;top:76px;display:flex;gap:5px;align-items:center;flex-wrap:wrap;max-width:min(75vw,760px);pointer-events:auto}
+#inspectPanel button{font-size:11px;padding:8px 10px;background:#152936e8;border-radius:9px}
+#inspectPanel button[aria-pressed=true]{background:#c7a571;color:#1b252b}
+#minimap{position:fixed;left:12px;bottom:141px;width:222px;height:135px;z-index:4;background:#0b1922df;border:1px solid #c3ad8799;border-radius:12px;box-shadow:0 10px 30px #0006}
+#miniToggle{position:fixed;left:12px;bottom:283px;z-index:5;font-size:10px;padding:5px 8px}
+#inspectHelp{position:fixed;z-index:8;top:130px;left:12px;width:min(380px,92vw);max-height:55dvh;overflow:auto;padding:14px;background:#132734fa;border:1px solid #c8ab79b0;border-radius:13px;font-size:13px;line-height:1.7}
+#inspectHelp[hidden]{display:none}
+#inspectHelp kbd{padding:2px 5px;border-radius:4px;background:#41505d;color:#fff}
+#inspectHelp button{margin-top:12px}
+#measureText{position:fixed;left:50%;top:72px;transform:translateX(-50%);background:#1b3544e8;border:1px solid #dfc49366;border-radius:10px;padding:7px 12px;color:#f1e8d9;z-index:5;font-size:12px;display:none}
+#inspectionSpeed{position:fixed;z-index:5;right:11px;bottom:141px;display:flex;flex-direction:column;gap:6px;background:#152735e6;padding:10px;border:1px solid #ffffff32;border-radius:11px;font-size:11px}
+#inspectionSpeed label{display:flex;flex-direction:column;gap:4px}
+#inspectionSpeed input{width:112px;accent-color:#c6a976}
+#inspectionSpeed output{color:#d7c29f}
+@media(max-width:900px){#inspectPanel{top:112px;left:9px;max-width:61vw}#inspectPanel button{font-size:10px;padding:6px}#minimap{left:9px;bottom:130px;width:160px;height:98px}#miniToggle{left:9px;bottom:235px}#inspectionSpeed{right:8px;bottom:132px;padding:6px}#measureText{top:66px;max-width:75vw;text-align:center}#inspectHelp{top:165px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V19</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V20</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
+
+<div id="inspectPanel">
+<button id="measureBtn" aria-pressed="false" title="Измерить две точки на плане">⌁ Рулетка</button>
+<button id="gridBtn" aria-pressed="false" title="Метровая сетка">▦ Сетка 1 м</button>
+<button id="doorsBtn" aria-pressed="false" title="Проверить проёмы">🚪 Проёмы</button>
+<button id="collidersBtn" aria-pressed="false" title="Проверить препятствия движения">▧ Препятствия</button>
+<button id="frontView" title="Обзор со стороны главного входа">◉ Фасад</button>
+<button id="rearView" title="Обзор с задней стороны">◉ Сзади</button>
+<button id="exportDims" title="Скачать CSV размеров">↓ Размеры CSV</button>
+<button id="keysHelp" title="Управление и горячие клавиши">? Клавиши</button>
+</div>
+<canvas id="minimap" width="444" height="270" aria-label="Схематичная мини-карта"></canvas>
+<button id="miniToggle" aria-pressed="true">Скрыть карту</button>
+<div id="measureText">Рулетка: нажми две точки на полу при обзоре сверху</div>
+<div id="inspectionSpeed">
+<label>Скорость <output id="speedValue">2.5 м/с</output><input id="speedSlider" type="range" min="0.8" max="5" value="2.45" step="0.15"></label>
+<label>Мышь <output id="mouseValue">1.0×</output><input id="mouseSlider" type="range" min="0.4" max="2.5" value="1" step="0.1"></label>
+</div>
+<div id="inspectHelp" hidden><b>Управление на компьютере</b>
+<p><kbd>W A S D</kbd> — идти по дому; <kbd>Q E</kbd> — повернуть камеру; <kbd>Shift</kbd> — ускориться.</p>
+<p><kbd>1</kbd> — обзор дома, <kbd>2</kbd> — вид сверху, <kbd>3</kbd> — прогулка в коридоре, <kbd>M</kbd> — рулетка, <kbd>G</kbd> — сетка, <kbd>H</kbd> — эта справка, <kbd>Esc</kbd> — выход из прогулки.</p>
+<p>В режиме обзора: левая кнопка — вращение, правая — сдвиг, колёсико — масштаб. Для рулетки выбери две точки на горизонтальном полу.</p>
+<button id="helpClose">Закрыть</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
 <select id="wallColors" aria-label="Цвет внутренних стен">
@@ -188,7 +228,12 @@ const uniq=[...new Set(bounds.map(v=>Math.round(v*10000)/10000))];
 function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:thickness,high-low,axis==='z'?end-start:thickness,m);if(low<1.1&&high>.1){const rx=(axis==='x'?end-start:thickness)/2,rz=(axis==='z'?end-start:thickness)/2;collisionWalls.push({minX:cx-rx,maxX:cx+rx,minZ:cz-rz,maxZ:cz+rz})}}
 for(let i=0;i<uniq.length-1;i++){let start=uniq[i],end=uniq[i+1],center=(start+end)/2,o=openings.find(p=>center>p.at&&center<p.at+p.width);
 if(!o)piece(start,end,0,H,material);
-else if(o.kind==='door'){piece(start,end,2.35,H,material);let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
+else if(o.kind==='door'){piece(start,end,2.35,H,material);
+if(x1>=0&&x1<=19.03&&x2>=0&&x2<=19.03){
+ const pc=(start+end)/2;
+ archDoorCenters.push({x:axis==='x'?x1+sign*pc:x1,z:axis==='z'?z1+sign*pc:z1,width:end-start,axis});
+}
+let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
 const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
 if(o.leaf!==false){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
@@ -215,6 +260,7 @@ slab(11.56,-.12,3.52,10.55,mat.tile,.065);
 // 'at' distances measured from the first point of each segment. Approximate positions
 // of individual glazing segments should be checked against original CAD before construction.
 const collisionWalls=[];
+const archDoorCenters=[];
 // Source: IMG_6632 + labelled first-floor plan: rear bedroom, bath,
 // staircase landing, wardrobe; front two living-room windows, entrance, kitchen.
 // Exact offset from column axes is still preliminary; no extra invented windows.
@@ -274,6 +320,29 @@ slab(7.62,-1.91,3.55,1.20,mat.tile,.068);
 // Small, flush panels add depth without creating a new partition or blocking any entrance.
 box(model,2.85,1.65,-.825,3.45,2.80,.025,interiorMats.mushroom,false); // living accent wall
 box(model,16.1,1.65,-.93,2.45,2.65,.025,interiorMats.char,false); // kitchen accent on solid rear wall
+
+// Inspection overlays are separate from load-bearing geometry.
+const inspectGroup=new THREE.Group();world.add(inspectGroup);
+const doorOverlay=new THREE.Group();inspectGroup.add(doorOverlay);
+const collisionOverlay=new THREE.Group();inspectGroup.add(collisionOverlay);
+const measurementOverlay=new THREE.Group();inspectGroup.add(measurementOverlay);
+const inspectorDoorMat=new THREE.MeshBasicMaterial({color:'#36dfbd',transparent:true,opacity:.77,depthTest:false});
+const collisionMat=new THREE.MeshBasicMaterial({color:'#e86945',transparent:true,opacity:.21,depthWrite:false,depthTest:false});
+for(const d of archDoorCenters){
+ const w=d.axis==='x'?d.width:.10,h=d.axis==='z'?d.width:.10;
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,.018,h),inspectorDoorMat);
+ mesh.position.set(d.x,.15,d.z);mesh.renderOrder=18;doorOverlay.add(mesh);
+}
+for(const w of collisionWalls){
+ const sizeX=w.maxX-w.minX,sizeZ=w.maxZ-w.minZ;
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(sizeX,.22,sizeZ),collisionMat);
+ mesh.position.set((w.minX+w.maxX)/2,.13,(w.minZ+w.maxZ)/2);mesh.renderOrder=17;collisionOverlay.add(mesh);
+}
+doorOverlay.visible=false;collisionOverlay.visible=false;
+const metricGrid=new THREE.GridHelper(20,20,'#3d7182','#90b3bb');
+metricGrid.position.set(9.515,.155,0);metricGrid.material.transparent=true;metricGrid.material.opacity=.55;metricGrid.visible=false;
+inspectGroup.add(metricGrid);
+
 // Detached boiler room, behind the kitchen/wardrobe block
 slab(17.35,-7.55,3.1,2.8,mat.tile);
 segmented(15.7,-8.9,19.03,-8.9);
@@ -532,7 +601,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=19';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=20';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -544,6 +613,91 @@ function walkable(x,z){
  if(x>=-12.3&&x<=9.6&&z>=-4.5&&z<=10.4)return true;
  return false;
 }
+
+/* Precision inspection utilities: do not alter the building geometry */
+let measureEnabled=false, measurePoints=[],measurementLine=null,measureMarkers=[];
+let moveSpeed=2.45,mouseScale=1,mapVisible=true,minimapTick=0;
+const measureMat=new THREE.MeshBasicMaterial({color:'#ffe19a',depthTest:false});
+const measureRay=new THREE.Raycaster(),measureGround=new THREE.Plane(new THREE.Vector3(0,1,0),-.14);
+function removeMeasurement(){
+ measurePoints.length=0;
+ if(measurementLine){measurementOverlay.remove(measurementLine);measurementLine.geometry.dispose();measurementLine=null}
+ for(const o of measureMarkers){measurementOverlay.remove(o);o.geometry.dispose()}measureMarkers=[];
+ E('measureText').textContent='Рулетка: нажми две точки на полу при обзоре сверху';
+}
+function toggleMeasure(){
+ measureEnabled=!measureEnabled;removeMeasurement();
+ E('measureBtn').setAttribute('aria-pressed',String(measureEnabled));
+ E('measureText').style.display=measureEnabled?'block':'none';
+ if(measureEnabled&&current!=='overview')topCamera();
+}
+function clickMeasure(pointer){
+ measureRay.setFromCamera(pointer,camera);
+ const p=new THREE.Vector3();
+ if(!measureRay.ray.intersectPlane(measureGround,p))return;
+ if(p.x<0||p.x>19.03||p.z< -5.7||p.z>5.7){toast('Выбери точку внутри основного дома');return}
+ if(measurePoints.length>=2)removeMeasurement();
+ measurePoints.push(p.clone());
+ const mark=new THREE.Mesh(new THREE.SphereGeometry(.115,12,8),measureMat);
+ mark.position.copy(p);mark.position.y=.18;mark.renderOrder=19;
+ measurementOverlay.add(mark);measureMarkers.push(mark);
+ if(measurePoints.length===2){
+ const points=measurePoints.map(v=>new THREE.Vector3(v.x,.19,v.z));
+ measurementLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:'#ffde80',depthTest:false}));
+ measurementLine.renderOrder=19;measurementOverlay.add(measurementLine);
+ const d=measurePoints[0].distanceTo(measurePoints[1]);
+ E('measureText').textContent='Расстояние на плане: '+d.toFixed(2)+' м · новая пара — ещё два клика';
+ }else E('measureText').textContent='Первая точка выбрана · нажми вторую';
+}
+function setInspectPressed(id,v){E(id).setAttribute('aria-pressed',String(v))}
+E('measureBtn').onclick=toggleMeasure;
+E('gridBtn').onclick=()=>{metricGrid.visible=!metricGrid.visible;setInspectPressed('gridBtn',metricGrid.visible)};
+E('doorsBtn').onclick=()=>{doorOverlay.visible=!doorOverlay.visible;setInspectPressed('doorsBtn',doorOverlay.visible);toast('Бирюзовые полосы — проектные дверные проёмы')};
+E('collidersBtn').onclick=()=>{collisionOverlay.visible=!collisionOverlay.visible;setInspectPressed('collidersBtn',collisionOverlay.visible);toast('Оранжевые зоны — препятствия прогулки')};
+E('frontView').onclick=()=>{overview();camera.position.set(9.5,14,26);orbit.target.set(9.5,0,0);orbit.update();toast('Вид со стороны главного входа')};
+E('rearView').onclick=()=>{overview();camera.position.set(9.5,14,-26);orbit.target.set(9.5,0,0);orbit.update();toast('Вид с заднего фасада')};
+E('exportDims').onclick=()=>{
+ const lines=[['Помещение','Размер по чертежу','Комментарий'],
+ ['Основной корпус','19.03 × 11.40 м','Контроль габаритов'],
+ ['Зал','9.00 × 6.00 м','54.00 м²'],
+ ['Спальня','5.20 × 4.20 м','21.84 м²'],
+ ['Ванная','3.55 × 2.50 м','Площадь 8.88 м², экспликация 9.38 м²'],
+ ['Кухня','4.91 × 6.15 м','30.20 м²'],
+ ['Гардеробная','5.06 × 4.20 м','21.25 м²'],
+ ['Коридор','3.52 м','Чистая ширина'],
+ ['Перегородки','0.25 / 0.40 м','По размерным цепочкам']];
+ const csv='\ufeff'+lines.map(r=>r.map(v=>'"'+v.replace(/"/g,'""')+'"').join(';')).join('\r\n');
+ const a=document.createElement('a');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ a.href=url;a.download='razmery-doma-v20.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+ toast('Таблица размеров сохранена');
+};
+E('keysHelp').onclick=()=>E('inspectHelp').hidden=!E('inspectHelp').hidden;
+E('helpClose').onclick=()=>E('inspectHelp').hidden=true;
+E('miniToggle').onclick=()=>{mapVisible=!mapVisible;E('minimap').style.display=mapVisible?'block':'none';E('miniToggle').textContent=mapVisible?'Скрыть карту':'Показать карту';setInspectPressed('miniToggle',mapVisible)};
+E('speedSlider').oninput=e=>{moveSpeed=Number(e.target.value);E('speedValue').textContent=moveSpeed.toFixed(1)+' м/с'};
+E('mouseSlider').oninput=e=>{mouseScale=Number(e.target.value);E('mouseValue').textContent=mouseScale.toFixed(1)+'×'};
+function renderMinimap(){
+ if(!mapVisible)return;
+ const cvs=E('minimap'),ctx=cvs.getContext('2d'),w=cvs.width,h=cvs.height;
+ ctx.clearRect(0,0,w,h);ctx.fillStyle='#102532';ctx.fillRect(0,0,w,h);
+ const x0=18,z0=22,scale=20.2;
+ const px=x=>x0+x*scale,pz=z=>z0+(z+5.7)*scale;
+ ctx.fillStyle='#e3ded2';ctx.fillRect(px(0),pz(-5.7),19.03*scale,11.4*scale);
+ ctx.fillStyle='#d1c4af';
+ for(const r of rooms.filter(v=>v.cx>=0)){
+  const [a,b,c,d]=r.range;ctx.fillRect(px(a),pz(c),(b-a)*scale,(d-c)*scale);
+ }
+ ctx.lineWidth=3;ctx.strokeStyle='#465f6f';ctx.strokeRect(px(0),pz(-5.7),19.03*scale,11.4*scale);
+ const cuts=[9.6,13.52];for(const x of cuts){ctx.beginPath();ctx.moveTo(px(x),pz(-5.4));ctx.lineTo(px(x),pz(5.4));ctx.stroke()}
+ ctx.lineWidth=2;ctx.fillStyle='#152733';ctx.font='bold 17px system-ui';ctx.fillText('1 ЭТАЖ',22,17);
+ const v=current==='inside'?camera.position:orbit.target;
+ ctx.fillStyle='#e2a75f';ctx.beginPath();ctx.arc(px(v.x),pz(v.z),7,0,Math.PI*2);ctx.fill();
+ if(current==='inside'){
+  ctx.strokeStyle='#fbe6ad';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px(v.x),pz(v.z));
+  ctx.lineTo(px(v.x)-Math.sin(yaw)*24,pz(v.z)-Math.cos(yaw)*24);ctx.stroke();
+ }
+}
+
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
@@ -555,20 +709,31 @@ E('roof').onclick=()=>{roofMode.on=!roofMode.on;roofs.visible=roofMode.on;E('roo
 E('reset').onclick=()=>{roofMode.on=false;roofs.visible=false;overview()};
 document.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>enter(b.dataset.room));
 document.querySelectorAll('[data-move]').forEach(b=>{let k=b.dataset.move;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);keys[k]=true});for(let ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>keys[k]=false)});
-window.addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='Escape')overview()});
+window.addEventListener('keydown',e=>{
+ if(e.target&&['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
+ keys[e.code]=true;
+ if(e.code==='Escape'){overview();E('inspectHelp').hidden=true}
+ if(e.repeat)return;
+ if(e.code==='Digit1')overview();
+ if(e.code==='Digit2')topCamera();
+ if(e.code==='Digit3')enter('hallway');
+ if(e.code==='KeyM')toggleMeasure();
+ if(e.code==='KeyG')E('gridBtn').click();
+ if(e.code==='KeyH')E('keysHelp').click();
+});
 window.addEventListener('keyup',e=>keys[e.code]=false);
 function pointerPos(ev){let rc=canvas.getBoundingClientRect();return new THREE.Vector2((ev.clientX-rc.left)/rc.width*2-1,-((ev.clientY-rc.top)/rc.height)*2+1)}
 let raycaster=new THREE.Raycaster();
 canvas.addEventListener('pointerdown',e=>{dragStart={x:e.clientX,y:e.clientY,moved:false};if(current==='inside')canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
-canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}dragStart=null});
-function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;
+canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
+canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){if(measureEnabled)clickMeasure(pointerPos(e));else{raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}}dragStart=null});
+function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;if(t-minimapTick>120){minimapTick=t;renderMinimap()}
 if(playing){playTime+=dt;if(playTime>5.5){playTime=0;playIndex=(playIndex+1)%tourRooms.length;enter(tourRooms[playIndex]);}}
 if(E('toast').style.display==='block'&&t>toast.until)E('toast').style.display='none';
 if(current==='inside'){if(keys.turnleft||keys.KeyQ)yaw+=dt*1.45;if(keys.turnright||keys.KeyE)yaw-=dt*1.45;
 let f=Number(!!(keys.up||keys.KeyW||keys.ArrowUp))-Number(!!(keys.down||keys.KeyS||keys.ArrowDown));
 let s=Number(!!(keys.right||keys.KeyD))-Number(!!(keys.left||keys.KeyA));
-let step=dt*2.45;
+let step=dt*moveSpeed*(keys.ShiftLeft||keys.ShiftRight?1.7:1);
 // Real solid-wall collision: door voids are passable without switching rooms.
 let dx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*step;
 let dz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*step;
