@@ -328,8 +328,8 @@ const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
 if(isStair){
  // One footprint definition used by the 3D construction and the 2D plan.
  const g=stairGeometry(o);
- const lowerZ=(g.turnFront-o.z)*scale;
- const upperBack=(g.turnBack-o.z)*scale;
+ const lowerZ=g.turnFront*scale;
+ const upperBack=g.turnBack*scale;
  ctx.fillRect(-width/2,lowerZ,width,(o.lower)*scale);
  ctx.strokeRect(-width/2,lowerZ,width,(o.lower)*scale);
  ctx.fillRect(-width/2,upperBack,width,width);
