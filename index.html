@@ -45,14 +45,83 @@
 #inspectionSpeed input{width:112px;accent-color:#c6a976}
 #inspectionSpeed output{color:#d7c29f}
 @media(max-width:900px){#inspectPanel{top:112px;left:9px;max-width:61vw}#inspectPanel button{font-size:10px;padding:6px}#minimap{left:9px;bottom:130px;width:160px;height:98px}#miniToggle{left:9px;bottom:235px}#inspectionSpeed{right:8px;bottom:132px;padding:6px}#measureText{top:66px;max-width:75vw;text-align:center}#inspectHelp{top:165px}}
+
+/* Client-first showroom: design decisions front and centre, technical overlays opt-in. */
+#showroom{position:fixed;z-index:7;left:12px;top:75px;width:255px;max-width:29vw;max-height:72dvh;overflow-y:auto;border:1px solid #e2c79f79;border-radius:16px;padding:14px;background:#13222de8;box-shadow:0 18px 40px #07101663;backdrop-filter:blur(18px)}
+#showroom h2{margin:0 0 5px;font-size:17px;color:#f5eee3}#showroom p{margin:0 0 12px;font-size:11px;color:#d8cfbd;line-height:1.45}
+#showroom label{display:block;font-size:11px;color:#e0d4bf;margin:10px 0 5px}
+#showroom select,#showroom button{width:100%;border-radius:9px;padding:9px 10px;background:#263946;color:#fdf8f1;border:1px solid #ffffff36;font-size:12px}
+#showroom select:focus,#showroom button:focus{outline:2px solid #d4b687}
+#showroom .showGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}#showroom .showGrid button{padding:9px 4px;font-size:11px}
+#showroom .swatches{display:flex;gap:5px;margin-top:6px}
+#showroom .swatches span{width:25px;height:22px;border-radius:4px;border:1px solid #ffffff40}
+#showroom #styleSummary{font-size:11px;color:#ecdbbe;margin-top:9px;line-height:1.5}
+#techToggle{position:fixed;z-index:8;right:12px;top:48px;padding:7px 12px;font-size:11px;border-radius:8px}
+body:not(.technical) #inspectPanel,body:not(.technical) #minimap,body:not(.technical) #miniToggle,body:not(.technical) #inspectionSpeed,body:not(.technical) #auditPanel,body:not(.technical) #measureText,body:not(.technical) #inspectHelp{display:none!important}
+body:not(.technical) #studio{top:85px;max-height:65dvh}
+body:not(.technical) #studio button:not(#snapshot):not(#fullscreen):not(#presentation):not(#share),body:not(.technical) #studio select{display:none}
+body:not(.technical) #studio button{min-width:110px}
+@media(max-width:900px){#showroom{left:8px;top:117px;width:180px;max-width:48vw;max-height:42dvh;padding:9px}#showroom h2{font-size:13px}#showroom select,#showroom button{font-size:10px;padding:7px}#showroom .showGrid button{font-size:9px}#techToggle{top:43px;right:8px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V20</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V21</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
+
+<button id="techToggle" aria-pressed="false">⚙ Режим архитектора</button>
+<aside id="showroom" aria-label="Дизайн-студия">
+<h2>Дизайн-студия дома</h2>
+<p>Меняй отделку и сравнивай варианты прямо в 3D.</p>
+<label for="clientStyle">Готовый стиль</label>
+<select id="clientStyle">
+<option value="linen">Светлый премиум</option>
+<option value="cashmere">Тёплый грейж</option>
+<option value="dove">Современный спокойный</option>
+<option value="contrast">Контрастный</option>
+</select>
+<div class="swatches" aria-hidden="true"><span style="background:#F0E9DF"></span><span style="background:#D2C6B6"></span><span style="background:#B7AA9A"></span><span style="background:#8F8274"></span><span style="background:#6E655C"></span></div>
+<label for="clientWalls">Цвет внутренних стен</label>
+<select id="clientWalls">
+<option value="mix">Сочетание оттенков</option>
+<option value="linen">Linen Plaster</option>
+<option value="cashmere">Cashmere Greige</option>
+<option value="dove">Warm Dove</option>
+<option value="mushroom">Mushroom Stone</option>
+<option value="char">Soft Char</option>
+</select>
+<label for="clientFloor">Цвет деревянного пола</label>
+<select id="clientFloor">
+<option value="natural">Натуральный дуб</option>
+<option value="light">Светлый дуб</option>
+<option value="honey">Медовый дуб</option>
+<option value="smoked">Тёмный дуб</option>
+</select>
+<label for="clientTile">Цвет плитки</label>
+<select id="clientTile">
+<option value="sand">Тёплый светлый камень</option>
+<option value="marble">Светлый мрамор</option>
+<option value="greige">Грейж-керамогранит</option>
+<option value="graphite">Графит</option>
+</select>
+<label for="clientView">Красивый ракурс</label>
+<select id="clientView">
+<option value="general">Весь дом</option>
+<option value="living">Зал</option>
+<option value="kitchen">Кухня</option>
+<option value="hallway">Коридор</option>
+<option value="bedroom">Спальня</option>
+<option value="stair">Лестница</option>
+<option value="courtyard">Двор</option>
+</select>
+<div class="showGrid">
+<button id="saveA">Запомнить A</button><button id="saveB">Запомнить B</button>
+<button id="viewA">Показать A</button><button id="viewB">Показать B</button>
+</div>
+<div id="styleSummary">Стиль: светлый премиум · натуральный дуб</div>
+</aside>
 <div id="inspectPanel">
 <button id="measureBtn" aria-pressed="false" title="Измерить две точки на плане">⌁ Рулетка</button>
 <button id="gridBtn" aria-pressed="false" title="Метровая сетка">▦ Сетка 1 м</button>
@@ -602,7 +671,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=20';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=21';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -699,11 +768,83 @@ function renderMinimap(){
  }
 }
 
+
+/* Client showroom — independent internal wall / wood floor / ceramic controls. */
+let clientStyle='linen', clientWall='mix',clientFloor='natural',clientTile='sand',clientView='general';
+const stylePresets={
+ linen:{wall:'linen',wood:'light',tile:'marble'},
+ cashmere:{wall:'cashmere',wood:'natural',tile:'sand'},
+ dove:{wall:'dove',wood:'honey',tile:'greige'},
+ contrast:{wall:'mushroom',wood:'smoked',tile:'graphite'}
+};
+const woodChoices={natural:'#c4a88a',light:'#ddcfb6',honey:'#b99569',smoked:'#806753'};
+const tileChoices={sand:'#ded9d1',marble:'#f1eee7',greige:'#c8bdb0',graphite:'#7b7e80'};
+let conceptA=null,conceptB=null;
+function retexture(m,kind,hex,repeat=2.4){
+ if(m.map){m.map.dispose();m.map=surfaceTexture(kind,hex,repeat);m.color.set('#ffffff')}
+ else m.color.set(hex);
+ m.needsUpdate=true;
+}
+function setClientFloor(v){
+ clientFloor=v;const hex=woodChoices[v];
+ // Change flooring and decorative timber; keep fabric, walls and structural geometry unchanged.
+ for(const m of [mat.oak,mat.wood,mat.floor])retexture(m,'oak',hex,2.5);
+ syncDesign();
+}
+function setClientTile(v){
+ clientTile=v;const hex=tileChoices[v];
+ retexture(mat.tile,'stone',hex,2.3);
+ syncDesign();
+}
+function setClientWalls(v){clientWall=v;setInteriorPalette(v);syncDesign()}
+function syncDesign(){
+ E('clientWalls').value=clientWall;E('clientFloor').value=clientFloor;E('clientTile').value=clientTile;
+ const r=rooms.find(q=>q.id===roomID);
+ E('styleSummary').textContent='Стены: '+(clientWall==='mix'?'сочетание':interiorSwatches[clientWall].name)
+ +' · пол: '+E('clientFloor').selectedOptions[0].textContent
+ +(r?' · '+r.name:'');
+}
+function applyPreset(v){
+ clientStyle=v;const p=stylePresets[v];if(!p)return;
+ setClientWalls(p.wall);setClientFloor(p.wood);setClientTile(p.tile);
+ E('clientStyle').value=v;
+ toast('Вариант дизайна применён');
+}
+function clientCamera(v){
+ clientView=v;
+ if(v==='general'){overview();}
+ else if(v==='courtyard'){enter('courtyard')}
+ else enter(v);
+ E('clientView').value=v;syncDesign();
+}
+function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,view:clientView,night}}
+function applyConcept(d){
+ if(!d){toast('Сначала сохрани этот вариант');return}
+ clientStyle=d.style;E('clientStyle').value=d.style;
+ setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
+ updateNight(d.night);clientCamera(d.view);toast('Вариант отделки восстановлен');
+}
+E('clientStyle').onchange=e=>applyPreset(e.target.value);
+E('clientWalls').onchange=e=>setClientWalls(e.target.value);
+E('clientFloor').onchange=e=>setClientFloor(e.target.value);
+E('clientTile').onchange=e=>setClientTile(e.target.value);
+E('clientView').onchange=e=>clientCamera(e.target.value);
+E('saveA').onclick=()=>{conceptA=snapshotConcept();toast('Вариант A сохранён')};
+E('saveB').onclick=()=>{conceptB=snapshotConcept();toast('Вариант B сохранён')};
+E('viewA').onclick=()=>applyConcept(conceptA);
+E('viewB').onclick=()=>applyConcept(conceptB);
+E('techToggle').onclick=()=>{
+ const active=document.body.classList.toggle('technical');
+ E('techToggle').setAttribute('aria-pressed',String(active));
+ E('techToggle').textContent=active?'◈ Режим клиента':'⚙ Режим архитектора';
+ if(!active){doorOverlay.visible=false;collisionOverlay.visible=false;metricGrid.visible=false;measureEnabled=false;E('measureText').style.display='none';E('auditPanel').hidden=true}
+};
+
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
-function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;showInfo();look(r.eye[0],r.eye[1],r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
+function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;showInfo();if(E('styleSummary'))syncDesign();look(r.eye[0],r.eye[1],r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
 E('inside').onclick=()=>enter('living');
 E('roof').onclick=()=>{roofMode.on=!roofMode.on;roofs.visible=roofMode.on;E('roof').classList.toggle('active',roofMode.on);if(roofMode.on)overview()};
