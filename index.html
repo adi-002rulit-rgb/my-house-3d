@@ -18,13 +18,13 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · интерактивный 3D-тур · V7</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · интерактивный 3D-тур · V8</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
 <div id="nav"><span></span><button data-move="up">▲</button><span></span><button data-move="left">◀</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
 <div id="rot"><button data-move="turnleft">↶</button><button data-move="turnright">↷</button></div>
-<div id="source">Открытый холл до лестницы · материалы и мебель — концептуальные</div>
+<div id="source">Зал: одна дверь из коридора · кухня: одно окно во двор</div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -166,10 +166,14 @@ segmented(0,5.7,19.03,5.7,[
 {at:10.7,width:1.7,kind:'door',glass:true}, // front door
 {at:15.7,width:1.65,kind:'window'}]); // kitchen
 segmented(0,-5.7,0,5.7); // no window unless dimensioned elevation confirms
-segmented(19.03,-5.7,19.03,5.7,[{at:6.25,width:1.5,kind:'window'}]);
+// Kitchen has exactly ONE courtyard-facing window (front facade x=15.7).
+// Right-hand exterior wall has no kitchen window.
+segmented(19.03,-5.7,19.03,5.7,[]);
 
 // 400mm walls on the original plan
-segmented(0,-.95,9.6,-.95,[{at:8.0,width:1.25,kind:'door'}],mat.wall);
+// Living room has only ONE entrance: from main corridor at x=9.6.
+// Rear wall toward bedroom is solid, without a door.
+segmented(0,-.95,9.6,-.95,[],mat.wall);
 segmented(9.6,-5.7,9.6,5.7,[{at:6.65,width:1.55,kind:'door'}],mat.wall);
 segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
