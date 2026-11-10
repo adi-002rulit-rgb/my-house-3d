@@ -115,7 +115,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V39</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V40</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -803,12 +803,13 @@ box(stairsGroup,LEFT+.03,2.90,BACK-.75,1.72,.055,.055,railMat);
 // Architectural opening count/size and wall collisions are unchanged.
 const doorDisplayGroup=new THREE.Group();model.add(doorDisplayGroup);
 const roomDoorSpecs=[
- {room:'living',x:9.6,z:2.725,axis:'z',width:1.45},
- {room:'kitchen',x:13.52,z:2.025,axis:'z',width:1.45},
- {room:'bedroom',x:5.725,z:-1.595,axis:'z',width:.95},
- {room:'bathroom',x:7.8,z:-2.675,axis:'x',width:1.0},
- {room:'wardrobe',x:13.595,z:-1.8,axis:'z',width:1.12}
+ {room:'living',x:9.6,z:2.00,axis:'z',width:1.45},
+ {room:'kitchen',x:13.52,z:1.30,axis:'z',width:1.45},
+ {room:'bedroom',x:5.725,z:-2.07,axis:'z',width:.95},
+ {room:'bathroom',x:7.30,z:-2.675,axis:'x',width:1.0},
+ {room:'wardrobe',x:13.595,z:-2.36,axis:'z',width:1.12}
 ];
+// Door leaf centers are derived from each segmented() opening's start+at (not at+width/2). The previous 3D leaves were misaligned by half an opening.
 // The set above matches the source of truth: segmented() door openings.
 // No leaf added at the vestibule passage or at the external front entrance.
 const doorColorHex={
@@ -1541,7 +1542,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=39');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=40');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
