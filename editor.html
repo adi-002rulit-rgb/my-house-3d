@@ -57,7 +57,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.4</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.5</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -79,7 +79,7 @@ input[type=checkbox]{width:auto}
 </aside>
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
-<div class="viewMode"><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
 <div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · выбор объекта и стрелки для перемещения</div></div>
@@ -191,7 +191,14 @@ function availableRoomFor(x,z){return state.rooms.find(r=>x>=r.x&&x<=r.x+r.w&&z>
 function safeWallOpenings(w){
 return state.openings.filter(o=>o.wall===w.id).sort((a,b)=>a.offset-b.offset).map(o=>({...o,start:clamp(o.offset-o.width/2,0,wallLength(w)),end:clamp(o.offset+o.width/2,0,wallLength(w))}));
 }
-function select(id){selected=id;refreshInspector();drawPlan();build3d();refreshList()}
+function select(id){
+ selected=id;refreshInspector();drawPlan();refreshList();
+ // Selecting an already-built mesh must not dispose and recreate the house.
+ transform.detach();
+ const active=threeRoots.get(id);
+ if(active){transform.attach(active);transform.enabled=true}
+ else transform.enabled=false;
+}
 function refreshList(){
  const fragment=document.createDocumentFragment();$('objectList').replaceChildren();
  for(const o of all()){if(o.type==='room')continue;const b=document.createElement('button');b.textContent=o.name||o.id;b.className=o.id===selected?'active':'';b.onclick=()=>select(o.id);fragment.appendChild(b)}$('objectList').appendChild(fragment);
@@ -241,6 +248,14 @@ ctx.lineWidth=.6;ctx.strokeStyle='#d5d0c6';
 for(let x=Math.floor(a.x);x<b.x;x++){const px=planPoint(x,0).x;ctx.beginPath();ctx.moveTo(px,0);ctx.lineTo(px,h);ctx.stroke()}
 for(let z=Math.floor(a.z);z<b.z;z++){const py=planPoint(0,z).y;ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(w,py);ctx.stroke()}
 }
+function fitPlan(){
+ const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+ scale=clamp(Math.min((r.width-36)/19.5,(r.height-36)/11.8),8,105);
+ pan.x=(r.width-19.03*scale)/2;
+ pan.y=(r.height-11.40*scale)/2;
+ drawPlan();
+}
+$('fitPlan').onclick=fitPlan;
 function drawPlan(){
 const bb=canvas.getBoundingClientRect();if(!bb.width||!bb.height)return;
 const w=bb.width,h=bb.height;canvas.width=Math.round(w*devicePixelRatio);canvas.height=Math.round(h*devicePixelRatio);
@@ -279,13 +294,24 @@ return null;
 function coords(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
 canvas.addEventListener('pointerdown',e=>{
 const p=coords(e),w=worldPoint(p.x,p.y);
+if(e.shiftKey||e.button===1){
+ drag={pan:true,startPixels:p,panBefore:{...pan},moved:false};
+ canvas.setPointerCapture(e.pointerId);return;
+}
 if(tool==='wall'){if(!wallFirst){wallFirst={x:snap(w.x),z:snap(w.z)};status('Укажи вторую точку новой стены')}else{
 state.walls.push(mkWall(uid(),'Новая стена',wallFirst.x,wallFirst.z,snap(w.x),snap(w.z)));wallFirst=null;push();refreshAll();status('Стена создана');}return}
 const hit=hitTest(p.x,p.y);select(hit?.o?.id||null);
 if(hit){drag={start:w,old:clone(state),id:hit.o.id,part:hit.part,moved:false};canvas.setPointerCapture(e.pointerId)}
 });
 canvas.addEventListener('pointermove',e=>{
-if(!drag)return;const p=coords(e),w=worldPoint(p.x,p.y),dx=snap(w.x-drag.start.x),dz=snap(w.z-drag.start.z);
+if(!drag)return;
+const p=coords(e);
+if(drag.pan){
+ pan.x=drag.panBefore.x+p.x-drag.startPixels.x;
+ pan.y=drag.panBefore.y+p.y-drag.startPixels.y;
+ drag.moved=true;drawPlan();return;
+}
+const w=worldPoint(p.x,p.y),dx=snap(w.x-drag.start.x),dz=snap(w.z-drag.start.z);
 const o=find(drag.id),before=[...drag.old.walls,...drag.old.openings,...drag.old.furniture,...drag.old.stairs,...drag.old.rooms].find(x=>x.id===drag.id);if(!o||!before)return;
 drag.moved=Math.hypot(dx,dz)>.001;
 if(o.type==='wall'){
@@ -299,7 +325,11 @@ o.offset=clamp(snap(before.offset+dx*ux+dz*uz),o.width/2,len-o.width/2);
 }else{o.x=before.x+dx;o.z=before.z+dz}
 drawPlan();update3dObject(o);
 });
-canvas.addEventListener('pointerup',()=>{if(!drag)return;const was=drag.moved;drag=null;if(was){push();refreshAll()}});
+canvas.addEventListener('pointerup',()=>{
+ if(!drag)return;
+ const was=drag.moved,wasPan=!!drag.pan;drag=null;
+ if(was&&!wasPan){push();refreshAll()}
+});
 canvas.addEventListener('pointercancel',()=>{if(!drag)return;state=drag.old;drag=null;refreshAll()});
 canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const center=worldPoint(p.x,p.y);scale=clamp(scale*(e.deltaY>0?.90:1.10),12,110);pan.x=p.x-center.x*scale;pan.y=p.y-(center.z+5.7)*scale;drawPlan()},{passive:false});
 // Synchronized 3D preview
@@ -321,7 +351,7 @@ transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform
 scene.add(transform);
 transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});
 transform.addEventListener('mouseDown',()=>{drag3d=selected?clone(find(selected)):null});
-let drag3d=null;
+let drag3d=null,lastTransformEnd=-1;
 transform.addEventListener('mouseUp',()=>{
 if(!selected||!drag3d)return;const obj=find(selected),root=threeRoots.get(selected);if(!obj||!root)return;
 const mode=transform.getMode();
@@ -334,7 +364,7 @@ const pt=offsetPoint(w,obj.offset);obj.offset=clamp(snap((root.position.x-w.x1)*
 }else if(mode==='rotate'&&('rot' in obj)){obj.rot=root.rotation.y}
 else if(mode==='scale'&&obj.type==='stair'){obj.width=clamp(snap(drag3d.width*root.scale.x),.7,2);obj.lower=clamp(snap(drag3d.lower*root.scale.z),1,4);obj.upper=clamp(snap(drag3d.upper*root.scale.x),1.5,5)}
 else if(mode==='scale'&&['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(obj.type)){obj.w=clamp(snap(drag3d.w*root.scale.x),.3,8);obj.h=clamp(snap(drag3d.h*root.scale.y),.2,4);obj.d=clamp(snap(drag3d.d*root.scale.z),.3,8)}
-drag3d=null;push();refreshAll();
+drag3d=null;lastTransformEnd=performance.now();push();refreshAll();
 });
 function col(v){return new THREE.Color(v)}
 function cube(parent,x,y,z,w,h,d,material){const m=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.008,w),Math.max(.008,h),Math.max(.008,d)),material);m.position.set(x,y,z);m.castShadow=false;m.receiveShadow=true;parent.add(m);return m}
@@ -537,13 +567,21 @@ if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','c
 processSceneValidation(false);
 resize3d();
 }
-function update3dObject(o){const m=threeRoots.get(o.id);if(!m)return;
-if(o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='room'){m.position.x=o.x;m.position.z=o.z}
-else build3d();
+function update3dObject(o){
+ const mesh=threeRoots.get(o.id);
+ if(mesh&&o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='room'){
+  mesh.position.x=o.x;mesh.position.z=o.z;
+ }
+ // Walls and openings are reconstructed only when the pointer is released.
 }
 function resize3d(){const r=canvas3d.getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+let pointer3DStart=null;
+canvas3d.addEventListener('pointerdown',e=>{
+ pointer3DStart={x:e.clientX,y:e.clientY};
+});
 canvas3d.addEventListener('pointerup',e=>{
-if(transform.dragging)return;
+ if(transform.dragging||performance.now()-lastTransformEnd<350)return;
+ if(pointer3DStart&&Math.hypot(e.clientX-pointer3DStart.x,e.clientY-pointer3DStart.y)>7)return;
 const r=canvas3d.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
 raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects([...threeRoots.values()],true);
 for(const hit of hits){let p=hit.object;while(p&&!p.userData?.editorId)p=p.parent;if(p?.userData?.editorId){select(p.userData.editorId);return}}
@@ -603,8 +641,14 @@ if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();$('redo').click()
 if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();saveState()}
 if(e.code==='Delete'||e.code==='Backspace')removeSelected();
 if(e.code==='Escape'){wallFirst=null;select(null)}});
-const ro=new ResizeObserver(()=>{resize3d();drawPlan()});ro.observe($('pane2d'));ro.observe($('pane3d'));
+let lastPlanSize='';
+const ro=new ResizeObserver(()=>{
+ resize3d();
+ const rect=canvas.getBoundingClientRect(),sz=rect.width+'x'+rect.height;
+ if(sz!==lastPlanSize){lastPlanSize=sz;fitPlan();}
+ else drawPlan();
+});ro.observe($('pane2d'));ro.observe($('pane3d'));
 function tick(){requestAnimationFrame(tick);if(document.hidden)return;orbit.update();renderer.render(scene,camera)}
 try{const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');if(saved){validate(saved);state=saved;status('Загружена сохранённая версия')}}catch(e){status('Ошибка сохранённой версии. Открыт исходный проект')}
-history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();tick();
+history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();tick();
 </script></body></html>
