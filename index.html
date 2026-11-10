@@ -135,7 +135,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V44</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V45</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -1237,7 +1237,7 @@ E('snapshot').onclick=screenshot;
 E('fullscreen').onclick=()=>{if(document.fullscreenElement)document.exitFullscreen?.();else document.documentElement.requestFullscreen?.().catch(()=>toast('Полный экран недоступен'))};
 E('quality').onclick=()=>{
 qualityMode=qualityMode==='auto'?'eco':qualityMode==='eco'?'high':'auto';
-renderer.setPixelRatio(qualityMode==='eco'?1:qualityMode==='high'?Math.min(devicePixelRatio||1,2):Math.min(devicePixelRatio||1,1.45));
+renderer.setPixelRatio(qualityMode==='eco'?1:qualityMode==='high'?Math.min(devicePixelRatio||1,2):Math.min(devicePixelRatio||1,innerWidth<800?1.15:1.45));
 renderer.setSize(innerWidth,innerHeight);
 sunlight.castShadow=qualityMode!=='eco';
 E('quality').textContent='◈ Качество: '+({auto:'авто',eco:'эконом',high:'высокое'}[qualityMode]);
@@ -1409,9 +1409,13 @@ function updateWallSwatch(){
  document.querySelectorAll('[data-wall-swatch]').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.wallSwatch===clientWall)));
 }
 E('designReset').onclick=()=>{
- E('clientStyle').value='linen';applyPreset('linen');
- E('floorCovering').value='engineered';floorCover='engineered';
- E('floorPattern').value='wide';floorPattern='wide';changeWoodFloor();
+ const previousSuspend=designHistorySuspend;designHistorySuspend=true;
+ try{
+  applyPreset('linen');
+  E('floorCovering').value='engineered';floorCover='engineered';
+  E('floorPattern').value='wide';floorPattern='wide';changeWoodFloor();
+ }finally{designHistorySuspend=previousSuspend;}
+ if(!designHistorySuspend)saveCurrentDesign();
  toast('Отделка возвращена к светлому варианту');
 };
 
@@ -1557,13 +1561,18 @@ function syncDesign(){
  if(typeof saveCurrentDesign==='function')saveCurrentDesign();
 }
 function applyPreset(v){
- clientStyle=v;const p=stylePresets[v];if(!p)return;
- setClientWalls(p.wall);setClientFloor(p.wood);setClientTile(p.tile);
- const inner=presetInteriors[v];if(inner){
- [clientFabric,clientCurtains,clientMoldings,clientLighting]=inner;
- applyInteriorOptions();
- }
- E('clientStyle').value=v;
+ const p=stylePresets[v];if(!p)return;
+ const previousSuspend=designHistorySuspend;designHistorySuspend=true;
+ try{
+  clientStyle=v;
+  setClientWalls(p.wall);setClientFloor(p.wood);setClientTile(p.tile);
+  const inner=presetInteriors[v];if(inner){
+   [clientFabric,clientCurtains,clientMoldings,clientLighting]=inner;
+   applyInteriorOptions(false);
+  }
+  E('clientStyle').value=v;
+ }finally{designHistorySuspend=previousSuspend;}
+ if(!designHistorySuspend)saveCurrentDesign();
  toast('Вариант дизайна применён');
 }
 function clientCamera(v){
@@ -1692,7 +1701,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=44');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=45');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
