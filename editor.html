@@ -202,14 +202,14 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.3</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.0</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
 <button data-tool="select" class="active">↖ Выбрать</button><button data-tool="wall">▥ Стена</button>
 <button id="addDoor">+ Дверь</button><button id="addWindow">+ Окно</button>
-<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button>
+<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button><button id="rebuildStair" type="button">↺ Перестроить П-лестницу</button>
 </div><p class="hint">Выбери объект на плане, перетащи его или введи точные координаты справа. Стену можно двигать за концы.</p></section>
 <section><h3>Добавить мебель</h3><select id="furnitureType">
 <option value="sofa">Диван</option><option value="table">Стол</option><option value="bed">Кровать</option>
@@ -277,8 +277,8 @@ const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,ty
 function defaultStair(){
  // Concept only: the riser count is calculated from state.height (17 cm target).
  // Grounded in the existing hallway walls and door; actual stair measurements not provided.
- return {id:'stair1',type:'stair',name:'Лестница · 90° · забежные ступени',
-  x:11.95,z:-1.11,width:1.05,lower:3.12,upper:1.70,back:-4.755,rot:0,color:'#ded8cf'};
+ return {id:'stair1',type:'stair',name:'П-образная лестница · два поворота',
+  x:12.9,z:-1.11,width:1.05,lower:3.12,upper:1.65,returnRun:3.12,back:-4.755,rot:0,color:'#ded8cf'};
 }
 function original(){
 const walls=[
@@ -342,7 +342,7 @@ for(const o of [...s.walls,...s.openings,...s.furniture,...s.stairs,...s.rooms])
 if(!o.id||keys.has(o.id)||typeof o.name!=='string')throw Error('Некорректные ID');
 keys.add(o.id);
 if(o.name.length>100)throw Error('Слишком длинное название');
-for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width','lower','upper','back','offset','sill','head','t','rot'].includes(k)&&(!Number.isFinite(o[k])||Math.abs(o[k])>200))throw Error('Некорректный размер');
+for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width','lower','upper','returnRun','back','offset','sill','head','t','rot'].includes(k)&&(!Number.isFinite(o[k])||Math.abs(o[k])>200))throw Error('Некорректный размер');
 }
 for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Error('Проём без стены');if(o.width<=0.3||o.offset-o.width/2<-.03||o.offset+o.width/2>wallLength(w)+.03)throw Error('Проём за пределами стены')}
 return true;
@@ -373,7 +373,7 @@ function refreshList(){
  const fragment=document.createDocumentFragment();$('objectList').replaceChildren();
  for(const o of all()){if(o.type==='room')continue;const b=document.createElement('button');b.textContent=o.name||o.id;b.className=o.id===selected?'active':'';b.onclick=()=>select(o.id);fragment.appendChild(b)}$('objectList').appendChild(fragment);
 }
-const propertyNames={x:'X, м',z:'Z, м',w:'Ширина X, м',d:'Глубина Z, м',h:'Высота, м',x1:'X начала',z1:'Z начала',x2:'X конца',z2:'Z конца',t:'Толщина стены, м',offset:'Положение по стене, м',width:'Ширина проёма/марша, м',sill:'Низ проёма, м',head:'Верх проёма, м',leaves:'Количество створок',lower:'Нижний марш, м',upper:'Верхний марш, м',back:'Положение у стены Z, м',rot:'Поворот, °',color:'Цвет'};
+const propertyNames={x:'X, м',z:'Z, м',w:'Ширина X, м',d:'Глубина Z, м',h:'Высота, м',x1:'X начала',z1:'Z начала',x2:'X конца',z2:'Z конца',t:'Толщина стены, м',offset:'Положение по стене, м',width:'Ширина проёма/марша, м',sill:'Низ проёма, м',head:'Верх проёма, м',leaves:'Количество створок',lower:'Нижний марш, м',upper:'Средний марш, м',returnRun:'Третий марш, м',back:'Положение у стены Z, м',rot:'Поворот, °',color:'Цвет'};
 function inspectorField(o,key){
  const v=o[key],name=propertyNames[key]||key;
  if(key==='color')return '<label>'+name+'<input data-prop="'+key+'" type="color" value="'+label(v)+'"></label>';
@@ -384,7 +384,7 @@ function inspectorField(o,key){
 let quickInspectorOpen=false;
 function quickFieldsFor(o){
  if(!o)return[];
- if(o.type==='stair')return ['x','z','width','lower','upper','back','rot'];
+ if(o.type==='stair')return ['x','z','width','lower','upper','returnRun','back','rot'];
  if(['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(o.type))return ['x','z','w','d','rot'];
  if(o.type==='wall')return ['x1','z1','x2','z2','t'];
  if(o.type==='door'||o.type==='window')return ['offset','width','sill','head'].filter(k=>k in o);
@@ -440,7 +440,7 @@ if(!o){$('inspector').innerHTML='<p class="hint">Нажми на объект в
 let fields=['x','z','w','d','h','rot','color'];
 if(o.type==='wall')fields=['x1','z1','x2','z2','t'];
 if(o.type==='door'||o.type==='window')fields=['offset','width',...(o.type==='door'?['head','leaves']:['sill','head'])];
-if(o.type==='stair')fields=['x','z','width','lower','upper','back','rot'];
+if(o.type==='stair')fields=['x','z','width','lower','upper','returnRun','back','rot'];
 if(state.rooms.some(r=>r.id===selected))fields=['x','z','w','h'];
 $('inspector').innerHTML='<label>Название<input id="editName" value="'+label(o.name)+'"></label><div class="fields">'+fields.map(k=>inspectorField(o,k)).join('')+'</div><div class="actions" style="margin-top:10px"><button id="focusObject">Показать</button><button id="removeObject">Удалить</button></div>';
 $('editName').onchange=e=>{o.name=e.target.value.slice(0,100);push();refreshInspector();refreshList()};
@@ -492,24 +492,26 @@ const p=planPoint(o.x,o.z);const isStair=o.type==='stair';ctx.save();ctx.transla
 ctx.fillStyle=isStair?'#d5c7ae':o.color||'#bca994';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';ctx.lineWidth=o.id===selected?3:1.5;
 const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
 if(isStair){
- // One footprint definition used by the 3D construction and the 2D plan.
  const g=stairGeometry(o);
- const lowerZ=g.turnFront*scale;
- const upperBack=g.turnBack*scale;
- ctx.fillRect(-width/2,lowerZ,width,(o.lower)*scale);
- ctx.strokeRect(-width/2,lowerZ,width,(o.lower)*scale);
- ctx.fillRect(-width/2,upperBack,width,width);
- ctx.strokeRect(-width/2,upperBack,width,width);
- ctx.fillRect((-o.width/2-o.upper)*scale,upperBack,o.upper*scale,width);
- ctx.strokeRect((-o.width/2-o.upper)*scale,upperBack,o.upper*scale,width);
- ctx.strokeStyle='#9a806b';
- for(const poly of g.winders){
-  ctx.beginPath();poly.forEach((p,i)=>i?ctx.lineTo(p[0]*scale,(p[1]-o.z)*scale):ctx.moveTo(p[0]*scale,(p[1]-o.z)*scale));
-  ctx.closePath();ctx.stroke();
+ ctx.restore();ctx.save();ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+ const rs=[[g.right-g.w,g.right,g.front,g.front+o.lower],
+  [g.left,g.right,g.rear,g.front],[g.left,g.left+g.w,g.front,g.front+g.backRun]];
+ ctx.fillStyle='#d5c7ae';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';
+ ctx.lineWidth=o.id===selected?3:1.5;
+ for(const [xa,xb,za,zb] of rs){
+  const p=planPoint(xa,za);
+  ctx.fillRect(p.x,p.y,(xb-xa)*scale,(zb-za)*scale);
+  ctx.strokeRect(p.x,p.y,(xb-xa)*scale,(zb-za)*scale);
  }
- ctx.strokeStyle='#aa957d';
- for(let i=1;i<g.lowerN;i++){const zz=(g.turnFront+o.lower*i/g.lowerN-o.z)*scale;ctx.beginPath();ctx.moveTo(-width/2,zz);ctx.lineTo(width/2,zz);ctx.stroke()}
- for(let i=1;i<g.upperN;i++){const xx=(-o.width/2-i*o.upper/g.upperN)*scale;ctx.beginPath();ctx.moveTo(xx,upperBack);ctx.lineTo(xx,upperBack+width);ctx.stroke()}
+ for(const poly of [...g.firstTurn,...g.secondTurn]){
+  ctx.beginPath();poly.forEach(([x,z],i)=>{const p=planPoint(x,z);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)});
+  ctx.closePath();ctx.stroke()
+ }
+ ctx.fillStyle='#334';ctx.font='bold 11px system-ui';ctx.textAlign='center';
+ let p1=planPoint(g.right-g.w/2,g.front+o.lower*.5);ctx.fillText('1',p1.x,p1.y);
+ let p2=planPoint((g.right+g.left)/2,(g.rear+g.front)/2);ctx.fillText('2',p2.x,p2.y);
+ let p3=planPoint(g.left+g.w/2,g.front+g.backRun*.5);ctx.fillText('3',p3.x,p3.y);
+ ctx.restore();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
 }else{
  ctx.fillRect(-width/2,-depth/2,width,depth);
  ctx.strokeRect(-width/2,-depth/2,width,depth);
@@ -702,26 +704,29 @@ cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 
 // Parametric 90-degree staircase with risers distributed from current floor height.
 // Geometric concept only: NOT engineering-ready and NOT verified as-built.
+// Two left 90-degree turns: -Z -> -X -> +Z. No intermediate landings.
 function stairGeometry(o){
- const width=o.width,low=o.lower,up=o.upper;
- const turnFront=o.back+width/2,turnBack=o.back-width/2;
- const centerX=-width/2; // left edge of lower flight, origin x=centre
- const rightX=width/2,localFront=turnFront-o.z,localBack=turnBack-o.z;
- const pivot=[centerX,localFront];
- const t30=width/Math.sqrt(3);
- const p1=[rightX,localFront],p2=[rightX,localFront-t30];
- const p3=[rightX,localBack],p4=[centerX+t30,localBack],p5=[centerX,localBack];
- // Rise count follows the proposed 17 cm target, but uses the REAL project height.
- // The model's local approach is -Z so it stays inside the existing stair hall.
- const total=Math.max(8,Math.round(state.height/.17));
- const winderN=3;
- const lowerN=Math.min(total-winderN-1,Math.max(1,Math.round(total*.55)));
- const upperN=total-lowerN-winderN;
- return {
-  lowerN,winderN,upperN,total,
-  width,turnFront:localFront,turnBack:localBack,
-  winders:[[pivot,p1,p2],[pivot,p2,p3,p4],[pivot,p4,p5]]
+ const w=o.width,wallL=state.walls.find(v=>v.id==='stairLeft');
+ const left=wallL?wallL.x1+wallL.t/2+.08:9.73,right=o.x+w/2;
+ const rear=o.back-w/2,front=o.back+w/2,bridge=right-left-2*w;
+ const backRun=Number.isFinite(o.returnRun)&&o.returnRun>0?o.returnRun:o.lower;
+ const total=Math.max(12,Math.round(state.height/.17)),turnN=3;
+ const straight=total-turnN*2,firstN=Math.max(3,Math.round(straight*.42));
+ const midN=Math.max(2,Math.round(straight*.25)),lastN=straight-firstN-midN;
+ const cast=(cx,cz,a)=>{
+  const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
+  return [cx+dx*r,cz+dz*r]
  };
+ const fan=(cx,cz,start)=>{
+  const p=[cx,cz],out=[];
+  for(let i=0;i<turnN;i++){
+   const a=start-i*Math.PI/(2*turnN),b=start-(i+1)*Math.PI/(2*turnN);
+   out.push([p,cast(cx,cz,a),cast(cx,cz,(a+b)/2),cast(cx,cz,b)])
+  }
+  return out
+ };
+ return {w,width:w,left,right,rear,front,bridge,backRun,total,firstN,midN,lastN,turnN,
+  firstTurn:fan(right-w,front,0),secondTurn:fan(left+w,front,-Math.PI/2)};
 }
 function stairPolygon(root,poly,height,material,baseHeight=0){
  // Extrusion around Y: local Shape coordinates X/-Z, rotate -90° about X.
@@ -822,45 +827,42 @@ function stairTurnSoffit(root,g,rise,material){
 }
 function buildStair(o){
  const root=new THREE.Group();
- root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;
+ root.position.set(0,0,0);root.rotation.y=o.rot||0;
  root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
  if(!Number.isFinite(o.width)||o.width<=0||o.lower<=0||o.upper<=0)return;
- const g=stairGeometry(o);
- const rise=state.height/g.total;
- const material=meshMat(o.color||'#ded8cf',.68,.0);
- const underside=meshMat('#c1b9ad',.86,.0);
- const treadFinish=meshMat('#eae3da',.60,.02);
- underside.side=THREE.DoubleSide;
- // Lower run is ONE monolithic profile instead of a stack of floor-height cubes.
- const lowerDepth=o.lower/g.lowerN;
- stairRunShell(root,{count:g.lowerN,depth:lowerDepth,rise,startLevel:0,
-  width:o.width,originX:-o.width/2,originZ:0,yaw:Math.PI/2,material:underside});
- for(let i=0;i<g.lowerN;i++){
-  const near=o.z-(i*lowerDepth),far=near-lowerDepth;
-  const y=(i+1)*rise;
-  // Finished tread and riser: the monolithic shell carries the smooth underside.
-  cube(root,0,y-.019,(near+far)/2-o.z,o.width-.025,.045,lowerDepth-.012,treadFinish);
+ const g=stairGeometry(o);if(g.bridge<=.15||g.lastN<=0)return;
+ const rise=state.height/g.total,w=g.w;
+ const concrete=meshMat(o.color||'#ded8cf',.8),finish=meshMat('#ebe4da',.6);
+ // First run descends in plan towards the window (-Z).
+ const d1=o.lower/g.firstN;
+ stairRunShell(root,{count:g.firstN,depth:d1,rise,startLevel:0,
+  width:w,originX:g.right-w,originZ:g.front+o.lower,yaw:Math.PI/2,material:concrete});
+ for(let i=0;i<g.firstN;i++)cube(root,g.right-w/2,(i+1)*rise-.02,
+  g.front+o.lower-(i+.5)*d1,w-.02,.043,d1-.012,finish);
+ // First left winder turn.
+ let level=g.firstN;
+ for(const poly of g.firstTurn){
+  ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
+  stairPolygon(root,poly,.042,finish,level*rise-.036)
  }
- // Smooth monolithic underside around the bend: no columns reaching the floor.
- stairTurnSoffit(root,g,rise,underside);
- // Preserve the exact polygonal winder tread footprints from stairGeometry.
- for(let i=0;i<g.winderN;i++){
-  const level=(g.lowerN+i+1)*rise;
-  stairPolygon(root,g.winders[i],.042,treadFinish,level-.037);
+ // Short middle run beneath the rear window, towards -X.
+ const d2=g.bridge/g.midN;
+ stairRunShell(root,{count:g.midN,depth:d2,rise,startLevel:level*rise,
+  width:w,originX:g.right-w,originZ:g.front,yaw:Math.PI,material:concrete});
+ for(let i=0;i<g.midN;i++)cube(root,g.right-w-(i+.5)*d2,(level+i+1)*rise-.02,
+  (g.rear+g.front)/2,d2-.012,.043,w-.02,finish);
+ level+=g.midN;
+ // Second left winder turn.
+ for(const poly of g.secondTurn){
+  ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
+  stairPolygon(root,poly,.042,finish,level*rise-.036)
  }
- // Upper flight uses the same smooth monolithic profile, oriented toward -X.
- const depth=o.upper/g.upperN;
- stairRunShell(root,{count:g.upperN,depth,rise,
-  startLevel:(g.lowerN+g.winderN)*rise,
-  width:o.width,originX:-o.width/2,originZ:g.turnFront,
-  yaw:Math.PI,material:underside});
- for(let i=0;i<g.upperN;i++){
-  const right=-o.width/2-i*depth,left=right-depth;
-  const y=(g.lowerN+g.winderN+i+1)*rise;
-  cube(root,(left+right)/2,y-.019,(g.turnBack+g.turnFront)/2,depth-.012,.045,o.width-.025,treadFinish);
- }
- // Geometry is a visual architectural study: measured soffit radius, turn
- // tread walking-line widths and structural thickness are still unverified.
+ // Last run returns toward the hall (+Z) and reaches the second storey.
+ const d3=g.backRun/g.lastN;
+ stairRunShell(root,{count:g.lastN,depth:d3,rise,startLevel:level*rise,
+  width:w,originX:g.left+w,originZ:g.front,yaw:-Math.PI/2,material:concrete});
+ for(let i=0;i<g.lastN;i++)cube(root,g.left+w/2,(level+i+1)*rise-.02,
+  g.front+(i+.5)*d3,w-.02,.043,d3-.012,finish);
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
@@ -912,47 +914,20 @@ function highlightStair(id){
 }
 function auditStair(o){
  const errors=[],warnings=[];
- if(!o||!['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))||o.width<=0||o.lower<=0||o.upper<=0)
-  return {errors:['Некорректные параметры лестницы.'],warnings,metrics:null};
+ if(!o||!['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))||
+   o.width<=0||o.lower<=0||o.upper<=0)return {errors:['Некорректные размеры лестницы'],warnings,metrics:null};
  const g=stairGeometry(o),rise=state.height/g.total;
- const lowerTread=o.lower/g.lowerN,upperTread=o.upper/g.upperN;
- const scoreLower=2*rise+lowerTread,scoreUpper=2*rise+upperTread;
- const metrics={rise,lowerTread,upperTread,scoreLower,scoreUpper,total:g.total};
- if(g.upperN<2)warnings.push('Недостаточно ступеней верхнего марша.');
- if(o.width<.9)warnings.push('Ширина марша меньше 90 см (ориентир, не универсальная норма).');
- for(const [name,tread,score] of [['Нижний марш',lowerTread,scoreLower],['Верхний марш',upperTread,scoreUpper]]){
-  if(tread<.25)warnings.push(name+': проступь менее 25 см.');
-  if(score<.60||score>.64)warnings.push(name+': 2h+b вне ориентировочного диапазона 60–64 см.');
- }
- const ward=state.walls.find(w=>w.id==='stairRight');
- const left=state.walls.find(w=>w.id==='stairLeft');
- const back=state.walls.find(w=>w.id==='back');
- if(Math.abs(o.rot)>.001)warnings.push('Поворот лестницы вручную: пространственные проверки для произвольного угла пока не реализованы.');
- else{
-  const xLeft=o.x-o.width/2-o.upper,xRight=o.x+o.width/2;
-  const zRear=o.back-o.width/2,zFront=o.z;
-  const leftLimit=left?left.x1+left.t/2:9.65;
-  const rightLimit=ward?ward.x1-ward.t/2:13.47;
-  const backLimit=back?back.z1+back.t/2:-5.3;
-  if(xLeft<leftLimit-.01)errors.push('Верхний марш пересекает левую стену лестничного холла.');
-  if(xRight>rightLimit+.01)errors.push('Нижний марш пересекает правую стену лестничного холла.');
-  if(zRear<backLimit-.01)errors.push('Забежные ступени пересекают заднюю стену.');
-  if(o.z>-.9)errors.push('Начало нижнего марша выходит за границу лестничного холла.');
-  const door=state.openings.find(d=>d.wall==='stairRight'&&d.type==='door');
-  if(door&&ward){
-   const pt=offsetPoint(ward,door.offset);
-   const gap=rightLimit-xRight;
-   const doorMin=pt.z-door.width/2,doorMax=pt.z+door.width/2;
-   if(doorMin<zFront&&doorMax>zRear){
-    if(gap<.80)errors.push('У двери гардеробной проход уже 80 см.');
-    else if(gap<door.width)warnings.push('До лестницы от стены у двери '+Math.round(gap*100)+' см — проверь открывание двери ('+Math.round(door.width*100)+' см).');
-   }
-  }
-  const win=state.openings.find(d=>d.wall==='back'&&d.type==='window');
-  if(win)warnings.push('Проверь примыкание верхних ступеней к окну лестничного холла: требуется обмер.');
- }
- warnings.push('Забежные ступени: ширина проступи по линии движения, ограждения и высота прохода не проверены для строительства.');
- return {errors,warnings,metrics};
+ if(g.bridge<=.15)errors.push('Не хватает ширины для среднего марша');
+ if(g.rear< -5.30-.01)errors.push('Поворот пересекает заднюю стену');
+ const rightWall=state.walls.find(w=>w.id==='stairRight');
+ if(rightWall&&g.right>rightWall.x1-rightWall.t/2+.01)errors.push('Первый марш пересекает правую стену');
+ if(g.front+o.lower>-.9)errors.push('Начало первого марша выходит за лестничный холл');
+ if(g.front+g.backRun>-.9)errors.push('Третий марш выходит за лестничный холл');
+ const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
+ steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
+ if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
+ warnings.push('Это концепция. Размеры забежных ступеней, радиусы, зазор возле окна и высоту прохода нужно измерить.');
+ return {errors,warnings,metrics:{rise,total:g.total,first:steps[0],middle:steps[1],last:steps[2]}};
 }
 let lastValidationSignature='';
 function processSceneValidation(notify=false){
@@ -972,7 +947,7 @@ function processSceneValidation(notify=false){
  const first=reports[0].r;
  const fmt=n=>(n*100).toFixed(1).replace('.',',')+' см';
  const metrics=first.metrics?'<p class="ok">Расчёт при '+first.metrics.total+' подступенках: высота '+fmt(first.metrics.rise)+
-  ', нижняя проступь '+fmt(first.metrics.lowerTread)+', верхняя '+fmt(first.metrics.upperTread)+'.</p>':'';
+  ', нижняя проступь '+fmt(first.metrics.first)+', верхняя '+fmt(first.metrics.last)+'.</p>':'';
  report.innerHTML=metrics+(issues.length?issues.map(i=>'<p class="'+i.kind+'">'+label(i.message)+'</p>').join(''):
   '<p class="ok">Предусмотренные упрощённые проверки пройдены. Для строительства необходим обмер и инженерный проект.</p>');
  const signature=JSON.stringify(issues);
@@ -983,107 +958,46 @@ function processSceneValidation(notify=false){
 
 
 function upperFloorOpening(){
- // Stair footprint from the same parametric data as buildStair / drawPlan.
- const st=state.stairs[0];
- if(!st)return null;
- return {
-  x0:st.x-st.width/2-st.upper,
-  x1:st.x-st.width/2,
-  x2:st.x+st.width/2,
-  z0:st.back-st.width/2,
-  z1:st.back+st.width/2,
-  z2:st.z
- };
+ const o=state.stairs[0];if(!o)return null;
+ const g=stairGeometry(o);
+ return {x0:g.left,x1:g.left+g.w,x2:g.right-g.w,x3:g.right,
+  z0:g.rear,z1:g.front,z2:g.front+Math.max(o.lower,g.backRun)}
 }
 function buildUpperFloor(){
- const floorY=state.height-.09;
- const deckMaterial=meshMat('#d5c8b7',.56,.02);
- const opening=upperFloorOpening();
- const left=.2,right=18.83,rear=-5.30,front=5.30;
+ const y=state.height-.09,mat=meshMat('#d5c8b7',.56,.02),o=upperFloorOpening();
+ const L=.2,R=18.83,B=-5.30,F=5.30;
  function slab(x0,x1,z0,z1){
-  if(x1-x0<.03||z1-z0<.03)return;
-  upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,floorY,(z0+z1)/2,
-   x1-x0,.18,z1-z0,deckMaterial));
+  if(x1-x0<=.03||z1-z0<=.03)return;
+  upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,y,(z0+z1)/2,x1-x0,.18,z1-z0,mat))
  }
- if(!opening){slab(left,right,rear,front);return}
- const x0=clamp(opening.x0,left,right),x1=clamp(opening.x1,left,right),x2=clamp(opening.x2,left,right);
- const z0=clamp(opening.z0,rear,front),z1=clamp(opening.z1,rear,front),z2=clamp(opening.z2,rear,front);
- // Segmented L-shaped void instead of a slab blocking the staircase.
- slab(left,x0,rear,front);
- slab(x0,x1,rear,z0);slab(x0,x1,z1,front);
- slab(x1,x2,rear,z0);slab(x1,x2,z2,front);
- slab(x2,right,rear,front);
- // Mark the upper landing at the end of the left-running upper flight.
- // The real upstairs partition walls/rooms are intentionally NOT invented.
- const edge=meshMat('#ab8f6f',.85);
- const landingZ=z1+.12,landingX=x0+.60;
- upperFloorMeshes.push(cube(upperFloorGroup,landingX,state.height+.012,landingZ,
-  Math.min(1.10,x1-x0-.08),.024,.20,edge));
+ if(!o){slab(L,R,B,F);return}
+ const x0=clamp(o.x0,L,R),x1=clamp(o.x1,L,R),x2=clamp(o.x2,L,R),x3=clamp(o.x3,L,R);
+ const z0=clamp(o.z0,B,F),z1=clamp(o.z1,B,F),z2=clamp(o.z2,B,F);
+ slab(L,x0,B,F);slab(x0,x1,B,z0);slab(x0,x1,z2,F);
+ slab(x1,x2,B,z0);slab(x1,x2,z1,F);
+ slab(x2,x3,B,z0);slab(x2,x3,z2,F);slab(x3,R,B,F);
+ upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,state.height+.013,
+  z2+.10,Math.max(.15,x1-x0-.04),.022,.20,meshMat('#a28f78')));
 }
 function drawUpperFloorPlan(w,h){
- const opening=upperFloorOpening();
- const a=planPoint(.2,-5.30),b=planPoint(18.83,5.30);
- ctx.fillStyle='#d6c8b5';ctx.fillRect(a.x,a.y,b.x-a.x,b.y-a.y);
- ctx.strokeStyle='#455561';ctx.lineWidth=3;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
- if(opening){
-  const p0=planPoint(opening.x0,opening.z0);
-  const p1=planPoint(opening.x1,opening.z1);
-  const p2=planPoint(opening.x2,opening.z2);
-  ctx.fillStyle='#0d1720';
-  ctx.fillRect(p0.x,p0.y,(opening.x2-opening.x0)*scale,(opening.z1-opening.z0)*scale);
-  ctx.fillRect(p1.x,p1.y,(opening.x2-opening.x1)*scale,(opening.z2-opening.z1)*scale);
-  ctx.strokeStyle='#d48735';ctx.lineWidth=3;
-  ctx.strokeRect(p0.x,p0.y,(opening.x2-opening.x0)*scale,(opening.z1-opening.z0)*scale);
-  ctx.strokeRect(p1.x,p1.y,(opening.x2-opening.x1)*scale,(opening.z2-opening.z1)*scale);
-  const exit=planPoint(opening.x0+.6,opening.z1+.55);
-  ctx.fillStyle='#203e37';ctx.font='bold 13px system-ui';ctx.textAlign='left';
-  ctx.fillText('↗ ВЫХОД ИЗ ЛЕСТНИЦЫ',exit.x,exit.y);
-  ctx.fillStyle='#546575';ctx.font='11px system-ui';
-  ctx.fillText('Лестничный проём — схема',exit.x,exit.y+19);
- }else{
-  ctx.fillStyle='#34444a';ctx.font='14px system-ui';ctx.textAlign='left';
-  ctx.fillText('Лестница удалена. Восстанови её на 1 этаже.',a.x+20,a.y+36);
- }
+ const o=upperFloorOpening(),p=planPoint(.2,-5.30),q=planPoint(18.83,5.30);
+ ctx.fillStyle='#d6c8b5';ctx.fillRect(p.x,p.y,q.x-p.x,q.y-p.y);
+ ctx.strokeStyle='#455561';ctx.lineWidth=3;ctx.strokeRect(p.x,p.y,q.x-p.x,q.y-p.y);
+ if(o){
+  const rs=[[o.x0,o.x3,o.z0,o.z1],[o.x0,o.x1,o.z1,o.z2],[o.x2,o.x3,o.z1,o.z2]];
+  for(const [xa,xb,za,zb] of rs){
+   const a=planPoint(xa,za);ctx.fillStyle='#152530';
+   ctx.fillRect(a.x,a.y,(xb-xa)*scale,(zb-za)*scale);
+   ctx.strokeStyle='#d48735';ctx.lineWidth=2;
+   ctx.strokeRect(a.x,a.y,(xb-xa)*scale,(zb-za)*scale)
+  }
+  const x=planPoint(o.x0,o.z2+.45);
+  ctx.fillStyle='#254e42';ctx.font='bold 12px system-ui';
+  ctx.fillText('ВЫХОД НА 2 ЭТАЖ ↑',x.x,x.y);
+ }else{ctx.fillStyle='#34444a';ctx.fillText('Нет лестницы',p.x+20,p.y+35)}
  ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.textAlign='left';
- ctx.fillText('2 ЭТАЖ · ПЕРЕКРЫТИЕ БЕЗ ПЛАНИРОВКИ КОМНАТ',14,h-16);
+ ctx.fillText('2 ЭТАЖ · П-ОБРАЗНЫЙ ПРОЁМ',14,h-16);
 }
-function exitStairPreview(){
- stairPreview=false;
- $('exitStairView').hidden=true;
- if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
- for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
- for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
- upperFloorGroup.visible=activeFloor===2;
-}
-function showStairPreview(){
- if(!state.stairs.length){
-  status('Лестница удалена. Сначала нажми «Создать / восстановить лестницу».');
-  return;
- }
- // Do not change saved house data: this is a camera-only inspection mode.
- stairPreview=true;activeFloor=1;
- if(groundGrid)groundGrid.visible=false;
- $('floor1').classList.add('active');$('floor2').classList.remove('active');
- $('floorCaption').textContent='Просмотр лестницы без стен и мебели';
- $('exitStairView').hidden=false;
- selected=null;transform.detach();refreshInspector();refreshList();
- for(const [id,root] of threeRoots)root.visible=state.stairs.some(s=>s.id===id);
- for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=false;
- const st=state.stairs[0];
- const cx=st.x-st.upper*.38,cz=st.back+st.width*.8;
- orbit.target.set(cx,state.elevation+state.height*.48,cz);
- // Look from the hall end to expose the lower + turning + upper flights.
- camera.position.set(cx+4.5,state.elevation+state.height+3.6,cz+5.8);
- orbit.update();
- status('Лестница крупным планом. Вращай 3D пальцем/мышью; «Вернуть весь дом» — выход.');
-}
-$('viewStair').onclick=showStairPreview;
-$('exitStairView').onclick=()=>{
- exitStairPreview();
- $('floorCaption').textContent=activeFloor===1?'Редактирование первого этажа':'Схематичный второй этаж';
- status('Полный дом снова виден.');
-};
 function setFloorView(floor){
  exitStairPreview();
  activeFloor=floor===2?2:1;
@@ -1245,6 +1159,15 @@ function addStair(){
  state.stairs.push(o);selected=o.id;push();refreshAll();status('Новая лестница создана в холле — проверь размеры и предупреждения');
 }
 document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;wallFirst=null;document.querySelectorAll('[data-tool]').forEach(a=>a.classList.toggle('active',a===b));status(tool==='wall'?'Нажми начальную и конечную точки стены':'Режим выбора объектов')});
+$('rebuildStair').onclick=()=>{
+ if(!confirm('Заменить только лестницу П-образной схемой с двумя левыми поворотами?'))return;
+ const old=state.stairs[0],o=defaultStair();
+ if(old){o.id=old.id;o.color=old.color||o.color}
+ else if(find(o.id))o.id=uid();
+ state.stairs=[o];selected=o.id;stairPreview=false;
+ push();refreshAll();showStairPreview();
+ status('Новая П-образная лестница. Проверяй ракурсы и реальные размеры.');
+};
 $('addDoor').onclick=()=>addOpening('door');$('addWindow').onclick=()=>addOpening('window');$('addFurniture').onclick=addItem;$('addStair').onclick=addStair;
 $('delete').onclick=removeSelected;$('duplicate').onclick=duplicateSelected;
 $('moveMode').onclick=()=>mode('translate');$('rotateMode').onclick=()=>mode('rotate');$('scaleMode').onclick=()=>mode('scale');
