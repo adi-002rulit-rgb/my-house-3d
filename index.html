@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V13</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V14</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -158,9 +158,9 @@ else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start
 const rooms=[
 {id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.25,range:[.4,9.4,-.75,5.25],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
 {id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.35,-1.15],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
-{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.3,cz:-4.1,range:[6.0,8.5,-5.35,-2.35],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
+{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.625,cz:-4.05,range:[5.85,9.40,-5.30,-2.80],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
 {id:'stair',name:'Лестница',area:'',cx:11.45,cz:-3.45,range:[9.8,13.32,-5.35,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
-{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.1,cz:-3.25,range:[13.72,18.63,-5.35,-1.15],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
+{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.35,-1.15],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
 {id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.1,range:[9.8,13.32,-.75,5.25],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
 {id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.25,cz:2.175,range:[13.72,18.63,-.9,5.25],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
 {id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:mat.oak,eye:[-15.1,1.65,.2],yaw:Math.PI},
@@ -214,11 +214,15 @@ segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
 segmented(13.52,-1.05,19.03,-1.05,[],mat.wall);
 // Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
 segmented(5.8,-5.7,5.8,-1.05,[{at:3.63,width:.95,kind:'door',leaf:false}],mat.wall);
-segmented(8.85,-5.7,8.85,-1.05,[{at:3.25,width:.92,kind:'door'}],mat.wall);
+// REMOVED: this longitudinal wall crossed the bathroom and left vestibule on the 19.03 x 11.40 ground-floor plan.
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
 // Bath wall remains, but accessible passage and stair junction stay open.
  // The short dividing wall contains only the bathroom access door.
-segmented(5.8,-2.15,9.6,-2.15,[{at:1.35,width:1.05,kind:'door',leaf:false}],mat.wall);
+// Bathroom is 3.55m wide by 2.50m deep. Its front wall separates the bathroom
+// from the open left-side distribution vestibule; enter via an unobstructed doorway.
+segmented(5.8,-2.67,9.6,-2.67,[{at:1.55,width:1.0,kind:'door',leaf:false}],mat.wall);
+// Floor for the small vestibule joining bedroom, bathroom and the stair hall.
+slab(7.62,-1.91,3.55,1.20,mat.tile,.068);
 // Detached boiler room, behind the kitchen/wardrobe block
 slab(17.35,-7.55,3.1,2.8,mat.tile);
 segmented(15.7,-8.9,19.03,-8.9);
@@ -383,7 +387,7 @@ kitchen:'Кухня 30,20 м². Только одна дверь из корид
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
 stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
 bedroom:'Спальня 21,84 м². Отделка и мебель иллюстративны.',
-bathroom:'Ванная 9,38 м². Сантехника и материалы концептуальные.',
+bathroom:'Ванная: на размерном чертеже 3,55 × 2,50 м (8,88 м²); в экспликации указано 9,38 м². Требуется сверка исходного проекта.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
 summer:'Летняя кухня 50 м². Архитектурная схема по проекту.',
 garage:'Гараж 40 м². Размеры вспомогательного блока уточняются.',
@@ -461,7 +465,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=13';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=14';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
