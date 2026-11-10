@@ -57,7 +57,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.3</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.4</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -161,8 +161,8 @@ return {version:1,title:'Мой дом',height:3.74,elevation:.6,walls,openings,
 }
 let state=original(),selected=null,tool='select',history=[],historyAt=-1,loading=false;
 let canvas=$('plan'),ctx=canvas.getContext('2d'),scale=30,pan={x:55,y:55},drag=null,wallFirst=null;
-const all=()=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms.map(r=>{r.type='room';return r})];
-const find=id=>all().find(x=>x.id===id);
+const all=()=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms.map(r=>({...r,type:'room'}))];
+const find=id=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms].find(x=>x.id===id);
 const wallFor=o=>state.walls.find(w=>w.id===o.wall);
 const wallLength=w=>Math.hypot(w.x2-w.x1,w.z2-w.z1);
 const offsetPoint=(w,t)=>{const l=wallLength(w)||1;return{x:w.x1+(w.x2-w.x1)*t/l,z:w.z1+(w.z2-w.z1)*t/l}};
@@ -210,7 +210,7 @@ let fields=['x','z','w','d','h','rot','color'];
 if(o.type==='wall')fields=['x1','z1','x2','z2','t'];
 if(o.type==='door'||o.type==='window')fields=['offset','width',...(o.type==='door'?['head','leaves']:['sill','head'])];
 if(o.type==='stair')fields=['x','z','width','lower','upper','back','rot'];
-if(o.type==='room')fields=['x','z','w','h'];
+if(state.rooms.some(r=>r.id===selected))fields=['x','z','w','h'];
 $('inspector').innerHTML='<label>Название<input id="editName" value="'+label(o.name)+'"></label><div class="fields">'+fields.map(k=>inspectorField(o,k)).join('')+'</div><div class="actions" style="margin-top:10px"><button id="focusObject">Показать</button><button id="removeObject">Удалить</button></div>';
 $('editName').onchange=e=>{o.name=e.target.value.slice(0,100);push();refreshInspector();refreshList()};
 $('inspector').querySelectorAll('[data-prop]').forEach(input=>input.onchange=e=>{
@@ -317,7 +317,8 @@ camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
 orbit=new OrbitControls(camera,canvas3d);orbit.target.set(9.6,0,0);orbit.enableDamping=true;orbit.update();
 transform=new TransformControls(camera,canvas3d);
 transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
-scene.add(transform.getHelper());
+// three@0.160.1: TransformControls extends Object3D; getHelper() only exists since r169.
+scene.add(transform);
 transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});
 transform.addEventListener('mouseDown',()=>{drag3d=selected?clone(find(selected)):null});
 let drag3d=null;
@@ -332,7 +333,7 @@ const pt=offsetPoint(w,obj.offset);obj.offset=clamp(snap((root.position.x-w.x1)*
 }else{obj.x=snap(root.position.x);obj.z=snap(root.position.z)}
 }else if(mode==='rotate'&&('rot' in obj)){obj.rot=root.rotation.y}
 else if(mode==='scale'&&obj.type==='stair'){obj.width=clamp(snap(drag3d.width*root.scale.x),.7,2);obj.lower=clamp(snap(drag3d.lower*root.scale.z),1,4);obj.upper=clamp(snap(drag3d.upper*root.scale.x),1.5,5)}
-else if(mode==='scale'&&obj.type==='furniture'){obj.w=clamp(snap(drag3d.w*root.scale.x),.3,8);obj.h=clamp(snap(drag3d.h*root.scale.y),.2,4);obj.d=clamp(snap(drag3d.d*root.scale.z),.3,8)}
+else if(mode==='scale'&&['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(obj.type)){obj.w=clamp(snap(drag3d.w*root.scale.x),.3,8);obj.h=clamp(snap(drag3d.h*root.scale.y),.2,4);obj.d=clamp(snap(drag3d.d*root.scale.z),.3,8)}
 drag3d=null;push();refreshAll();
 });
 function col(v){return new THREE.Color(v)}
@@ -537,7 +538,7 @@ processSceneValidation(false);
 resize3d();
 }
 function update3dObject(o){const m=threeRoots.get(o.id);if(!m)return;
-if(o.type==='furniture'||o.type==='stair'){m.position.x=o.x;m.position.z=o.z}
+if(o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='room'){m.position.x=o.x;m.position.z=o.z}
 else build3d();
 }
 function resize3d(){const r=canvas3d.getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
@@ -547,17 +548,17 @@ const r=canvas3d.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-
 raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects([...threeRoots.values()],true);
 for(const hit of hits){let p=hit.object;while(p&&!p.userData?.editorId)p=p.parent;if(p?.userData?.editorId){select(p.userData.editorId);return}}
 });
-function mode(m){const o=find(selected);if(m==='scale'&&(!o||!['furniture','stair'].includes(o.type))){status('Изменяй размеры стен и проёмов в панели свойств');return}
-if(m==='rotate'&&(!o||!['furniture','stair'].includes(o.type))){status('Поворот стен: редактируй концы на плане');return}
+function mode(m){const o=find(selected);if(m==='scale'&&(!o||!['sofa','table','bed','cabinet','chair','island','rug','plant','stair'].includes(o.type))){status('Изменяй размеры стен и проёмов в панели свойств');return}
+if(m==='rotate'&&(!o||!['sofa','table','bed','cabinet','chair','island','rug','plant','stair'].includes(o.type))){status('Поворот стен: редактируй концы на плане');return}
 transform.setMode(m);
 for(const [id,mode] of [['moveMode','translate'],['rotateMode','rotate'],['scaleMode','scale']])$(id).classList.toggle('active',mode===m);
 }
 function removeSelected(){if(!selected)return;const target=find(selected);
-if(target.type==='room'){status('Комнаты нельзя удалять в этой версии');return}
+if(state.rooms.some(r=>r.id===selected)){status('Комнаты нельзя удалять в этой версии');return}
 if(target.type==='wall'){state.openings=state.openings.filter(o=>o.wall!==selected)}
 for(const k of ['walls','openings','stairs','furniture'])state[k]=state[k].filter(o=>o.id!==selected);
 selected=null;push();refreshAll()}
-function duplicateSelected(){const o=find(selected);if(!o||o.type==='room'){status('Выбери объект, который можно копировать');return}
+function duplicateSelected(){const o=find(selected);if(!o||state.rooms.some(r=>r.id===selected)){status('Выбери объект, который можно копировать');return}
 let p=clone(o);p.id=uid();p.name+=' · копия';
 if(p.type==='wall'){p.x1+=.5;p.x2+=.5;p.z1+=.5;p.z2+=.5;state.walls.push(p)}
 else if(p.type==='door'||p.type==='window'){const w=wallFor(p);p.offset=clamp(p.offset+.25,p.width/2,wallLength(w)-p.width/2);state.openings.push(p)}
