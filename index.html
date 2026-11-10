@@ -110,7 +110,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V34</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V35</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -646,7 +646,8 @@ segmented(19.03,-8.9,19.03,-5.7,[],interiorMats.linen);
 // Main building rests on a raised foundation: compare yard level -0.60m with floor y=0.
  // Plinth below floor is visually continuous, including the front and two side elevations.
  const foundation=M('#bbb4a9',.86),foundationLine=M('#978f85',.80);
- box(model,9.515,-COURTYARD_DROP/2,0,19.03,COURTYARD_DROP,11.40,foundation,false);
+ const plinthHeight=COURTYARD_DROP+.08; // extend slightly into lower paving to avoid any visible floating gap
+box(model,9.515,-plinthHeight/2,0,19.03,plinthHeight,11.40,foundation,false);
  box(model,9.515,-.09,5.72,19.03,.14,.17,foundationLine,false);
  box(model,.04,-.09,0,.17,.14,11.40,foundationLine,false);
  box(model,18.99,-.09,0,.17,.14,11.40,foundationLine,false);
@@ -1304,7 +1305,7 @@ function clientCamera(v){
  }
  else if(v==='bedroomWindowOutside'){
    roofs.visible=false;roofMode.on=false;
-   overview();
+   overview();bedroomWindowFocus.visible=true;
    // Camera placed west of building, facing directly toward the revised window.
    camera.position.set(-8.2,5.2,-3.40);
    orbit.target.set(.2,1.55,-3.25);
@@ -1351,7 +1352,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=34');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=35');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1402,9 +1403,9 @@ E('techToggle').onclick=()=>{
 
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
-function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
+function overview(){bedroomWindowFocus.visible=false;model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
-function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;roomID=id;if(E('clientView')&&E('clientView').querySelector('option[value="'+id+'"]')){clientView=id;E('clientView').value=id}showInfo();if(E('styleSummary'))syncDesign();look(r.eye[0],r.eye[1] + (r.id==='summer'||r.id==='garage'||r.id==='courtyard'?-COURTYARD_DROP:0),r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
+function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;if(id!=='bedroom')bedroomWindowFocus.visible=false;roomID=id;if(E('clientView')&&E('clientView').querySelector('option[value="'+id+'"]')){clientView=id;E('clientView').value=id}showInfo();if(E('styleSummary'))syncDesign();look(r.eye[0],r.eye[1] + (r.id==='summer'||r.id==='garage'||r.id==='courtyard'?-COURTYARD_DROP:0),r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
 E('inside').onclick=()=>enter('living');
 E('roof').onclick=()=>{roofMode.on=!roofMode.on;roofs.visible=roofMode.on;E('roof').classList.toggle('active',roofMode.on);if(roofMode.on)overview()};
