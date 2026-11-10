@@ -902,7 +902,9 @@ stairLight.position.set(11.38,2.45,-3.77);scene.add(stairLight);
 if(wardrobeClear<.85)throw Error('Right stairs block wardrobe path');
 if(highEndX-highGoing/2<9.65)throw Error('Left stairs block bedroom passage');
 if(highZ-highDepth/2< -5.30)throw Error('Stairs intersect rear exterior wall');
-if(cornerCentersZ[2]-.15 < highZ+highDepth/2-.15)throw Error('Stair turn disconnected from upper flight');
+// They overlap on the Z axis when the back edge of the corner tread
+// reaches or crosses the front edge of the upper-flight concrete.
+if(cornerCentersZ[2]-.15 > highZ+highDepth/2)throw Error('Stair turn disconnected from upper flight');
 if(doorCenterZ<-3.0||doorCenterZ>-1.0)throw Error('Door placement altered');
 
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
