@@ -202,7 +202,7 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.9</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.0</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -704,7 +704,7 @@ function stairPolygon(root,poly,height,material,baseHeight=0){
 // Cross-section is in run/height coordinates, then oriented into world X/Z.
 function stairRunShell(root,{count,depth,rise,startLevel,width,originX,originZ,yaw,material}){
  const total=count*depth,shape=new THREE.Shape();
- const bottomAtStart=Math.max(0,startLevel-.20);
+ const bottomAtStart=Math.max(0,startLevel-.22);
  shape.moveTo(0,bottomAtStart);
  shape.lineTo(0,startLevel+rise);
  for(let i=0;i<count;i++){
@@ -727,6 +727,65 @@ function stairRunShell(root,{count,depth,rise,startLevel,width,originX,originZ,y
  root.add(mesh);
  return mesh;
 }
+// Continuous 90° concrete soffit below the winder steps. The bottom rises
+// smoothly through the turn, while the top follows three stepped tread levels.
+// The square turning footprint is the SAME one returned by stairGeometry(o).
+function stairTurnSoffit(root,g,rise,material){
+ const width=g.width;
+ const pivotX=-width/2,pivotZ=g.turnFront;
+ const positions=[];
+ const angleSlices=18,radialSlices=6;
+ const halfPi=Math.PI/2;
+ const vertex=(theta,r,topY)=>{
+  const x=pivotX+r*Math.cos(theta),z=pivotZ-r*Math.sin(theta);
+  const t=theta/halfPi;
+  const smooth=t-.045*Math.sin(Math.PI*t);
+  const bottomY=(g.lowerN+g.winderN*smooth)*rise-.22;
+  return [x,topY?topY.value:bottomY,z];
+ };
+ function tri(a,b,c){positions.push(...a,...b,...c)}
+ function quad(a,b,c,d){tri(a,b,c);tri(a,c,d)}
+ for(let step=0;step<g.winderN;step++){
+  const level=(g.lowerN+step+1)*rise;
+  const topY={value:level-.035};
+  const points=[];
+  for(let ai=0;ai<=angleSlices;ai++){
+   const theta=(step+ai/angleSlices)*halfPi/g.winderN;
+   const maxRadius=width/Math.max(Math.cos(theta),Math.sin(theta));
+   const ring=[];
+   for(let ri=0;ri<=radialSlices;ri++){
+    const r=.0005+(maxRadius-.0005)*ri/radialSlices;
+    ring.push({top:vertex(theta,r,topY),bottom:vertex(theta,r,null)});
+   }
+   points.push(ring);
+  }
+  for(let ai=0;ai<angleSlices;ai++)for(let ri=0;ri<radialSlices;ri++){
+   const a=points[ai][ri],b=points[ai][ri+1];
+   const c=points[ai+1][ri+1],d=points[ai+1][ri];
+   quad(a.top,b.top,c.top,d.top);
+   quad(d.bottom,c.bottom,b.bottom,a.bottom);
+  }
+  // Close the two radial edges and the inside/outside faces.
+  for(let ri=0;ri<radialSlices;ri++){
+   const a=points[0][ri],b=points[0][ri+1];
+   const c=points[angleSlices][ri],d=points[angleSlices][ri+1];
+   quad(a.bottom,b.bottom,b.top,a.top);
+   quad(d.bottom,c.bottom,c.top,d.top);
+  }
+  for(let ai=0;ai<angleSlices;ai++){
+   const a=points[ai][radialSlices],b=points[ai+1][radialSlices];
+   const c=points[ai][0],d=points[ai+1][0];
+   quad(a.bottom,b.bottom,b.top,a.top);
+   quad(d.bottom,c.bottom,c.top,d.top);
+  }
+ }
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geometry.computeVertexNormals();
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
+ return mesh;
+}
 function buildStair(o){
  const root=new THREE.Group();
  root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;
@@ -737,6 +796,7 @@ function buildStair(o){
  const material=meshMat(o.color||'#ded8cf',.72);
  const underside=meshMat('#c1b9ad',.92);
  const treadFinish=meshMat('#eae3da',.55);
+ underside.side=THREE.DoubleSide;
  // Lower run is ONE monolithic profile instead of a stack of floor-height cubes.
  const lowerDepth=o.lower/g.lowerN;
  stairRunShell(root,{count:g.lowerN,depth:lowerDepth,rise,startLevel:0,
@@ -747,10 +807,11 @@ function buildStair(o){
   // Finished tread and riser: the monolithic shell carries the smooth underside.
   cube(root,0,y-.019,(near+far)/2-o.z,o.width-.025,.045,lowerDepth-.012,treadFinish);
  }
- // Three triangular turning treads (winders) occupy the actual square corner.
+ // Smooth monolithic underside around the bend: no columns reaching the floor.
+ stairTurnSoffit(root,g,rise,underside);
+ // Preserve the exact polygonal winder tread footprints from stairGeometry.
  for(let i=0;i<g.winderN;i++){
   const level=(g.lowerN+i+1)*rise;
-  stairPolygon(root,g.winders[i],level,material);
   stairPolygon(root,g.winders[i],.042,treadFinish,level-.037);
  }
  // Upper flight uses the same smooth monolithic profile, oriented toward -X.
@@ -764,8 +825,8 @@ function buildStair(o){
   const y=(g.lowerN+g.winderN+i+1)*rise;
   cube(root,(left+right)/2,y-.019,(g.turnBack+g.turnFront)/2,depth-.012,.045,o.width-.025,treadFinish);
  }
- // Winders retain their existing solid infill; the curved turn soffit still needs
- // measured geometry before it can be represented accurately.
+ // Geometry is a visual architectural study: measured soffit radius, turn
+ // tread walking-line widths and structural thickness are still unverified.
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
