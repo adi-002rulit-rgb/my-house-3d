@@ -75,7 +75,7 @@ body:not(.technical) #studio button{min-width:110px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V25</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V26</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -195,12 +195,15 @@ body:not(.technical) #studio button{min-width:110px}
 </details>
 </section>
 <label for="clientView">Красивый ракурс</label>
+<button id="bedroomWindowShortcut" title="Открыть левый фасад и показать новое окно спальни" style="margin:5px 0 7px;background:#9d7b48;color:#fff8ea">◉ Показать новое окно спальни</button>
 <select id="clientView">
 <option value="general">Весь дом</option>
 <option value="living">Зал</option>
 <option value="kitchen">Кухня</option>
 <option value="hallway">Коридор</option>
 <option value="bedroom">Спальня</option>
+<option value="bedroomWindowInside">Окно спальни · изнутри</option>
+<option value="bedroomWindowOutside">Окно спальни · снаружи</option>
 <option value="stair">Лестница</option>
 <option value="courtyard">Двор</option>
 </select>
@@ -476,6 +479,22 @@ segmented(.2,5.5,18.83,5.5,[
 segmented(.2,-5.5,.2,5.5,[
 {at:1.45,width:1.65,kind:'window'} // bedroom: z=-4.05 ... -2.40
 ],exteriorInteriorFaces('left'),.4); // west external 400mm
+// Presentation-only outline of the revised west bedroom window.
+// Shown ONLY in dedicated window-inspection camera views, never on normal client views.
+const bedroomWindowFocus=new THREE.Group();model.add(bedroomWindowFocus);
+const focusMaterial=new THREE.MeshBasicMaterial({color:'#e8ac4b',depthTest:false,depthWrite:false});
+const bedroomWindowZ=-3.225;
+const outlines=[
+ [.2,.83,bedroomWindowZ,.53,.045,1.72],
+ [.2,2.40,bedroomWindowZ,.53,.045,1.72],
+ [.2,1.625,bedroomWindowZ-.845,.53,1.60,.045],
+ [.2,1.625,bedroomWindowZ+.845,.53,1.60,.045]
+];
+for(const [px,py,pz,w,h,d] of outlines){
+ const edge=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),focusMaterial);
+ edge.position.set(px,py,pz);edge.renderOrder=25;bedroomWindowFocus.add(edge);
+}
+bedroomWindowFocus.visible=false;
 // Kitchen has exactly ONE courtyard-facing window (front facade x=15.7).
 // Right-hand exterior wall has no kitchen window.
 segmented(18.83,-5.5,18.83,5.5,[],exteriorInteriorFaces('right'),.4); // east external 400mm
@@ -917,7 +936,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=25';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=26';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -1123,8 +1142,25 @@ function applyPreset(v){
 }
 function clientCamera(v){
  clientView=v;
+ bedroomWindowFocus.visible=(v==='bedroomWindowInside'||v==='bedroomWindowOutside');
  if(v==='general'){overview();}
  else if(v==='courtyard'){enter('courtyard')}
+ else if(v==='bedroomWindowInside'){
+   enter('bedroom');
+   // Positive yaw looks toward -X, directly toward the new LEFT wall window.
+   camera.position.set(3.10,1.65,-3.23);
+   yaw=Math.PI/2;pitch=0;camera.rotation.set(0,yaw,0,'YXZ');
+   E('status').textContent='Спальня · окно на левой стене · вид изнутри';
+ }
+ else if(v==='bedroomWindowOutside'){
+   roofs.visible=false;roofMode.on=false;
+   overview();
+   // Camera placed west of building, facing directly toward the revised window.
+   camera.position.set(-8.2,5.2,-3.40);
+   orbit.target.set(.2,1.55,-3.25);
+   orbit.update();
+   E('status').textContent='Спальня · левый фасад · окно видно снаружи';
+ }
  else enter(v);
  E('clientView').value=v;syncDesign();
 }
@@ -1142,6 +1178,7 @@ E('floorCovering').onchange=e=>{floorCover=e.target.value;changeWoodFloor()};
 E('floorPattern').onchange=e=>{floorPattern=e.target.value;changeWoodFloor()};
 E('clientTile').onchange=e=>setClientTile(e.target.value);
 E('clientView').onchange=e=>clientCamera(e.target.value);
+E('bedroomWindowShortcut').onclick=()=>{clientCamera('bedroomWindowOutside');toast('Новое окно спальни выделено на левом фасаде')};
 E('saveA').onclick=()=>{conceptA=snapshotConcept();toast('Вариант A сохранён')};
 E('saveB').onclick=()=>{conceptB=snapshotConcept();toast('Вариант B сохранён')};
 E('viewA').onclick=()=>applyConcept(conceptA);
