@@ -135,7 +135,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V45</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V46</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -828,27 +828,35 @@ const LOWER_RUN_WIDTH=1.08; // right flight x=11.48..12.56
 // Wardrobe wall inner face x≈13.47: remaining clear strip ≈0.91 m.
 const wardrobeWalkwayClearance=13.47-(RIGHT+LOWER_RUN_WIDTH/2);
 if(wardrobeWalkwayClearance<.85)throw Error('Wardrobe door path obstructed by stair flight');
-const stairMat=mat.steps, railMat=M('#657378',.38,.48);
+// Photo-reference finishes: warm ivory stone, brushed champagne metal, slim clear glass.
+const stairMat=M('#e8e2d9',.34,.02),railMat=M('#aa9478',.4,.36);
+const stepLED=new THREE.MeshStandardMaterial({color:'#fff2dd',emissive:'#ffd39e',emissiveIntensity:.8,roughness:.42});
+const stairGlass=new THREE.MeshPhysicalMaterial({color:'#d9e9e7',transparent:true,opacity:.27,roughness:.12,depthWrite:false,side:THREE.DoubleSide});
 const BACK=START-FIRST*TREAD;
-function stairTread(x,y,z,width=1.32){
+function stairTread(x,y,z,width=1.32,openSide=null){
  box(stairsGroup,x,y-.055,z,width,.11,TREAD-.025,stairMat);
- // narrow concealed riser lip only, not floor-height infill
- box(stairsGroup,x,y-.117,z+TREAD*.42,width,.065,.026,mat.edge,false);
+ box(stairsGroup,x,y-.117,z+TREAD*.42,width,.060,.026,mat.edge,false);
+ // Gentle step lighting without 22 dynamic light sources.
+ box(stairsGroup,x,y-.127,z+TREAD*.42,width-.09,.014,.018,stepLED,false);
+ if(openSide!==null){
+  box(stairsGroup,x+openSide*(width/2+.025),y+.40,z,.022,.70,TREAD-.04,stairGlass,false);
+ }
 }
 // Right flight goes upward toward the rear.
 for(let i=0;i<FIRST;i++){
  const z=START-(i+.5)*TREAD;
  const y=(i+1)*ST;
- stairTread(RIGHT,y,z,LOWER_RUN_WIDTH);
+ stairTread(RIGHT,y,z,LOWER_RUN_WIDTH,-1);
 }
 // Mid-platform turns from right to left at the rear.
-box(stairsGroup,(LEFT+RIGHT)/2,FIRST*ST-.075,BACK-.42,3.30,.15,.84,stairMat);
+// Revised rear landing: fully inside the inner face of exterior wall z=-5.30.
+box(stairsGroup,(LEFT+RIGHT)/2,FIRST*ST-.075,BACK-.25,3.10,.15,.70,stairMat);
 // Upper left return flight continues toward the front.
 // Its underside remains OPEN, allowing visual access to the left-hand passage.
 for(let i=0;i<FIRST;i++){
  const z=BACK+(i+.5)*TREAD;
  const y=(FIRST+i+1)*ST;
- stairTread(LEFT,y,z);
+ stairTread(LEFT,y,z,1.32,+1);
 }
 // Slim supporting side stringers, parallel to both runs.
 function stringer(x,fromZ,toZ,fromY,toY){
@@ -869,7 +877,7 @@ for(let i=0;i<FIRST;i++){
  const h1=(i+1)*ST,h2=(FIRST+i+1)*ST;
  // The right wall side has NO railing, handrail or posts.
  // Open edge of upper return flight retains its balustrade.
- box(stairsGroup,LEFT-.71,h2+.45,z2,.035,.9,.035,railMat);
+ box(stairsGroup,LEFT+.69,h2+.45,z2,.035,.9,.035,railMat);
 }
 function handRail(x,z1,z2,y1,y2){
  const l=Math.hypot(z2-z1,y2-y1);
@@ -877,11 +885,26 @@ function handRail(x,z1,z2,y1,y2){
  rail.rotation.x=-Math.atan2(y2-y1,z2-z1);
 }
 // Removed: right-wall rail had blocked the approach to wardrobe/utility door.
-handRail(LEFT-.71,BACK,START,2.97,4.84);
+// Both balustrades are along OPEN edges; absolutely none along the right wall.
+handRail(RIGHT-.565,START,BACK,1.03,2.87);
+handRail(LEFT+.69,BACK,START,2.97,4.84);
 // Rear landing guard is set back from the wardrobe-side circulation aisle.
-for(let j=0;j<6;j++)box(stairsGroup,LEFT-.56+j*.22,2.37,BACK-.75,.035,.98,.035,railMat);
-box(stairsGroup,LEFT+.03,2.90,BACK-.75,1.72,.055,.055,railMat);
-// No vertical infill panels or railing across the hall-side landing entry.
+for(let j=0;j<6;j++)box(stairsGroup,LEFT-.56+j*.22,2.37,BACK-.52,.035,.98,.035,railMat);
+box(stairsGroup,LEFT+.03,2.90,BACK-.52,1.72,.055,.055,railMat);
+// Wood slat decoration ONLY on the solid left-side stair wall,
+ // ending before the bedroom vestibule doorway at z≈-2.37.
+ const slatMat=M('#c0aa8e',.76);
+ for(let i=0;i<15;i++){
+  const z=-5.08+i*.16;
+  const h=Math.max(.40,Math.min(2.9,1.72+(z+5.08)*.54));
+  box(stairsGroup,9.705,h/2+.06,z,.04,h,.035,slatMat,false);
+ }
+ const stairAccentLight=new THREE.PointLight('#ffddab',.68,5,2);
+ stairAccentLight.position.set(11.25,2.55,-3.4);scene.add(stairAccentLight);
+ // Geometry guards: do not block rear exterior wall, left vestibule or wardrobe.
+ if(BACK-.25-.70/2<-5.30)throw Error('Stair landing overlaps exterior wall');
+ if(LEFT-1.32/2<9.65)throw Error('Upper flight overlaps bedroom passage');
+ // No vertical infill panels or railing across the hall-side landing entry.
 
 
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
@@ -1137,7 +1160,7 @@ const descriptions={
 living:'Зал 54 м². Два окна по 2,30 м. Тонкая алюминиевая рамка около 53 мм, глубина профиля около 77 мм; светлый внутренний подоконник. Высота окон и отметка подоконника пока оценочные.',
 kitchen:'Кухня 30,20 м². Одно окно шириной 3,00 м, тонкий алюминиевый профиль и каменный подоконник. Высота стекла около 2,91 м, нижний край около 28 см от чистого пола — предварительно.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
-stair:'П-образная лестница: подъём справа. Правый марш смещён к центру, перила вдоль правой стены убраны; к двери гардеробной/кладовой сохранён проход около 0,9 м по геометрии модели.',
+stair:'Лестница по присланному интерьерному примеру: старт справа, разворот на задней площадке и обратный марш слева. Светлые ступени, стеклянные ограждения только по открытым краям, рейки вдоль левой стены и мягкая подсветка. Правая стена без поручня; проход к кладовой сохранён.',
 bedroom:'Спальня 21,84 м². По обновлённому проекту окно перенесено на левую (западную) наружную стену. Ширина 1,65 м пока предварительная; мебель — концепция.',
 bathroom:'Ванная: на размерном чертеже 3,55 × 2,50 м (8,88 м²); в экспликации указано 9,38 м². Требуется сверка исходного проекта.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
@@ -1701,7 +1724,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=45');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=46');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
