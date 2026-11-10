@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V15</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V16</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -175,11 +175,11 @@ for(let i=0;i<14;i++){let xx=-33+i*3.3;if(xx>-23&&xx<-14)continue;box(back,xx,.8
 // House model origin: x 0-16.13, z -5.7..5.7. Main front faces +z
 // Main корпус: 19.03 x 11.40 m, interior spans 9.00 x 6.00 living, 3.52 corridor, 4.91 x 6.15 kitchen. Heights remain provisional.
 const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.74; // overall wall-line dimensions of main house from IMG_6632
-function segmented(x1,z1,x2,z2,openings=[],material=mat.wall){
+function segmented(x1,z1,x2,z2,openings=[],material=mat.wall,thickness=.25){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
 const bounds=[0,...openings.flatMap(o=>[o.at,o.at+o.width]),length].sort((a,b)=>a-b);
 const uniq=[...new Set(bounds.map(v=>Math.round(v*10000)/10000))];
-function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:.20,high-low,axis==='z'?end-start:.20,m)}
+function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:thickness,high-low,axis==='z'?end-start:thickness,m)}
 for(let i=0;i<uniq.length-1;i++){let start=uniq[i],end=uniq[i+1],center=(start+end)/2,o=openings.find(p=>center>p.at&&center<p.at+p.width);
 if(!o)piece(start,end,0,H,material);
 else if(o.kind==='door'){piece(start,end,2.35,H,material);let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
@@ -191,10 +191,10 @@ else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start
 }
 const rooms=[
 {id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.25,range:[.4,9.4,-.75,5.25],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
-{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.35,-1.15],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
+{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.3,-1.1],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
 {id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.625,cz:-4.05,range:[5.85,9.40,-5.30,-2.80],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
-{id:'stair',name:'Лестница',area:'',cx:11.45,cz:-3.45,range:[9.8,13.32,-5.35,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
-{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.35,-1.15],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
+{id:'stair',name:'Лестница',area:'',cx:11.56,cz:-3.45,range:[9.65,13.47,-5.3,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
+{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.3,-1.1],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
 {id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.1,range:[9.8,13.32,-.75,5.25],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
 {id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.25,cz:2.175,range:[13.72,18.63,-.9,5.25],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
 {id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:mat.oak,eye:[-15.1,1.65,.2],yaw:Math.PI},
@@ -212,49 +212,56 @@ const collisionWalls=[];
 // Source: IMG_6632 + labelled first-floor plan: rear bedroom, bath,
 // staircase landing, wardrobe; front two living-room windows, entrance, kitchen.
 // Exact offset from column axes is still preliminary; no extra invented windows.
-segmented(0,-5.7,19.03,-5.7,[
+segmented(.2,-5.5,18.83,-5.5,[
 {at:2.15,width:1.65,kind:'window'},  // bedroom
 {at:6.55,width:1.05,kind:'window'}, // bathroom
 {at:10.7,width:1.05,kind:'window'}, // stairwell
-{at:15.5,width:1.65,kind:'window'}]);
-segmented(0,5.7,19.03,5.7,[
+{at:15.5,width:1.65,kind:'window'}],mat.wall,.4);
+segmented(.2,5.5,18.83,5.5,[
 {at:2.15,width:1.75,kind:'window'},  // living room first
 {at:6.1,width:1.75,kind:'window'},   // living room second
 {at:10.7,width:1.7,kind:'door',glass:true}, // front door
-{at:15.7,width:1.65,kind:'window'}]); // kitchen
-segmented(0,-5.7,0,5.7); // no window unless dimensioned elevation confirms
+{at:15.7,width:1.65,kind:'window'}],mat.wall,.4); // kitchen
+segmented(.2,-5.5,.2,5.5,[],mat.wall,.4); // west external 400mm
 // Kitchen has exactly ONE courtyard-facing window (front facade x=15.7).
 // Right-hand exterior wall has no kitchen window.
-segmented(19.03,-5.7,19.03,5.7,[]);
+segmented(18.83,-5.5,18.83,5.5,[],mat.wall,.4); // east external 400mm
 
 // 400mm walls on the original plan
 // Living room has only ONE entrance: from main corridor at x=9.6.
 // Rear wall toward bedroom is solid, without a door.
-segmented(0,-.95,9.6,-.95,[],interiorMats.dove);
-// The living room has precisely ONE doorway on its corridor-facing EAST wall.
-// Do not model a separate swing-door leaf here: it was being perceived as an extra door.
-// Hall-to-living-room door ONLY at z≈2.0. A SECOND aperture on the same line,
- // facing the left-hand bedroom/bath circulation passage, is deliberately open.
- // Keep separate apertures: never merge with the living room entry.
-segmented(9.6,-5.7,9.6,5.7,[
- {at:3.68,width:1.15,kind:'door',leaf:false}, // from stair hall into left-side bedroom vestibule (z=-2.02..-0.87)
- {at:7.7,width:1.45,kind:'door',leaf:false}    // living room from main hall (z=2.00..3.45)
-],interiorMats.cashmere);
-segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],interiorMats.linen);
+segmented(.4,-.95,9.6,-.95,[],interiorMats.dove,.4); // 400mm front/rear partition
+// PARTITION GRID from first-floor dimension chains:
+// Left front hall wall = 9.40..9.80 (400 mm); rear bath/stair wall = 9.40..9.65 (250 mm).
+// Corridor living-room doorway: only one at z≈2.0; left rear vestibule has its separate opening.
+segmented(9.525,-5.5,9.525,-1.05,[
+ {at:3.13,width:1.13,kind:'door',leaf:false} // left vestibule opening from stair hall
+],interiorMats.cashmere,.25);
+segmented(9.6,-1.05,9.6,5.5,[
+ {at:3.05,width:1.45,kind:'door',leaf:false} // single living room door into main hall
+],interiorMats.cashmere,.4);
+// Right front hall wall = 13.32..13.72 (400 mm).
+// Right rear stair/wardrobe partition = 13.47..13.72 (250 mm).
+segmented(13.595,-5.5,13.595,-1.05,[
+ {at:3.14,width:1.12,kind:'door',leaf:false} // wardrobe opening toward stair hall
+],interiorMats.linen,.25);
+segmented(13.52,-1.05,13.52,5.5,[
+ {at:2.35,width:1.45,kind:'door',leaf:false} // ONLY kitchen entrance from corridor
+],interiorMats.linen,.4);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
 // Kitchen has ONE entrance only from the central corridor (west wall).
 // Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
-segmented(13.52,-1.05,19.03,-1.05,[],interiorMats.char);
+segmented(13.72,-.95,18.63,-.95,[],interiorMats.char,.4); // kitchen/wardrobe 400mm transverse wall
 // Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
-segmented(5.8,-5.7,5.8,-1.05,[{at:3.63,width:.95,kind:'door',leaf:false}],interiorMats.cashmere);
+segmented(5.725,-5.5,5.725,-1.05,[{at:3.43,width:.95,kind:'door',leaf:false}],interiorMats.cashmere,.25); // bedroom / vestibule 250mm wall
 // REMOVED: this longitudinal wall crossed the bathroom and left vestibule on the 19.03 x 11.40 ground-floor plan.
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
 // Bath wall remains, but accessible passage and stair junction stay open.
  // The short dividing wall contains only the bathroom access door.
 // Bathroom is 3.55m wide by 2.50m deep. Its front wall separates the bathroom
 // from the open left-side distribution vestibule; enter via an unobstructed doorway.
-segmented(5.8,-2.67,9.6,-2.67,[{at:1.55,width:1.0,kind:'door',leaf:false}],interiorMats.linen);
+segmented(5.85,-2.675,9.4,-2.675,[{at:1.45,width:1.0,kind:'door',leaf:false}],interiorMats.linen,.25); // bathroom front 250mm
 // Floor for the small vestibule joining bedroom, bathroom and the stair hall.
 slab(7.62,-1.91,3.55,1.20,mat.tile,.068);
 // Low-profile plaster wall finish sample zones, on existing interior walls only.
@@ -504,7 +511,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=15';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=16';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
