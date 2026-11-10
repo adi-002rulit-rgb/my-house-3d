@@ -1,30 +1,117 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Мой дом — 3D-прогулка по первому этажу</title><style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#17202a;color:white;font:14px system-ui;touch-action:none}canvas{display:block;width:100vw;height:100dvh}#head{position:fixed;top:12px;left:12px;z-index:2;background:#142332bb;border-radius:12px;padding:9px 12px;max-width:57vw;pointer-events:none}#head strong{display:block;font-size:14px}#head small{font-size:11px;color:#e1e8ed}#actions{position:fixed;z-index:3;right:10px;top:10px;display:flex;gap:5px}button{border:1px solid #ffffff44;border-radius:12px;background:#152e40e8;color:white;font-weight:700;font-size:14px;padding:11px;touch-action:none}button:active{background:#557e91}#dpad{position:fixed;bottom:25px;left:16px;z-index:3;display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px);gap:5px}#dpad button{font-size:24px;padding:5px}#turn{position:fixed;bottom:25px;right:16px;z-index:3;display:flex;gap:8px}#turn button{width:57px;height:57px;font-size:24px}#tip{position:fixed;bottom:151px;left:12px;right:12px;text-align:center;text-shadow:0 1px 4px #000;font-size:12px;pointer-events:none}@media (max-width:640px){#actions button{font-size:11px;padding:8px}#head{top:57px}#tip{bottom:130px}}@media(min-width:800px){#dpad,#turn{opacity:.65}}
-</style></head><body><noscript><p style="padding:30px;color:white">Для 3D-прогулки необходимо открыть эту страницу в Safari или Chrome с включенным JavaScript.</p></noscript><canvas id="view"></canvas><div id="head"><strong>🏠 Первый этаж · прогулка</strong><small id="room">Коридор — приблизительная модель</small></div><div id="actions"><button id="top">🗺 План</button><button id="walk">🚶 Внутри</button><button id="reset">↺</button></div><div id="dpad"><span></span><button data-k="forward">▲</button><span></span><button data-k="left">◀</button><button data-k="back">▼</button><button data-k="right">▶</button></div><div id="turn"><button data-k="tl">↶</button><button data-k="tr">↷</button></div><div id="tip">Веди пальцем по экрану, чтобы осмотреться · кнопки — движение</div><script>
-(()=>{'use strict';const cv=document.getElementById('view'),ctx=cv.getContext('2d',{alpha:false});if(!ctx){document.body.insertAdjacentHTML('afterbegin','<p style="position:fixed;top:35%;padding:20px;z-index:10;background:#332">Не удалось включить графику Canvas. Откройте страницу в Safari.</p>');return;}let W=0,H=0,DPR=1,mode='walk',px=17.5,py=12.6,angle=-Math.PI/2,held={},last=0,drag=null;const MW=34,MH=25,grid=Array.from({length:MH},()=>Array(MW).fill(0));const rects=[];function fill(x1,y1,x2,y2,n){for(let y=y1;y<=y2;y++)for(let x=x1;x<=x2;x++)if(x>=0&&y>=0&&x<MW&&y<MH)grid[y][x]=n}
-fill(1,2,6,20,1);fill(2,3,5,19,0);fill(1,3,6,3,1);fill(1,11,6,11,1);fill(1,19,6,19,1);fill(1,2,6,2,1);fill(1,3,1,19,1);fill(6,3,6,19,1);grid[7][6]=0;grid[15][6]=0;grid[17][6]=0;grid[4][1]=0;
-fill(16,4,32,16,1);fill(17,5,31,15,0);
-fill(16,9,31,9,2);fill(22,4,22,9,2);fill(26,4,26,9,2);fill(29,4,29,9,2);
-fill(24,9,24,16,2);fill(28,9,28,16,2);
-for(const [x,y] of [[19,9],[23,9],[27,9],[30,9],[24,12],[28,12],[26,16],[27,16],[25,9]])grid[y][x]=0;
-rects.push({x1:16,y1:10,x2:23,y2:15,name:'Зал 54 м²',floor:'#b7a08b'});rects.push({x1:25,y1:10,x2:27,y2:15,name:'Коридор 44,75 м²',floor:'#adabb0'});rects.push({x1:29,y1:10,x2:31,y2:15,name:'Кухня 30,20 м²',floor:'#c3bcad'});rects.push({x1:17,y1:5,x2:21,y2:8,name:'Спальня 21,84 м²',floor:'#bca990'});rects.push({x1:23,y1:5,x2:25,y2:8,name:'Ванная 9,38 м²',floor:'#b8c5c8'});rects.push({x1:27,y1:5,x2:28,y2:8,name:'Лестница на второй этаж',floor:'#aa987e'});rects.push({x1:30,y1:5,x2:31,y2:8,name:'Гардеробная 21,25 м²',floor:'#b6aa92'});rects.push({x1:2,y1:4,x2:5,y2:10,name:'Летняя кухня 50 м²',floor:'#c8b6a1'});rects.push({x1:2,y1:12,x2:5,y2:18,name:'Гараж 40 м²',floor:'#9faaa9'});
-for(const [x,y] of [[18,4],[20,4],[24,4],[28,4],[31,7],[31,12],[19,16],[22,16],[30,16],[1,6],[1,14]])if(grid[y][x])grid[y][x]=3;
-function room(){return rects.find(r=>px>=r.x1&&px<=r.x2+.99&&py>=r.y1&&py<=r.y2+.99)?.name || (px>8&&px<16?'Двор':'Проход / вход')}
-function wall(x,y){if(x<0||y<0||x>=MW||y>=MH)return 1;return grid[y|0][x|0]}
-function open(x,y){const r=.19;return !wall(x-r,y-r)&&!wall(x+r,y-r)&&!wall(x-r,y+r)&&!wall(x+r,y+r)}
-function resize(){DPR=Math.min(devicePixelRatio||1,1.5);W=innerWidth;H=innerHeight;cv.width=Math.ceil(W*DPR);cv.height=Math.ceil(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0)}addEventListener('resize',resize);resize();
-function shade(c,k){let m=c.match(/\w\w/g).map(x=>parseInt(x,16));return 'rgb('+m.map(v=>Math.max(0,Math.min(255,v*k))|0).join(',')+')'}
-function renderWalk(){const sky=ctx.createLinearGradient(0,0,0,H*.57);sky.addColorStop(0,'#9ebbd0');sky.addColorStop(1,'#d4dae0');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H/2);const ground=ctx.createLinearGradient(0,H/2,0,H);ground.addColorStop(0,'#8f8980');ground.addColorStop(1,'#464845');ctx.fillStyle=ground;ctx.fillRect(0,H/2,W,H/2);
-let cols=Math.min(470,Math.max(160,Math.ceil(W/2.4))),cw=W/cols;const fov=Math.PI/2.8;
-for(let i=0;i<cols;i++){let a=angle+Math.atan((i/cols-.5)*2*Math.tan(fov/2)),dx=Math.cos(a),dy=Math.sin(a);let mapx=Math.floor(px),mapy=Math.floor(py),deltaX=Math.abs(1/dx),deltaY=Math.abs(1/dy);let sx=dx<0?-1:1,sy=dy<0?-1:1,distX=(dx<0?px-mapx:mapx+1-px)*deltaX,distY=(dy<0?py-mapy:mapy+1-py)*deltaY,side=0,kind=1,depth=30;
-for(let q=0;q<65;q++){if(distX<distY){mapx+=sx;depth=distX;distX+=deltaX;side=0}else{mapy+=sy;depth=distY;distY+=deltaY;side=1}kind=wall(mapx,mapy);if(kind)break}
-let corrected=Math.max(.13,depth*Math.cos(a-angle)),wallH=Math.min(H*5,H*.85/corrected*2.1),top=H/2-wallH/2;let base=kind===3?'#719fb9':kind===2?'#b9b4ac':'#d7d0c2';let light=Math.max(.23,1-corrected/35)*(side?.76:1);ctx.fillStyle=shade(base,light);ctx.fillRect(i*cw,top,cw+1,wallH);ctx.fillStyle='rgba(42,45,43,.18)';ctx.fillRect(i*cw,top,cw+1,Math.max(1,wallH*.025));if(kind===3){ctx.fillStyle='rgba(185,215,239,.38)';ctx.fillRect(i*cw,top+wallH*.17,cw+1,wallH*.53)} }
-ctx.fillStyle='#172b39ae';ctx.fillRect(W/2-43,14,86,27);ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font='13px system-ui';ctx.fillText('3D · первый этаж',W/2,32);
-ctx.strokeStyle='#fff9';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(W/2-7,H/2);ctx.lineTo(W/2+7,H/2);ctx.moveTo(W/2,H/2-7);ctx.lineTo(W/2,H/2+7);ctx.stroke();}
-function renderMap(){ctx.fillStyle='#e9e9e6';ctx.fillRect(0,0,W,H);let scale=Math.min((W-20)/MW,(H-120)/MH),ox=(W-MW*scale)/2,oy=(H-MH*scale)/2;for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){let k=grid[y][x],r=rects.find(z=>x>=z.x1&&x<=z.x2&&y>=z.y1&&y<=z.y2);ctx.fillStyle=k===1?'#666b70':k===2?'#887b70':k===3?'#73b6cf':r?.floor||'#d8d6ce';ctx.fillRect(ox+x*scale,oy+y*scale,scale+.3,scale+.3)}ctx.font=Math.max(9,Math.min(12,scale*.85))+'px system-ui';ctx.textAlign='center';ctx.fillStyle='#222';for(let r of rects){if(r.x2-r.x1<2)continue;let name=r.name.replace(/\s[\d,.]+\sм²/,'');ctx.fillText(name,ox+(r.x1+r.x2+1)*scale/2,oy+(r.y1+r.y2+1)*scale/2)}ctx.fillStyle='#df3e2b';ctx.beginPath();ctx.arc(ox+px*scale,oy+py*scale,Math.max(4,scale*.3),0,Math.PI*2);ctx.fill();ctx.strokeStyle='#df3e2b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ox+px*scale,oy+py*scale);ctx.lineTo(ox+(px+Math.cos(angle)*1.8)*scale,oy+(py+Math.sin(angle)*1.8)*scale);ctx.stroke();ctx.fillStyle='#2d3540';ctx.font='bold 16px system-ui';ctx.fillText('СХЕМА ПЕРВОГО ЭТАЖА',W/2,Math.max(26,oy-16));}
-function loop(t){let dt=Math.min(.05,(t-last)/1000||.016);last=t;if(mode==='walk'){let f=(held.forward||held.KeyW||held.ArrowUp?1:0)-(held.back||held.KeyS||held.ArrowDown?1:0),s=(held.right||held.KeyD?1:0)-(held.left||held.KeyA?1:0);let mvx=(Math.cos(angle)*f-Math.sin(angle)*s)*dt*2.25,mvy=(Math.sin(angle)*f+Math.cos(angle)*s)*dt*2.25;if(open(px+mvx,py))px+=mvx;if(open(px,py+mvy))py+=mvy;if(held.tl)angle-=dt*1.6;if(held.tr)angle+=dt*1.6;renderWalk()}else renderMap();document.getElementById('room').textContent=room()+' · схема приблизительная';requestAnimationFrame(loop)}
-function reset(){px=26;py=13;angle=-Math.PI/2;mode='walk'}reset();document.getElementById('top').onclick=()=>mode='top';document.getElementById('walk').onclick=()=>mode='walk';document.getElementById('reset').onclick=reset;
-for(const b of document.querySelectorAll('[data-k]')){let k=b.dataset.k;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);held[k]=true});for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>held[k]=false)}
-addEventListener('keydown',e=>{held[e.code]=true;if(e.code==='KeyM')mode=mode==='top'?'walk':'top'});addEventListener('keyup',e=>held[e.code]=false);cv.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};cv.setPointerCapture(e.pointerId)});cv.addEventListener('pointermove',e=>{if(!drag||mode!=='walk')return;let dx=e.clientX-drag.x;angle+=dx*.005;drag={x:e.clientX,y:e.clientY}});cv.addEventListener('pointerup',()=>drag=null);requestAnimationFrame(loop);
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><meta name="theme-color" content="#14202d"><title>Мой дом · первый этаж</title>
+<style>
+*{box-sizing:border-box}html,body{padding:0;margin:0;width:100%;height:100%;overflow:hidden;background:#14202d;color:white;font:14px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;touch-action:none}canvas{display:block;width:100vw;height:100dvh}
+header{position:absolute;left:12px;top:12px;z-index:3;background:#11212cd9;border:1px solid #ffffff30;border-radius:13px;padding:10px 12px;max-width:64vw;pointer-events:none}
+header b{font-size:15px}header small{display:block;color:#d8e1e6;font-size:11px;margin-top:3px}
+#tools{position:absolute;right:10px;top:10px;display:flex;gap:5px;z-index:5}
+button,select{background:#183548e8;color:white;border:1px solid #aec8d266;border-radius:10px;font-size:13px;padding:10px;font-family:inherit;font-weight:600;touch-action:none}
+button:active{background:#476c80}#rooms{position:absolute;top:89px;left:12px;max-width:64vw;z-index:4}#rooms select{width:100%;font-size:13px}
+#pad{position:absolute;left:14px;bottom:17px;z-index:4;display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(2,56px);gap:6px}#pad button,#turn button{font-size:24px;padding:0}#turn{position:absolute;bottom:17px;right:14px;display:flex;gap:7px;z-index:4}#turn button{width:58px;height:58px}#help{position:absolute;bottom:145px;left:10px;right:10px;z-index:3;text-align:center;font-size:12px;text-shadow:0px 1px 4px #000;pointer-events:none}
+#notice{position:absolute;bottom:92px;left:50%;transform:translateX(-50%);padding:7px 10px;border-radius:9px;background:#203e4ddd;font-size:10px;white-space:nowrap;pointer-events:none}
+@media(max-width:600px){header{top:55px;max-width:70vw;padding:7px 9px}header b{font-size:12px}header small{font-size:10px}#tools button{padding:7px 8px;font-size:11px}#rooms{top:110px}#notice{bottom:94px}#help{bottom:140px}}
+</style></head><body>
+<canvas id="cv"></canvas>
+<header><b>🏡 Первый этаж · версия 2</b><small id="position">Планировка по чертежу · размеры приблизительные</small></header>
+<div id="tools"><button id="map">🗺 План</button><button id="walk">🚶 Прогулка</button><button id="reset">↺</button></div>
+<div id="rooms"><select id="choose" aria-label="Перейти в помещение">
+<option value="">Перейти в комнату…</option><option value="hall">Зал · 54 м²</option><option value="kitchen">Кухня · 30,20 м²</option><option value="corridor">Коридор · 44,75 м²</option><option value="bed">Спальня · 21,84 м²</option><option value="bath">Ванная · 9,38 м²</option><option value="stair">Лестница</option><option value="closet">Гардеробная · 21,25 м²</option><option value="summer">Летняя кухня · 50 м²</option><option value="garage">Гараж · 40 м²</option><option value="yard">Двор</option></select></div>
+<div id="help">Веди пальцем, чтобы осмотреться · кнопки для ходьбы · на плане нажми на комнату</div>
+<div id="pad"><span></span><button data-key="forward">▲</button><span></span><button data-key="left">◀</button><button data-key="back">▼</button><button data-key="right">▶</button></div><div id="turn"><button data-key="turnL">↶</button><button data-key="turnR">↷</button></div>
+<div id="notice">Концептуальная модель: пропорции и проёмы уточняются</div>
+<script>
+(()=>{
+'use strict';
+const c=document.getElementById('cv'),g=c.getContext('2d',{alpha:false}),status=document.getElementById('position');
+if(!g){document.body.innerHTML='<p>Canvas недоступен. Открой сайт в Safari или Chrome.</p>';return}
+let w=0,h=0,dpr=1,mode='map',x=23.8,y=12.6,dir=-Math.PI/2,last=0,touch=null;
+const cols=42,rows=31,grid=Array.from({length:rows},()=>Array(cols).fill(0)),rooms=[],held={};
+function rect(x1,y1,x2,y2,id,name,area,floor,spawn){rooms.push({x1,y1,x2,y2,id,name,area,floor,spawn});}
+function wallH(x1,y,x2,type=1){for(let xx=x1;xx<=x2;xx++)grid[y][xx]=type}
+function wallV(x,y1,y2,type=1){for(let yy=y1;yy<=y2;yy++)grid[yy][x]=type}
+function doorH(x,y,width=1){for(let i=0;i<width;i++)grid[y][x+i]=0}
+function doorV(x,y,width=1){for(let i=0;i<width;i++)grid[y+i][x]=0}
+function windowH(x,y,width=2){for(let i=0;i<width;i++)if(grid[y][x+i])grid[y][x+i]=3}
+function windowV(x,y,width=2){for(let i=0;i<width;i++)if(grid[y+i][x])grid[y+i][x]=3}
+// Plan proportions: detached summer kitchen and garage left, large courtyard, principal house right.
+wallH(2,2,7);wallV(2,2,27);wallV(7,2,27);wallH(2,11,7,2);wallH(2,18,7,2);wallH(2,27,7);
+doorV(7,7,2);doorV(7,21);doorH(4,27,2);windowV(2,5,2);windowV(2,14,2);
+rect(3,3,6,10,'summer','Летняя кухня',50,'#d8bc9e',[4.7,6.5]);
+rect(3,12,6,17,'garage','Гараж',40,'#afb7b7',[4.7,15.5]);
+rect(3,19,6,26,'storage','Гараж · въезд',40,'#b9bcbd',[4.7,23.5]);
+rect(3,1,6,2,'wc','С/у',1.5,'#c8d7d7',[4.5,2.5]);
+// Main house horizontal organization matches drawing.
+wallH(18,5,39);wallH(18,20,39);wallV(18,5,20);wallV(39,5,20);
+wallH(18,11,39,2);wallV(25,5,11,2);wallV(29,5,11,2);wallV(34,5,11,2);
+wallV(29,11,20,2);wallV(34,11,20,2);
+rect(19,6,24,10,'bed','Спальня',21.84,'#bed2c2',[21.5,8]);
+rect(26,6,28,10,'bath','Ванная',9.38,'#b4d0db',[27,8]);
+rect(30,6,33,10,'stair','Лестница на 2 этаж',null,'#c3b5a1',[31.6,8.4]);
+rect(35,6,38,10,'closet','Гардеробная',21.25,'#d9cbbb',[36.5,8]);
+rect(19,12,28,19,'hall','Зал',54,'#e6d0ba',[23.3,15.7]);
+rect(30,12,33,19,'corridor','Коридор',44.75,'#d9d5cd',[31.5,15.2]);
+rect(35,12,38,19,'kitchen','Кухня',30.2,'#d0d8c9',[36.5,15.5]);
+// Openings: room doors from inner top lobby and central entrance.
+doorH(23,11);doorH(27,11);doorH(31,11,2);doorH(36,11);
+doorV(29,15,2);doorV(34,15,2);doorH(31,20,2);
+windowH(21,5,2);windowH(27,5);windowH(36,5,2);windowH(21,20,3);windowH(36,20,2);
+windowV(39,14,2);
+rect(36,2,39,4,'boiler','Котельная',7.4,'#bfc7c9',[37.6,3.1]);wallH(36,2,39);wallH(36,4,39);wallV(36,2,4);wallV(39,2,4);doorH(37,4);
+rect(8,10,17,25,'yard','Двор',null,'#ded9cc',[13.5,18]);
+const loc={};for(const r of rooms)loc[r.id]=r;
+const furnishing=[
+{room:'hall',type:'sofa',x:23,y:13.0,ww:4.6,hh:1},{room:'hall',type:'table',x:23,y:15.4,ww:2.3,hh:1.3},{room:'hall',type:'tv',x:19.5,y:16.3,ww:.4,hh:2.4},
+{room:'kitchen',type:'table',x:36.5,y:16.4,ww:2.3,hh:1.2},{room:'kitchen',type:'counter',x:37.9,y:13,ww:.6,hh:2.9},
+{room:'bed',type:'bed',x:21,y:7.9,ww:2.5,hh:2.7},
+{room:'bath',type:'bath',x:27,y:7.4,ww:1.9,hh:1.1},
+{room:'closet',type:'closet',x:35.4,y:7.8,ww:.5,hh:2.7},{room:'closet',type:'closet',x:38.3,y:8,ww:.5,hh:2.5},
+{room:'garage',type:'car',x:4.6,y:15,ww:2.3,hh:4},{room:'summer',type:'table',x:4.6,y:7,ww:2,hh:3.3}
+];
+function here(xx,yy){return rooms.find(r=>xx>=r.x1&&xx<r.x2+1&&yy>=r.y1&&yy<r.y2+1)||null}
+function cell(xx,yy){if(xx<0||yy<0||xx>=cols||yy>=rows)return 1;return grid[yy|0][xx|0]}
+function clear(xx,yy){const rad=.18;return !cell(xx-rad,yy-rad)&&!cell(xx+rad,yy-rad)&&!cell(xx-rad,yy+rad)&&!cell(xx+rad,yy+rad)}
+function resize(){w=innerWidth;h=innerHeight;dpr=Math.min(devicePixelRatio||1,1.5);c.width=Math.ceil(w*dpr);c.height=Math.ceil(h*dpr);g.setTransform(dpr,0,0,dpr,0,0)}resize();addEventListener('resize',resize);
+function rgb(hex,k){let a=hex.replace('#','');return 'rgb('+[0,2,4].map(i=>Math.max(0,Math.min(255,parseInt(a.slice(i,i+2),16)*k))|0).join(',')+')'}
+function walkView(){
+let sky=g.createLinearGradient(0,0,0,h/2);sky.addColorStop(0,'#8aa8b5');sky.addColorStop(1,'#c9d8db');g.fillStyle=sky;g.fillRect(0,0,w,h/2);
+let ground=g.createLinearGradient(0,h/2,0,h);ground.addColorStop(0,'#c4b9a9');ground.addColorStop(1,'#5c625e');g.fillStyle=ground;g.fillRect(0,h/2,w,h/2);
+const rays=Math.max(180,Math.min(540,Math.ceil(w/1.65))),cw=w/rays,fov=1.12;
+for(let i=0;i<rays;i++){
+let ang=dir+Math.atan((i/rays-.5)*2*Math.tan(fov/2)),dx=Math.cos(ang),dy=Math.sin(ang);
+let mx=Math.floor(x),my=Math.floor(y),ddx=Math.abs(1/dx),ddy=Math.abs(1/dy),sx=dx<0?-1:1,sy=dy<0?-1:1,distx=(dx<0?x-mx:mx+1-x)*ddx,disty=(dy<0?y-my:my+1-y)*ddy,dist=30,side=0,kind=1;
+for(let j=0;j<65;j++){if(distx<disty){dist=distx;distx+=ddx;mx+=sx;side=0}else{dist=disty;disty+=ddy;my+=sy;side=1}kind=cell(mx,my);if(kind)break}
+let perp=Math.max(.11,dist*Math.cos(ang-dir)),hei=Math.min(h*4,h*1.9/perp),top=h*.5-hei*.5;
+let k=Math.max(.3,1-perp/40)*(side?.77:1),base=kind===3?'#719bb0':kind===2?'#b4a493':'#d7cebc';
+g.fillStyle=rgb(base,k);g.fillRect(i*cw,top,cw+1,hei);
+g.fillStyle='rgba(30,31,32,.23)';g.fillRect(i*cw,top,cw+1,Math.max(2,hei*.024));
+if(kind===3){g.fillStyle='rgba(167,215,237,.48)';g.fillRect(i*cw,top+hei*.15,cw+1,hei*.63)}
+}
+g.strokeStyle='#ffffffcc';g.lineWidth=1;g.beginPath();g.moveTo(w/2-7,h/2);g.lineTo(w/2+7,h/2);g.moveTo(w/2,h/2-7);g.lineTo(w/2,h/2+7);g.stroke();
+}
+function mapView(){
+g.fillStyle='#edf0ef';g.fillRect(0,0,w,h);
+const s=Math.min((w-22)/cols,(h-110)/rows),ox=(w-cols*s)/2,oy=(h-rows*s)/2+12;
+for(let yy=0;yy<rows;yy++)for(let xx=0;xx<cols;xx++){
+const v=grid[yy][xx],r=here(xx+.5,yy+.5);
+g.fillStyle=v===1?'#5f6266':v===2?'#a5a1a0':v===3?'#5b9bb8':r?.floor||'#dedbd5';g.fillRect(ox+xx*s,oy+yy*s,s+.35,s+.35);
+}
+g.fillStyle='#888888';g.fillRect(ox+30*s,oy+21*s,4*s,.4*s);for(let n=0;n<6;n++){g.fillStyle=n%2?'#b2a394':'#948374';g.fillRect(ox+(30+n%2*1.5)*s,oy+(6+n*.65)*s,1.7*s,.25*s)}
+for(const f of furnishing){g.fillStyle={sofa:'#a0aca6',table:'#95795c',tv:'#34434e',counter:'#869388',bed:'#f1eee9',bath:'#ffffff',closet:'#927b66',car:'#6f8595'}[f.type]||'#999';g.fillRect(ox+(f.x-f.ww/2)*s,oy+(f.y-f.hh/2)*s,f.ww*s,f.hh*s);g.strokeStyle='#4b534c99';g.lineWidth=1;g.strokeRect(ox+(f.x-f.ww/2)*s,oy+(f.y-f.hh/2)*s,f.ww*s,f.hh*s)}
+g.fillStyle='#182735';g.textAlign='center';g.font='bold '+Math.max(9,Math.min(14,s*.87))+'px system-ui';
+for(const r of rooms){if(['storage','wc','boiler'].includes(r.id))continue;let cx=(r.x1+r.x2+1)/2,cy=(r.y1+r.y2+1)/2;g.fillText(r.name,ox+cx*s,oy+cy*s);if(r.area){g.font=Math.max(8,Math.min(11,s*.7))+'px system-ui';g.fillText(String(r.area).replace('.',',')+' м²',ox+cx*s,oy+(cy+1)*s);g.font='bold '+Math.max(9,Math.min(14,s*.87))+'px system-ui'}}
+g.fillStyle='#e04434';g.beginPath();g.arc(ox+x*s,oy+y*s,Math.max(4,s*.28),0,2*Math.PI);g.fill();g.strokeStyle='#e04434';g.lineWidth=3;g.beginPath();g.moveTo(ox+x*s,oy+y*s);g.lineTo(ox+(x+Math.cos(dir)*1.5)*s,oy+(y+Math.sin(dir)*1.5)*s);g.stroke();g.fillStyle='#233947';g.font='bold 15px system-ui';g.fillText('ПЛАН ПЕРВОГО ЭТАЖА — НАЖМИ НА КОМНАТУ',w/2,Math.max(30,oy-15));
+mapView.hit={s,ox,oy};
+}
+function frame(ms){let dt=Math.min(.05,(ms-last)/1000||.016);last=ms;if(mode==='walk'){let f=(held.forward||held.KeyW||held.ArrowUp?1:0)-(held.back||held.KeyS||held.ArrowDown?1:0),strafe=(held.right||held.KeyD?1:0)-(held.left||held.KeyA?1:0),dx=(Math.cos(dir)*f-Math.sin(dir)*strafe)*dt*2.8,dy=(Math.sin(dir)*f+Math.cos(dir)*strafe)*dt*2.8;if(clear(x+dx,y))x+=dx;if(clear(x,y+dy))y+=dy;if(held.turnL||held.KeyQ)dir-=dt*1.85;if(held.turnR||held.KeyE)dir+=dt*1.85;walkView()}else mapView();status.textContent=(here(x,y)?.name||'Двор')+' · размеры приблизительные';requestAnimationFrame(frame)}
+function teleport(id){const r=loc[id];if(!r)return;x=r.spawn[0];y=r.spawn[1];dir=id==='hall'?0:-Math.PI/2;mode='walk'}
+document.getElementById('map').onclick=()=>mode='map';document.getElementById('walk').onclick=()=>mode='walk';
+document.getElementById('reset').onclick=()=>{x=31.5;y=16.7;dir=-Math.PI/2;mode='map'};
+document.getElementById('choose').onchange=e=>{teleport(e.target.value);e.target.value=''};
+for(const b of document.querySelectorAll('[data-key]')){const key=b.dataset.key;b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);held[key]=true});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,()=>held[key]=false)}
+addEventListener('keydown',e=>{held[e.code]=true;if(e.code==='KeyM')mode=mode==='map'?'walk':'map'});addEventListener('keyup',e=>held[e.code]=false);
+c.addEventListener('pointerdown',e=>{touch={x:e.clientX,y:e.clientY,started:e.timeStamp};c.setPointerCapture(e.pointerId)});
+c.addEventListener('pointermove',e=>{if(!touch)return;if(mode==='walk'){dir+=(e.clientX-touch.x)*.005;touch.x=e.clientX;touch.y=e.clientY}});
+c.addEventListener('pointerup',e=>{if(!touch)return;if(mode==='map'&&mapView.hit){const m=mapView.hit,xx=(e.clientX-m.ox)/m.s,yy=(e.clientY-m.oy)/m.s,r=here(xx,yy);if(r&&r.spawn){teleport(r.id)}}touch=null});
+requestAnimationFrame(frame);
 })();
 </script></body></html>
