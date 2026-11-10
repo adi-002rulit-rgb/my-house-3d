@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.7</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.8</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -673,6 +673,7 @@ let groundGrid=null;
 const upperFloorGroup=new THREE.Group();
 let activeFloor=1;
 let stairPreview=false;
+let interiorCeilingVisible=false;
 let hallFinished=false;
 let upperFloorMeshes=[];
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
@@ -1264,6 +1265,7 @@ function drawUpperFloorPlan(w,h){
 // Inspection modes use camera and visibility only; no changes to house state.
 function exitStairPreview(){
  stairPreview=false;
+ interiorCeilingVisible=false;
  $('exitStairView').hidden=true;
  if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
  for(const [id,root] of threeRoots)
@@ -1292,13 +1294,14 @@ function showStairPreview(){
 }
 function showHallInside(){
  exitStairPreview();
+ interiorCeilingVisible=true;
  activeFloor=1;
  $('floor1').classList.add('active');$('floor2').classList.remove('active');
  $('floorCaption').textContent='Вид из лестничного холла · существующая планировка';
  selected=null;transform.detach();refreshInspector();refreshList();
  for(const root of threeRoots.values())root.visible=true;
  for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=false;
+ upperFloorGroup.visible=true;
  if(groundGrid)groundGrid.visible=false;
  const st=state.stairs[0];
  const g=st?stairGeometry(st):null;
@@ -1310,13 +1313,14 @@ function showHallInside(){
 }
 function inspectLeftPassage(){
  exitStairPreview();
+ interiorCeilingVisible=true;
  activeFloor=1;
  $('floor1').classList.add('active');$('floor2').classList.remove('active');
  $('floorCaption').textContent='Осмотр левого прохода в спальню';
  selected=null;transform.detach();refreshInspector();refreshList();
  for(const root of threeRoots.values())root.visible=true;
  for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=false;
+ upperFloorGroup.visible=true;
  if(groundGrid)groundGrid.visible=false;
  const passage=state.openings.find(o=>o.id==='stairArch'&&o.type==='passage');
  const leftWall=passage&&wallFor(passage);
@@ -1442,7 +1446,7 @@ buildUpperFloor();
 // Reapply visibility without resetting the camera each time state changes.
 for(const [id,root] of threeRoots)root.visible=stairPreview?state.stairs.some(t=>t.id===id):(activeFloor===1||state.stairs.some(t=>t.id===id));
 for(const root of floorMeshes)root.visible=stairPreview||activeFloor===1;
-upperFloorGroup.visible=!stairPreview&&activeFloor===2;
+upperFloorGroup.visible=!stairPreview&&(activeFloor===2||interiorCeilingVisible);
 const active=activeFloor===1?threeRoots.get(selected):null;if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
 if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
 processSceneValidation(false);
