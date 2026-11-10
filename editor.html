@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.4</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.5</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -364,7 +364,7 @@ function defaultStair(){
  // Concept only: the riser count is calculated from state.height (17 cm target).
  // Grounded in the existing hallway walls and door; actual stair measurements not provided.
  return {id:'stair1',type:'stair',name:'П-образная лестница · два поворота',
-  x:12.9,z:-1.11,width:1.05,lower:1.23,upper:1.65,returnRun:3.12,back:-4.755,rot:0,color:'#ded8cf'};
+  x:12.9,z:-1.11,width:1.05,lower:1.23,upper:1.65,returnRun:2.635,back:-4.755,rot:0,color:'#ded8cf'};
 }
 function original(){
 const walls=[
@@ -1155,6 +1155,17 @@ function auditStair(o){
   if(stairFront>doorRear-.04)
    errors.push('Нижний марш перекрывает проём гардеробной на '+Math.max(0,Math.round((stairFront-doorRear)*100))+' см.');
  }
+ const passage=state.openings.find(p=>p.id==='stairArch'&&p.wall==='stairLeft');
+ if(passage){
+  const wall=state.walls.find(w=>w.id==='stairLeft');
+  if(wall){
+   const pt=offsetPoint(wall,passage.offset);
+   const cornerZ=pt.z+passage.width/2;
+   const endZ=g.front+g.backRun;
+   if(endZ>cornerZ+.03)
+    warnings.push('Третий марш выходит за угол левого проёма на '+Math.round((endZ-cornerZ)*100)+' см');
+  }
+ }
  const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
  steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
  if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
@@ -1638,6 +1649,25 @@ try{
    lowerStair.lower=1.23;
    validate(state);
    localStorage.setItem(STORAGE,JSON.stringify(state));
+  }
+  // Existing stair return used to run 48.5 cm past the near corner
+  // of the left open passage. Update only the known default geometry.
+  // The second-floor slab opening follows g.backRun in upperFloorOpening().
+  const lastFlight=state.stairs.find(o=>o.id==='stair1');
+  const leftPassage=state.openings.find(o=>o.id==='stairArch'
+       &&o.wall==='stairLeft'&&o.type==='passage');
+  if(lastFlight&&leftPassage&&Math.abs(lastFlight.returnRun-3.12)<.001
+   &&Math.abs(lastFlight.back+4.755)<.001&&Math.abs(lastFlight.width-1.05)<.001
+   &&Math.abs(leftPassage.offset-3.43)<.001&&Math.abs(leftPassage.width-.95)<.001){
+   const wall=state.walls.find(w=>w.id==='stairLeft');
+   if(wall){
+    const doorway=offsetPoint(wall,leftPassage.offset);
+    const nearCorner=doorway.z+leftPassage.width/2;
+    const turnFront=lastFlight.back+lastFlight.width/2;
+    lastFlight.returnRun=Number((nearCorner-turnFront).toFixed(3));
+    validate(state);
+    localStorage.setItem(STORAGE,JSON.stringify(state));
+   }
   }
   // Restore the prior window height only when it still matches our exact
   // V4.3 automatic +12 cm adjustment. Manually changed windows remain intact.
