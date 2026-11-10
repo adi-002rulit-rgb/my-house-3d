@@ -57,7 +57,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.5</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.6</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -93,6 +93,8 @@ input[type=checkbox]{width:auto}
 <label for="floorColor">Цвет пола комнаты</label><input id="floorColor" type="color" value="#c1af93">
 <div class="actions" style="margin-top:10px"><button id="materialWarm">Тёплый стиль</button><button id="materialLight">Светлый стиль</button></div>
 </section>
+<section><h3>Проверка проёмов</h3>
+<div id="openingValidationReport" role="status"><p class="hint">Проверка готовится.</p></div></section>
 <section><h3>Диагностика лестницы</h3>
 <div id="stairValidationReport" role="status"><p>Проверка готовится.</p></div>
 </section>
@@ -182,7 +184,11 @@ for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Er
 return true;
 }
 function saveState(){try{localStorage.setItem(STORAGE,JSON.stringify(state));status('Сохранено в этом браузере')}catch(e){status('Ошибка сохранения: '+e.message)}}
-function push(){if(loading)return;processSceneValidation(true);const t=JSON.stringify(state);if(history[historyAt]===t)return;history=history.slice(0,historyAt+1);history.push(t);if(history.length>70)history.shift();historyAt=history.length-1;saveState();syncActions()}
+function push(){if(loading)return;
+ processSceneValidation(true);
+ const conflicts=refreshOpeningReport();
+ if(conflicts.length)toastManager.show(conflicts[0],'warning');
+ const t=JSON.stringify(state);if(history[historyAt]===t)return;history=history.slice(0,historyAt+1);history.push(t);if(history.length>70)history.shift();historyAt=history.length-1;saveState();syncActions()}
 function applyHistory(i){if(i<0||i>=history.length)return;loading=true;try{state=JSON.parse(history[i]);validate(state);historyAt=i;selected=null;refreshAll();saveState()}finally{loading=false}syncActions()}
 function syncActions(){$('undo').disabled=historyAt<=0;$('redo').disabled=historyAt>=history.length-1}
 function status(t){$('status').textContent=t}
@@ -225,8 +231,8 @@ const key=input.dataset.prop,prev=clone(state),val=key==='color'?input.value:Num
 if(key!=='color'&&!Number.isFinite(val))return;
 o[key]=key==='rot'?val*Math.PI/180:val;
 if(o.type==='door'||o.type==='window'){
-const w=wallFor(o);o.offset=clamp(o.offset,o.width/2,wallLength(w)-o.width/2);
-o.width=clamp(o.width,.4,wallLength(w)-.05);
+const w=wallFor(o);o.width=clamp(o.width,.4,wallLength(w)-.05);
+o.offset=clamp(o.offset,o.width/2,wallLength(w)-o.width/2);
 o.sill=clamp(o.sill,0,state.height-.5);o.head=clamp(o.head,o.sill+.3,state.height);
 }
 try{validate(state);push();refreshAll()}catch(err){state=prev;refreshAll();status(err.message)}
@@ -234,7 +240,7 @@ try{validate(state);push();refreshAll()}catch(err){state=prev;refreshAll();statu
 $('focusObject').onclick=()=>{if(o.type==='room'){pan.x=30-o.x*scale;pan.y=25-(o.z+5.7)*scale}drawPlan()};
 $('removeObject').onclick=removeSelected;
 }
-function refreshAll(){refreshList();refreshInspector();refreshRoomUI();drawPlan();build3d()}
+function refreshAll(){refreshList();refreshInspector();refreshRoomUI();drawPlan();build3d();refreshOpeningReport()}
 function refreshRoomUI(){
 $('room').innerHTML=state.rooms.map((r,i)=>'<option value="'+label(r.id)+'">'+label(r.name)+'</option>').join('');
 const room=state.rooms.find(r=>r.id===$('room').value)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor}
@@ -347,6 +353,7 @@ camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
 orbit=new OrbitControls(camera,canvas3d);orbit.target.set(9.6,0,0);orbit.enableDamping=true;orbit.update();
 transform=new TransformControls(camera,canvas3d);
 transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
+transform.showY=false; // Floor-plan editor: never allow vertical movement of a 2D-positioned object.
 // three@0.160.1: TransformControls extends Object3D; getHelper() only exists since r169.
 scene.add(transform);
 transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});
@@ -546,11 +553,23 @@ function processSceneValidation(notify=false){
 function build3d(){
 transform.detach();
 clearStairHighlights();
+const disposedGeometry=new Set(),disposedMaterial=new Set(),disposedTextures=new Set();
 for(const o of [...threeRoots.values(),...floorMeshes]){
  o.parent?.remove(o);
- o.traverse(child=>{if(child.isMesh){child.geometry?.dispose();if(child.material){
- const mats=Array.isArray(child.material)?child.material:[child.material];for(const m of mats)m.dispose()
- }}})
+ o.traverse(child=>{
+  if(!child.isMesh)return;
+  const g=child.geometry;
+  if(g&&!disposedGeometry.has(g)){disposedGeometry.add(g);g.dispose()}
+  const mats=Array.isArray(child.material)?child.material:[child.material];
+  for(const m of mats){
+   if(!m||m===errorStairMaterial||disposedMaterial.has(m))continue;
+   disposedMaterial.add(m);
+   for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap']){
+    const tex=m[key];if(tex&&!disposedTextures.has(tex)){disposedTextures.add(tex);tex.dispose()}
+   }
+   m.dispose();
+  }
+ });
 }
 threeRoots.clear();floorMeshes=[];
  buildingGroup.position.y=state.elevation;
@@ -602,11 +621,43 @@ if(p.type==='wall'){p.x1+=.5;p.x2+=.5;p.z1+=.5;p.z2+=.5;state.walls.push(p)}
 else if(p.type==='door'||p.type==='window'){const w=wallFor(p);p.offset=clamp(p.offset+.25,p.width/2,wallLength(w)-p.width/2);state.openings.push(p)}
 else{p.x+=.5;p.z+=.5;state[p.type==='stair'?'stairs':'furniture'].push(p)}
 selected=p.id;push();refreshAll()}
+function findFreeOpening(w,width){
+ const ends=safeWallOpenings(w),L=wallLength(w),margin=.08;
+ let gaps=[],last=margin;
+ for(const o of ends){if(o.start-last>=width+margin)gaps.push([last,o.start]);last=Math.max(last,o.end)+margin}
+ if(L-margin-last>=width)gaps.push([last,L-margin]);
+ if(!gaps.length)return null;
+ gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+ return snap((gaps[0][0]+gaps[0][1])/2);
+}
+function auditOpenings(){
+ const issues=[];
+ for(const w of state.walls){
+  const os=safeWallOpenings(w),L=wallLength(w);
+  for(const o of os){
+   if(o.start<-.001||o.end>L+.001||o.end-o.start<.3)issues.push('Проём «'+o.name+'» выходит за пределы стены «'+w.name+'».');
+  }
+  for(let i=1;i<os.length;i++){
+   if(os[i].start<os[i-1].end-.01)
+    issues.push('Пересекаются проёмы: «'+os[i-1].name+'» и «'+os[i].name+'».');
+  }
+ }
+ return issues;
+}
+function refreshOpeningReport(){
+ const issues=auditOpenings();
+ $('openingValidationReport').innerHTML=issues.length?issues.map(x=>'<p class="error">'+label(x)+'</p>').join(''):
+  '<p class="ok">Пересечений проёмов на одной стене не найдено.</p>';
+ return issues;
+}
 function addOpening(type){
 const w=find(selected)?.type==='wall'?find(selected):state.walls.find(x=>x.id==='livingHall');
 if(!w)return;
-const width=type==='door'?.9:1.3;
-const center=clamp(wallLength(w)/2,width/2,wallLength(w)-width/2);
+if(wallLength(w)<1){status('Эта стена слишком короткая для проёма');return;}
+const width=Math.min(type==='door'?.9:1.3,wallLength(w)-.10);
+const free=findFreeOpening(w,width);
+if(free===null){status('На стене нет свободного места для нового проёма');toastManager.show('Выбери другую стену — места для проёма нет','warning');return}
+const center=free;
 const o=mkOpen(uid(),type,type==='door'?'Новая дверь':'Новое окно',w.id,center,width,type==='door'?0:.8,type==='door'?2.2:2.5,1);
 state.openings.push(o);selected=o.id;push();refreshAll();
 }
