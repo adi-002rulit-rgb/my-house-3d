@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.0</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.1</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -434,7 +434,47 @@ keys.add(o.id);
 if(o.name.length>100)throw Error('Слишком длинное название');
 for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width','lower','upper','returnRun','back','offset','sill','head','t','rot'].includes(k)&&(!Number.isFinite(o[k])||Math.abs(o[k])>200))throw Error('Некорректный размер');
 }
-for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Error('Проём без стены');if(o.width<=0.3||o.offset-o.width/2<-.03||o.offset+o.width/2>wallLength(w)+.03)throw Error('Проём за пределами стены')}
+const allowedFurniture=new Set(['sofa','table','bed','cabinet','chair','island','rug','plant']);
+const valid=(n,min,max)=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
+const requireValid=(n,min,max,msg)=>{if(!valid(n,min,max))throw Error(msg)};
+for(const w of s.walls){
+ if(w.type!=='wall')throw Error('Неверный тип стены');
+ for(const k of ['x1','z1','x2','z2'])requireValid(w[k],-200,200,'Некорректные координаты стены');
+ requireValid(w.t,.05,1.5,'Некорректная толщина стены');
+ if(wallLength(w)<.15)throw Error('Слишком короткая стена');
+}
+for(const r of s.rooms){
+ for(const k of ['x','z'])requireValid(r[k],-200,200,'Некорректное положение комнаты');
+ requireValid(r.w,.10,100,'Некорректная ширина комнаты');
+ requireValid(r.h,.10,100,'Некорректная длина комнаты');
+ if(r.floorPattern!==undefined&&!['solid','tile','plank','eng_herringbone','fr_herringbone'].includes(r.floorPattern))
+  throw Error('Неизвестное напольное покрытие');
+}
+for(const o of s.openings){
+ if(!['door','window','passage'].includes(o.type))throw Error('Неизвестный тип проёма');
+ const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Error('Проём без стены');
+ requireValid(o.width,.31,20,'Некорректная ширина проёма');
+ requireValid(o.offset,0,200,'Некорректный отступ проёма');
+ requireValid(o.sill,0,s.height,'Некорректная нижняя отметка проёма');
+ requireValid(o.head,o.sill+.2,s.height,'Верх проёма выше потолка или ниже низа');
+ if(o.leaves!==undefined&&![1,2].includes(o.leaves))throw Error('Некорректное количество створок');
+ if(o.offset-o.width/2<-.001||o.offset+o.width/2>wallLength(w)+.001)throw Error('Проём за пределами стены');
+}
+for(const o of s.stairs){
+ if(o.type!=='stair')throw Error('Неверный тип лестницы');
+ for(const k of ['x','z','back'])requireValid(o[k],-200,200,'Некорректное положение лестницы');
+ requireValid(o.width,.55,4,'Некорректная ширина лестницы');
+ requireValid(o.lower,.25,20,'Некорректный первый марш');
+ requireValid(o.upper,.25,20,'Некорректный второй марш');
+ if(o.returnRun!==undefined)requireValid(o.returnRun,.25,20,'Некорректный третий марш');
+ requireValid(o.rot,-100,100,'Некорректный поворот лестницы');
+}
+for(const o of s.furniture){
+ if(!allowedFurniture.has(o.type))throw Error('Неизвестный тип мебели');
+ for(const k of ['x','z'])requireValid(o[k],-200,200,'Некорректная позиция мебели');
+ for(const k of ['w','d','h'])requireValid(o[k],.01,30,'Некорректный размер мебели');
+ requireValid(o.rot,-100,100,'Некорректный поворот мебели');
+}
 return true;
 }
 function saveState(){
@@ -900,7 +940,7 @@ span(cursor,len);
 root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
 for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
 if(o.type==='passage'){
- // Open architectural passage: wall opening with a 30cm lintel below ceiling.
+ // Open architectural passage: opening without a leaf, frame or trim; lintel matches opening.head.
  // Intentionally no door leaf, frame, or trim.
 }else if(o.type==='window'){
 const isStairWindow=o.id==='stairWindow';
@@ -1510,12 +1550,25 @@ if(state.rooms.some(r=>r.id===selected)){status('Комнаты нельзя у�
 if(target.type==='wall'){state.openings=state.openings.filter(o=>o.wall!==selected)}
 for(const k of ['walls','openings','stairs','furniture'])state[k]=state[k].filter(o=>o.id!==selected);
 selected=null;push();refreshAll()}
-function duplicateSelected(){const o=find(selected);if(!o||state.rooms.some(r=>r.id===selected)){status('Выбери объект, который можно копировать');return}
-let p=clone(o);p.id=uid();p.name+=' · копия';
-if(p.type==='wall'){p.x1+=.5;p.x2+=.5;p.z1+=.5;p.z2+=.5;state.walls.push(p)}
-else if(p.type==='door'||p.type==='window'){const w=wallFor(p);p.offset=clamp(p.offset+.25,p.width/2,wallLength(w)-p.width/2);state.openings.push(p)}
-else{p.x+=.5;p.z+=.5;state[p.type==='stair'?'stairs':'furniture'].push(p)}
-selected=p.id;push();refreshAll()}
+function duplicateSelected(){
+ const o=find(selected);
+ if(!o||state.rooms.some(r=>r.id===selected)){status('Выбери объект, который можно копировать');return}
+ if(o.type==='stair'){status('Вторую лестницу здесь нельзя дублировать; измени существующую');return}
+ const snapshot=clone(state),oldSelected=selected;
+ try{
+  const p=clone(o);p.id=uid();p.name+=' · копия';
+  if(p.type==='wall'){
+   p.x1+=.5;p.x2+=.5;p.z1+=.5;p.z2+=.5;state.walls.push(p);
+  }else if(['door','window','passage'].includes(p.type)){
+   const w=wallFor(p),where=w&&findFreeOpening(w,p.width);
+   if(where===null||where===undefined)throw Error('На стене нет места для нового проёма');
+   p.offset=where;state.openings.push(p);
+  }else{
+   p.x+=.5;p.z+=.5;state.furniture.push(p);
+  }
+  validate(state);selected=p.id;push();refreshAll();
+ }catch(err){state=snapshot;selected=oldSelected;refreshAll();status('Копирование отменено: '+err.message)}
+}
 function findFreeOpening(w,width){
  const ends=safeWallOpenings(w),L=wallLength(w),margin=.08;
  let gaps=[],last=margin;
