@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.5</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.6</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -927,6 +927,9 @@ function stairGeometry(o){
  const firstN=Math.max(3,Math.round(straight*.28));
  const midN=Math.max(2,Math.round(straight*.17));
  const lastN=straight-firstN-midN;
+ // Four end treads are visually replaced by the upper-storey floor slab.
+ // Leave the original riser distribution available for future as-built calibration.
+ const visibleLastN=Math.max(1,lastN-4);
  const cast=(cx,cz,a)=>{
   const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
   return [cx+dx*r,cz+dz*r]
@@ -939,7 +942,7 @@ function stairGeometry(o){
   }
   return out
  };
- return {w,width:w,left,right,rear,front,bridge,backRun,total,firstN,midN,lastN,turnN,
+ return {w,width:w,left,right,rear,front,bridge,backRun,total,firstN,midN,lastN,visibleLastN,turnN,
   firstTurn:fan(right-w,front,0),secondTurn:fan(left+w,front,-Math.PI/2)};
 }
 function stairPolygon(root,poly,height,material,baseHeight=0){
@@ -1071,12 +1074,21 @@ function buildStair(o){
   ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
   stairPolygon(root,poly,.042,finish,level*rise-.036)
  }
- // Last run returns toward the hall (+Z) and reaches the second storey.
- const d3=g.backRun/g.lastN;
- stairRunShell(root,{count:g.lastN,depth:d3,rise,startLevel:level*rise,
+ // The visible third flight stops four tread positions before its old end.
+ // The rest is an upper-floor slab, not additional stair treads.
+ const d3=g.backRun/g.lastN,visibleLength=d3*g.visibleLastN;
+ stairRunShell(root,{count:g.visibleLastN,depth:d3,rise,startLevel:level*rise,
   width:w,originX:g.left+w,originZ:g.front,yaw:-Math.PI/2,material:concrete});
- for(let i=0;i<g.lastN;i++)cube(root,g.left+w/2,(level+i+1)*rise-.02,
+ for(let i=0;i<g.visibleLastN;i++)cube(root,g.left+w/2,(level+i+1)*rise-.02,
   g.front+(i+.5)*d3,w-.02,.043,d3-.012,finish);
+ // Show the portion of second-floor concrete slab replacing the treads
+ // in first-floor inspection mode (upperFloorGroup is otherwise hidden).
+ const from=g.front+visibleLength,to=g.front+g.backRun;
+ if(to-from>.02){
+  const slab=meshMat('#d5c8b7',.58,.015);
+  cube(root,g.left+w/2,state.height-.09,(from+to)/2,
+   w,.18,to-from,slab);
+ }
 }
 function buildFurniture(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
@@ -1166,6 +1178,7 @@ function auditStair(o){
     warnings.push('Третий марш выходит за угол левого проёма на '+Math.round((endZ-cornerZ)*100)+' см');
   }
  }
+ warnings.push('Последние четыре ступени визуально заменены плитой второго этажа. Переход по высоте пока условный — нужен замер существующей лестницы.');
  const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
  steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
  if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
@@ -1204,7 +1217,7 @@ function upperFloorOpening(){
  const o=state.stairs[0];if(!o)return null;
  const g=stairGeometry(o);
  return {x0:g.left,x1:g.left+g.w,x2:g.right-g.w,x3:g.right,
-  z0:g.rear,z1:g.front,z2:g.front+Math.max(o.lower,g.backRun)}
+  z0:g.rear,z1:g.front,z2:g.front+Math.max(o.lower,g.backRun*g.visibleLastN/g.lastN)}
 }
 function buildUpperFloor(){
  const y=state.height-.09,mat=meshMat('#d5c8b7',.56,.02),o=upperFloorOpening();
