@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.6</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.7</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -355,7 +355,7 @@ function defaultStair(){
  // Concept only: the riser count is calculated from state.height (17 cm target).
  // Grounded in the existing hallway walls and door; actual stair measurements not provided.
  return {id:'stair1',type:'stair',name:'П-образная лестница · два поворота',
-  x:12.9,z:-1.11,width:1.05,lower:2.77,upper:1.65,returnRun:3.12,back:-4.755,rot:0,color:'#ded8cf'};
+  x:12.9,z:-1.11,width:1.05,lower:1.23,upper:1.65,returnRun:3.12,back:-4.755,rot:0,color:'#ded8cf'};
 }
 function original(){
 const walls=[
@@ -1037,6 +1037,16 @@ function auditStair(o){
   if(windowSideHeight>stairWindow.sill-.03)
    warnings.push('Лестница под окном: верх среднего марша '+Math.round(windowSideHeight*100)+' см, подоконник '+Math.round(stairWindow.sill*100)+' см.');
  }
+ // A stair flight must not lie along the wardrobe doorway on the right wall.
+ const door=state.openings.find(v=>v.type==='door'&&v.wall==='stairRight');
+ const doorWall=state.walls.find(v=>v.id==='stairRight');
+ if(door&&doorWall){
+  const doorCenter=offsetPoint(doorWall,door.offset);
+  const doorRear=doorCenter.z-door.width/2;
+  const stairFront=g.front+o.lower;
+  if(stairFront>doorRear-.04)
+   errors.push('Нижний марш перекрывает проём гардеробной на '+Math.max(0,Math.round((stairFront-doorRear)*100))+' см.');
+ }
  const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
  steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
  if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
@@ -1460,6 +1470,15 @@ try{
   if(stair&&Math.abs(stair.lower-3.12)<.001&&Math.abs(stair.back+4.755)<.001
    &&Math.abs(stair.width-1.05)<.001){
    stair.lower=2.77;
+   validate(state);
+   localStorage.setItem(STORAGE,JSON.stringify(state));
+  }
+  // Narrowly migrate the unchanged default first-flight length only.
+  // Preserve manual edits and keep all riser heights / other house objects.
+  const lowerStair=state.stairs.find(o=>o.id==='stair1');
+  if(lowerStair&&[2.77,3.12].some(v=>Math.abs(lowerStair.lower-v)<.001)
+   &&Math.abs(lowerStair.back+4.755)<.001&&Math.abs(lowerStair.width-1.05)<.001){
+   lowerStair.lower=1.23;
    validate(state);
    localStorage.setItem(STORAGE,JSON.stringify(state));
   }
