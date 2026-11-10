@@ -140,12 +140,15 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #stairAdjustStudio .stairWallLock{display:flex;align-items:center;gap:9px;margin:12px 0;color:#e9d1a5;font-weight:650}
 #stairAdjustStudio .stairWallLock input{width:17px;height:17px;accent-color:#cfac78}
 #stairSetback:disabled{opacity:.35}
+#showroom #openFullEditor{display:block;text-decoration:none;text-align:center;padding:12px 8px;border:1px solid #e0bd8a;background:#bfa275;color:#162736;font-weight:750;border-radius:10px;margin:8px 0 5px}
+#showroom #openFullEditor:hover{background:#e5c69b}
+#showroom .editorHint{font-size:10px;color:#e0d6c9;line-height:1.4;margin-bottom:10px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V54</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V55</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -171,6 +174,8 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <aside id="showroom" aria-label="Дизайн-студия">
 <h2>Дизайн-студия</h2>
 <p>Создайте несколько вариантов будущего дома.</p>
+<a href="./editor.html" target="_blank" rel="noopener" id="openFullEditor">✎ Открыть редактор 2D / 3D</a>
+<p class="editorHint">В редакторе можно переносить стены, двери, окна, лестницу и мебель, задавать размеры и сохранять проект.</p>
 <div class="showroomTabs" role="tablist" aria-label="Разделы дизайн-студии">
 <button type="button" data-show-tab="finishes" aria-selected="true" role="tab">Отделка</button>
 <button type="button" data-show-tab="interior" aria-selected="false" role="tab">Интерьер</button>
@@ -2002,7 +2007,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=54');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=55');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
