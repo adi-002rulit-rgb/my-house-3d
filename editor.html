@@ -298,8 +298,8 @@ body.focus3d header .right a{display:none!important}
 body.focus3d #focusView{background:#467a6c}
 @media(max-width:480px){body.focus3d .center{height:calc(100dvh - 110px);min-height:320px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.5</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.6</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="shareProject" title="Отправить JSON через меню iPhone">📤 Поделиться</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -466,6 +466,8 @@ for(const r of s.rooms){
  for(const k of ['x','z'])requireValid(r[k],-200,200,'Некорректное положение комнаты');
  requireValid(r.w,.10,100,'Некорректная ширина комнаты');
  requireValid(r.h,.10,100,'Некорректная длина комнаты');
+ if(!/^#[0-9a-fA-F]{6}$/.test(r.wall)||!/^#[0-9a-fA-F]{6}$/.test(r.floor))
+  throw Error('Некорректный цвет отделки комнаты');
  if(r.floorPattern!==undefined&&!['solid','tile','plank','eng_herringbone','fr_herringbone'].includes(r.floorPattern))
   throw Error('Неизвестное напольное покрытие');
 }
@@ -1712,7 +1714,33 @@ $('restoreDefault').onclick=()=>{
  history=[JSON.stringify(state)];historyAt=0;
  saveState();syncActions();refreshAll();fitPlan();status('Исходный план восстановлен');
 };
-$('export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='adkh-house-project.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)};
+function projectFile(){
+ validate(state);
+ const date=new Date().toISOString().slice(0,10);
+ return new File([JSON.stringify(state,null,2)],'ADKH-House-V6.6-'+date+'.json',
+  {type:'application/json'});
+}
+function downloadProjectFile(file){
+ const url=URL.createObjectURL(file),a=document.createElement('a');
+ a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+$('export').onclick=()=>{
+ try{downloadProjectFile(projectFile())}
+ catch(err){status('Ошибка экспорта: '+err.message)}
+};
+$('shareProject').onclick=async()=>{
+ try{
+  const file=projectFile();
+  if(navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){
+   await navigator.share({title:'ADKH House · модель дома',files:[file]});
+   status('Файл проекта передан в меню «Поделиться»');
+  }else{
+   downloadProjectFile(file);
+   status('Файл скачан · можешь отправить его через «Файлы»');
+  }
+ }catch(err){if(err?.name!=='AbortError')status('Ошибка отправки: '+err.message)}
+};
 $('import').onclick=()=>$('fileImport').click();
 $('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
 try{
@@ -1871,6 +1899,12 @@ try{
    status('Окно возвращено на прежнюю высоту; лестница пересчитана.');
   }else status('Лестница пересчитана; личные размеры окна сохранены.');
  }
-}catch(e){status('Ошибка загрузки сохранённого проекта: '+e.message)}
+}catch(e){
+ try{
+  const bad=localStorage.getItem(STORAGE);
+  if(bad)localStorage.setItem(STORAGE+'-unreadable-v1',bad);
+ }catch(_){}
+ status('Ошибка загрузки сохранённого проекта: '+e.message+' · неисправный JSON сохранён отдельно');
+}
 history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();tick();
 </script></body></html>
