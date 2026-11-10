@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V17</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V18</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -179,7 +179,7 @@ function segmented(x1,z1,x2,z2,openings=[],material=mat.wall,thickness=.25){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
 const bounds=[0,...openings.flatMap(o=>[o.at,o.at+o.width]),length].sort((a,b)=>a-b);
 const uniq=[...new Set(bounds.map(v=>Math.round(v*10000)/10000))];
-function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:thickness,high-low,axis==='z'?end-start:thickness,m)}
+function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:thickness,high-low,axis==='z'?end-start:thickness,m);if(low<1.1&&high>.1){const rx=(axis==='x'?end-start:thickness)/2,rz=(axis==='z'?end-start:thickness)/2;collisionWalls.push({minX:cx-rx,maxX:cx+rx,minZ:cz-rz,maxZ:cz+rz})}}
 for(let i=0;i<uniq.length-1;i++){let start=uniq[i],end=uniq[i+1],center=(start+end)/2,o=openings.find(p=>center>p.at&&center<p.at+p.width);
 if(!o)piece(start,end,0,H,material);
 else if(o.kind==='door'){piece(start,end,2.35,H,material);let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
@@ -511,11 +511,18 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=17';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=18';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
 
+function walkable(x,z){
+ if(x>=.33&&x<=18.7&&z>=-5.32&&z<=5.32)return true;
+ if(x>=9.80&&x<=13.3&&z>=5.32&&z<=6.5)return true;
+ if(x>=-17.43&&x<=-12.55&&z>=-4.5&&z<=10.4)return true;
+ if(x>=-12.3&&x<=9.6&&z>=-4.5&&z<=10.4)return true;
+ return false;
+}
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
@@ -541,11 +548,17 @@ if(current==='inside'){if(keys.turnleft||keys.KeyQ)yaw+=dt*1.45;if(keys.turnrigh
 let f=Number(!!(keys.up||keys.KeyW||keys.ArrowUp))-Number(!!(keys.down||keys.KeyS||keys.ArrowDown));
 let s=Number(!!(keys.right||keys.KeyD))-Number(!!(keys.left||keys.KeyA));
 let step=dt*2.45;
-// Prevent walking through solid partitions while viewing each room; use the room menu to switch.
-let nextX=camera.position.x+(-Math.sin(yaw)*f+Math.cos(yaw)*s)*step;
-let nextZ=camera.position.z+(-Math.cos(yaw)*f-Math.sin(yaw)*s)*step;
-const bounds=rooms.find(r=>nextX>r.range[0]&&nextX<r.range[1]&&nextZ>r.range[2]&&nextZ<r.range[3]);
-if(bounds&&nextX>bounds.range[0]+.17&&nextX<bounds.range[1]-.17&&nextZ>bounds.range[2]+.17&&nextZ<bounds.range[3]-.17){camera.position.x=nextX;camera.position.z=nextZ}
+// Real solid-wall collision: door voids are passable without switching rooms.
+let dx=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*step;
+let dz=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*step;
+const valid=(x,z)=>walkable(x,z)&&!collisionWalls.some(w=>x>w.minX-.18&&x<w.maxX+.18&&z>w.minZ-.18&&z<w.maxZ+.18);
+const segments=Math.max(1,Math.ceil(Math.hypot(dx,dz)/.09));
+dx/=segments;dz/=segments;
+for(let i=0;i<segments;i++){
+ const x=camera.position.x+dx,z=camera.position.z+dz;
+ if(valid(x,camera.position.z))camera.position.x=x;
+ if(valid(camera.position.x,z))camera.position.z=z;
+}
 camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
