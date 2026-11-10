@@ -62,12 +62,20 @@ body:not(.technical) #studio{top:85px;max-height:65dvh}
 body:not(.technical) #studio button:not(#snapshot):not(#fullscreen):not(#presentation):not(#share),body:not(.technical) #studio select{display:none}
 body:not(.technical) #studio button{min-width:110px}
 @media(max-width:900px){#showroom{left:8px;top:117px;width:180px;max-width:48vw;max-height:42dvh;padding:9px}#showroom h2{font-size:13px}#showroom select,#showroom button{font-size:10px;padding:7px}#showroom .showGrid button{font-size:9px}#techToggle{top:43px;right:8px}}
+
+#doorStudio{border-top:1px solid #e7cc9952;margin-top:16px;padding-top:10px}
+#doorStudio h3{font-size:14px;margin:1px 0 9px;color:#f8e6c9}
+#doorStudio select{width:100%}#doorStudio small{display:block;color:#d9ccb7;line-height:1.4;margin-top:7px;font-size:10px}
+#doorSample{display:flex;gap:9px;align-items:center;background:#ffffff13;border-radius:8px;margin:10px 0 2px;padding:8px;color:#f7efe6;font-size:11px;line-height:1.4}
+#doorSampleSquare{display:inline-block;flex-shrink:0;width:33px;height:43px;background:#F0E9DF;border:2px solid #a3947b;border-radius:2px;box-shadow:inset 0 0 0 2px #ffffff38}
+#catalogDetails{font-size:11px;margin-top:10px;color:#dcccb3}#catalogDetails summary{cursor:pointer;text-decoration:underline}
+#catalogDetails a{display:block;color:#e7d2a8;margin-top:7px;text-decoration:underline}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V22</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V23</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -130,6 +138,62 @@ body:not(.technical) #studio button{min-width:110px}
 <option value="microcement">Микроцемент</option>
 <option value="terrazzo">Терраццо</option>
 </select>
+
+<section id="doorStudio">
+<h3>Межкомнатные двери</h3>
+<label for="clientDoorTarget">Для какого помещения</label>
+<select id="clientDoorTarget">
+<option value="all">Все комнаты</option><option value="living">Зал</option>
+<option value="kitchen">Кухня</option><option value="bedroom">Спальня</option>
+<option value="bathroom">Ванная</option><option value="wardrobe">Гардеробная</option>
+</select>
+<label for="clientDoorModel">Дизайн дверного полотна</label>
+<select id="clientDoorModel">
+<option value="flush">Гладкая · современный минимализм</option>
+<option value="hidden">Invisible · скрытый короб</option>
+<option value="lines">Вертикальные линии · фрезеровка</option>
+<option value="neo">Неоклассика · две филёнки</option>
+<option value="classic">Классика · три филёнки</option>
+<option value="veneer">Шпон · древесная текстура</option>
+<option value="slats">Рейки · современная геометрия</option>
+<option value="glass">Стекло · алюминиевая рама</option>
+<option value="frost">Матовое стекло</option>
+<option value="accent">Металлические вставки · премиум</option>
+</select>
+<label for="clientDoorColor">Цвет полотна</label>
+<select id="clientDoorColor">
+<option value="linen">Слоновая кость · Linen</option>
+<option value="cashmere">Кашемир · Greige</option>
+<option value="dove">Тёплый серо-бежевый</option>
+<option value="white">Белая эмаль</option>
+<option value="oak">Светлый дуб</option>
+<option value="walnut">Орех</option>
+<option value="taupe">Тауп</option>
+<option value="graphite">Графит</option>
+<option value="black">Чёрный</option>
+</select>
+<label for="clientDoorHardware">Фурнитура</label>
+<select id="clientDoorHardware">
+<option value="black">Чёрная матовая</option>
+<option value="chrome">Сатинированный хром</option>
+<option value="brass">Латунь</option>
+<option value="bronze">Тёмная бронза</option>
+</select>
+<label for="clientDoorOpen">Положение двери</label>
+<select id="clientDoorOpen"><option value="open">Приоткрыта · видно проход</option><option value="closed">Закрыта · видно дизайн</option><option value="hide">Скрыть полотно</option></select>
+<div id="doorSample"><span id="doorSampleSquare"></span><span id="doorSampleCaption">Дверь: гладкая · цвет Linen</span></div>
+<small>Визуальные аналоги современных конструкций, не точные копии фабричных моделей.</small>
+<details id="catalogDetails"><summary>Каталоги производителей и салонов</summary>
+<a href="https://dveri-novator.ru/" target="_blank" rel="noopener">Новатор · Дагестан</a>
+<a href="https://mahachkala.teremdoor.ru/catalog/" target="_blank" rel="noopener">Терем · Махачкала</a>
+<a href="https://grozny.dveriostium.com/" target="_blank" rel="noopener">OSTIUM · Грозный</a>
+<a href="https://labdoorsgrozny.ru/" target="_blank" rel="noopener">Lab Doors · Грозный</a>
+<a href="https://ramas.ru/" target="_blank" rel="noopener">РАМАС · Дагестан</a>
+<a href="https://profildoors.ru/" target="_blank" rel="noopener">ProfilDoors · Россия</a>
+<a href="https://www.volhovec.ru/catalog/doors/" target="_blank" rel="noopener">Волховец · Россия</a>
+<a href="https://dveri.com/catalog/dveri-mezhkomnatnyye" target="_blank" rel="noopener">Bravo · Россия</a>
+</details>
+</section>
 <label for="clientView">Красивый ракурс</label>
 <select id="clientView">
 <option value="general">Весь дом</option>
@@ -329,7 +393,7 @@ if(x1>=0&&x1<=19.03&&x2>=0&&x2<=19.03){
 let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
 const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
-if(o.leaf!==false){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
+if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
 else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start,start+.065,.83,2.4,mat.oak);piece(end-.065,end,.83,2.4,mat.oak);piece(start+.07,end-.07,.85,2.37,mat.glass);piece(start,end,1.6,1.65,mat.oak)}
 }
 }
@@ -532,6 +596,116 @@ for(let j=0;j<8;j++)box(stairsGroup,LEFT-.56+j*.28,2.37,BACK-.75,.035,.98,.035,r
 box(stairsGroup,(LEFT+RIGHT)/2,2.90,BACK-.75,3.2,.055,.055,railMat);
 // No vertical infill panels or railing across the hall-side landing entry.
 
+
+// INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
+// Architectural opening count/size and wall collisions are unchanged.
+const doorDisplayGroup=new THREE.Group();model.add(doorDisplayGroup);
+const roomDoorSpecs=[
+ {room:'living',x:9.6,z:2.725,axis:'z',width:1.45},
+ {room:'kitchen',x:13.52,z:2.025,axis:'z',width:1.45},
+ {room:'bedroom',x:5.725,z:-1.595,axis:'z',width:.95},
+ {room:'bathroom',x:7.8,z:-2.675,axis:'x',width:1.0},
+ {room:'wardrobe',x:13.595,z:-1.8,axis:'z',width:1.12}
+];
+// The set above matches the source of truth: segmented() door openings.
+// No leaf added at the vestibule passage or at the external front entrance.
+const doorColorHex={
+ linen:'#F0E9DF',cashmere:'#D2C6B6',dove:'#B7AA9A',white:'#F7F7F2',
+ oak:'#C8AB85',walnut:'#79543D',taupe:'#978A7D',graphite:'#55585A',black:'#242729'
+};
+const hardwareHex={black:'#252A2E',chrome:'#B4BEC2',brass:'#B99A60',bronze:'#655345'};
+const doorAssignments={};
+for(const d of roomDoorSpecs)doorAssignments[d.room]={design:'flush',color:'linen',metal:'black',opening:'open'};
+function addDoorShape(parent,x,y,z,w,h,d,material){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
+ m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+function buildDoorLeaf(root,wide,style,color,metal){
+ const h=2.17,w=wide-.055;
+ const paint=new THREE.MeshStandardMaterial({color:doorColorHex[color]||'#F0E9DF',roughness:.48,metalness:0});
+ const trim=new THREE.MeshStandardMaterial({color:hardwareHex[metal]||'#252A2E',metalness:.7,roughness:.33});
+ const contrast=new THREE.MeshStandardMaterial({color:'#514b45',metalness:.25,roughness:.52});
+ const lightGlass=new THREE.MeshPhysicalMaterial({color:'#bec8c5',transparent:true,opacity:.46,roughness:.18,metalness:.14,side:THREE.DoubleSide});
+ const darkGlass=new THREE.MeshPhysicalMaterial({color:'#63777a',transparent:true,opacity:.50,roughness:.13,metalness:.35,side:THREE.DoubleSide});
+ const woodMat=new THREE.MeshStandardMaterial({map:surfaceTexture('oak',doorColorHex[color]||'#c8ab85',1.0),roughness:.68});
+ const baseMat=style==='veneer'?woodMat:style==='glass'?trim:paint;
+ const isGlass=style==='glass'||style==='frost';
+ addDoorShape(root,w/2,h/2,0,w,h,.052,baseMat);
+ const strip=(x,y,width,height,depth,mat)=>addDoorShape(root,x,y,depth,width,height,.011,mat);
+ if(style==='hidden'){
+ // almost flush, very fine shadow-gap reveal
+ strip(.03,1.07,.012,2.05,.036,contrast);
+ }else if(style==='lines'){
+ for(let j=0;j<4;j++)strip(.16+j*w*.20,1.085,.012,1.92,.039,contrast);
+ }else if(style==='neo'||style==='classic'){
+ const count=style==='neo'?2:3;
+ for(let j=0;j<count;j++){
+  const ch=(h-.36)/count,cy=.18+(j+.5)*ch;
+  strip(w*.50,cy,w-.20,.022,.040,paint);
+  strip(.10,cy,.024,ch-.12,.040,paint);
+  strip(w-.10,cy,.024,ch-.12,.040,paint);
+  strip(w*.5,cy-ch/2+.07,w-.20,.022,.040,paint);
+  strip(w*.5,cy+ch/2-.07,w-.20,.022,.040,paint);
+ }
+ }else if(style==='slats'){
+ for(let j=0;j<Math.floor((w-.12)/.11);j++)strip(.09+j*.11,1.07,.032,1.97,.043,woodMat);
+ }else if(style==='accent'){
+ for(let j=0;j<3;j++)strip(.15+j*w*.27,1.08,.010,2.03,.045,trim);
+ }else if(isGlass){
+ const glass=isGlass&&style==='glass'?darkGlass:lightGlass;
+ strip(w*.50,1.13,w-.17,1.88,.047,glass);
+ for(const y of [.16,2.07])strip(w*.5,y,w-.13,.035,.059,trim);
+ for(const x of [.075,w-.075])strip(x,1.1,.027,2.02,.061,trim);
+ if(style==='glass')strip(w/2,1.1,.022,2,.060,trim);
+ }else if(style==='veneer'){
+ for(let j=0;j<4;j++)strip(.13+j*w*.22,1.08,.008,1.95,.043,contrast);
+ }
+ // Lever and rose, on either side.
+ for(const side of [-1,1]){
+  const depth=side*.059;
+  addDoorShape(root,w-.16,1.03,depth,.09,.10,.023,trim);
+  addDoorShape(root,w-.075,1.035,depth+side*.021,.21,.032,.044,trim);
+ }
+}
+function buildDoorFor(spec){
+ const cfg=doorAssignments[spec.room],g=new THREE.Group();g.userData.room=spec.room;
+ doorDisplayGroup.add(g);
+ const usable=Math.min(spec.width-.08,1.35),twoLeaves=usable>1.17;
+ const leafCount=twoLeaves?2:1,leafWidth=usable/leafCount;
+ // Pivot aligned with wall plane, actual slab(s) kept light and open by default.
+ const xRotation=spec.axis==='z'?-Math.PI/2:0;
+ g.position.set(spec.x,0,spec.z);g.rotation.y=xRotation;
+ if(cfg.opening==='hide')return;
+ const start=-usable/2;
+ for(let i=0;i<leafCount;i++){
+   const pivot=new THREE.Group();
+   pivot.position.set(start+i*leafWidth,0,0);
+   g.add(pivot);
+   buildDoorLeaf(pivot,leafWidth,cfg.design,cfg.color,cfg.metal);
+   const sign=i===0?1:-1;
+   pivot.rotation.y=cfg.opening==='open'?sign*1.12:0;
+ }
+ // Frame around existing opening, material match.
+ const isHidden=cfg.design==='hidden';
+ if(!isHidden){
+  const frame=new THREE.MeshStandardMaterial({color:doorColorHex[cfg.color],roughness:.65});
+  for(const offset of [-usable/2,usable/2]){
+    const bar=addDoorShape(g,offset,1.10,.07,.045,2.23,.07,frame);
+  }
+  addDoorShape(g,0,2.22,.07,usable+.05,.045,.07,frame);
+ }
+}
+function rebuildClientDoors(){
+ while(doorDisplayGroup.children.length){
+  const root=doorDisplayGroup.children[0];
+  root.traverse(o=>{
+   if(o.isMesh){o.geometry.dispose();const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>{if(m.map)m.map.dispose();m.dispose()})}
+  });doorDisplayGroup.remove(root);
+ }
+ roomDoorSpecs.forEach(buildDoorFor);
+}
+rebuildClientDoors();
+
 // Rear wardrobe, wall to wall shelving
 for(let xx of [14.20,18.16]){box(model,xx,1.02,-3.25,.45,2.05,3.2,mat.wood);
 for(let i=0;i<4;i++)box(model,xx,.40+i*.48,-3.25,.48,.05,3.00,mat.oak)}
@@ -700,7 +874,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=22';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=23';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -798,6 +972,34 @@ function renderMinimap(){
 }
 
 
+
+/* Door finishes stay independent of floor and wall palette choices. */
+let chosenDoorRoom='all';
+function activeDoorSetting(){
+ const room=chosenDoorRoom==='all'?'living':chosenDoorRoom;
+ return doorAssignments[room];
+}
+function syncDoorControls(){
+ const d=activeDoorSetting();
+ E('clientDoorModel').value=d.design;E('clientDoorColor').value=d.color;
+ E('clientDoorHardware').value=d.metal;E('clientDoorOpen').value=d.opening;
+ E('doorSampleSquare').style.background=doorColorHex[d.color];
+ E('doorSampleCaption').textContent=E('clientDoorModel').selectedOptions[0].textContent+
+ ' · '+E('clientDoorColor').selectedOptions[0].textContent;
+}
+function setDoorDetail(property,value){
+ for(const spec of roomDoorSpecs){
+  if(chosenDoorRoom==='all'||chosenDoorRoom===spec.room)doorAssignments[spec.room][property]=value;
+ }
+ rebuildClientDoors();syncDoorControls();
+}
+E('clientDoorTarget').onchange=e=>{chosenDoorRoom=e.target.value;syncDoorControls()};
+E('clientDoorModel').onchange=e=>setDoorDetail('design',e.target.value);
+E('clientDoorColor').onchange=e=>setDoorDetail('color',e.target.value);
+E('clientDoorHardware').onchange=e=>setDoorDetail('metal',e.target.value);
+E('clientDoorOpen').onchange=e=>setDoorDetail('opening',e.target.value);
+syncDoorControls();
+
 /* Client showroom — independent internal wall / wood floor / ceramic controls. */
 let clientStyle='linen', clientWall='mix',clientFloor='honeyOak',clientTile='sand',clientView='general';
 const stylePresets={
@@ -883,12 +1085,12 @@ function clientCamera(v){
  else enter(v);
  E('clientView').value=v;syncDesign();
 }
-function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night}}
+function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
- updateNight(d.night);clientCamera(d.view);toast('Вариант отделки восстановлен');
+ if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}updateNight(d.night);clientCamera(d.view);toast('Вариант отделки восстановлен');
 }
 E('clientStyle').onchange=e=>applyPreset(e.target.value);
 E('clientWalls').onchange=e=>setClientWalls(e.target.value);
