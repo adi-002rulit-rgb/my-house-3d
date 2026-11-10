@@ -94,7 +94,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.3</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.4</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -424,15 +424,22 @@ renderer.toneMappingExposure=1.20;
 scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
 const buildingGroup=new THREE.Group();scene.add(buildingGroup);
 buildingGroup.add(upperFloorGroup);
-scene.add(new THREE.HemisphereLight('#fff8ec','#8d9897',2));
-const sun=new THREE.DirectionalLight('#fff2dc',3.0);
-sun.position.set(14,24,13);
+// Fill light is already provided by a hemisphere light; avoid redundant AmbientLight.
+scene.add(new THREE.HemisphereLight('#fff8ec','#8d9897',1.25));
+// A single sun aimed at the BUILDING, not at world origin (the plan runs X=0…19m).
+const sun=new THREE.DirectionalLight('#fff2dc',2.05);
+sun.position.set(24,30,16);
+sun.target.position.set(9.52,1.8,0);
+scene.add(sun.target);
 sun.castShadow=true;
+// 2K maps cost 4× the memory of 1K. Keep mobile lightweight.
 sun.shadow.mapSize.set(isCompactViewport?512:1024,isCompactViewport?512:1024);
-sun.shadow.camera.left=-24;sun.shadow.camera.right=24;
-sun.shadow.camera.top=24;sun.shadow.camera.bottom=-24;
-sun.shadow.camera.near=1;sun.shadow.camera.far=70;
-sun.shadow.normalBias=.035;
+const shadowExtent=15;
+sun.shadow.camera.left=-shadowExtent;sun.shadow.camera.right=shadowExtent;
+sun.shadow.camera.top=shadowExtent;sun.shadow.camera.bottom=-shadowExtent;
+sun.shadow.camera.near=0.5;sun.shadow.camera.far=65;
+// A small bias and normal bias reduce self-shadow artifacts without detaching the shadows.
+sun.shadow.bias=-0.00015;sun.shadow.normalBias=.025;
 scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
 orbit=new OrbitControls(camera,canvas3d);orbit.target.set(9.6,0,0);orbit.enableDamping=true;orbit.update();
