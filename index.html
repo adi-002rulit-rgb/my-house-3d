@@ -145,7 +145,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V53</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V54</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -983,6 +983,15 @@ function rebuildStaircase(){
   // Slight overlap forms a continuous quarter turn at the rear.
   step(rightX-i*.08,(lowerN+i+1)*riser,z,d.width-i*.045,.229,'z');
  }
+ // Full-height connection where the 90-degree winders join the rear-wall
+ // run; this is the previously missing transition which caused an apparent
+ // gap and detached upper tread. It adjusts automatically with wall lock.
+ const lastCornerBack=backTurn-(turnN-.5)*.21-.229/2;
+ const upperFlightFront=upperZ+d.width/2;
+ const cornerBridgeDepth=Math.max(0,lastCornerBack-upperFlightFront)+.035;
+ const cornerBridgeZ=(lastCornerBack+upperFlightFront)/2;
+ box(stairsGroup,12.00,(lowerN+turnN)*riser/2,cornerBridgeZ,
+   d.width,(lowerN+turnN)*riser,cornerBridgeDepth,stairMaterial,false);
  // Upper run follows rear wall and finishes at the left-hand passage.
  for(let i=0;i<upperN;i++){
   const x=upperRightX-(i+.5)*upperGoing;
@@ -1993,7 +2002,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=53');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=54');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
