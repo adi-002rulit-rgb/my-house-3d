@@ -137,12 +137,15 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #stairAdjustStudio .stairHelp{font-size:10px;color:#e0d6c9;line-height:1.5;margin:7px 0}
 #stairClearance{display:block;color:#d4dfd3;padding:8px 0;line-height:1.4}
 #showroom .designDivider{margin:14px 0 9px;padding-top:10px;border-top:1px solid #c6ad8755;color:#e6cc9e;font-weight:700;font-size:12px}
+#stairAdjustStudio .stairWallLock{display:flex;align-items:center;gap:9px;margin:12px 0;color:#e9d1a5;font-weight:650}
+#stairAdjustStudio .stairWallLock input{width:17px;height:17px;accent-color:#cfac78}
+#stairSetback:disabled{opacity:.35}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V52</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V53</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -394,8 +397,9 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <p class="stairHelp">Растягивай верхний марш вдоль стены, меняй его положение и ширину. Изменения сразу появятся в 3D. Размеры пока визуальные.</p>
 <label for="stairStretch">Длина верхнего марша: <output id="stairStretchValue">2,62 м</output></label>
 <input id="stairStretch" type="range" min="2.35" max="2.98" step="0.01" value="2.62">
-<label for="stairSetback">Положение у задней стены: <output id="stairSetbackValue">4,48 м</output></label>
-<input id="stairSetback" type="range" min="4.23" max="4.72" step="0.01" value="4.48">
+<label class="stairWallLock"><input id="stairWallLock" type="checkbox" checked> Прижать верхний марш к задней стене</label>
+<label for="stairSetback">Положение у задней стены: <output id="stairSetbackValue">4,75 м</output></label>
+<input id="stairSetback" type="range" min="4.20" max="4.82" step="0.01" value="4.75">
 <label for="stairWidth">Ширина марша: <output id="stairWidthValue">1,10 м</output></label>
 <input id="stairWidth" type="range" min="0.95" max="1.13" step="0.01" value="1.10">
 <label for="stairLowerLength">Длина нижнего марша: <output id="stairLowerLengthValue">2,03 м</output></label>
@@ -907,13 +911,13 @@ const stairMaterial=M('#ddd8cf',.81),stairFace=M('#e8e2d9',.88);
 const stairHandrail=M('#998c7d',.44,.23);
 const stairLED=new THREE.MeshStandardMaterial({color:'#fff2df',emissive:'#ffd2a0',emissiveIntensity:.45,roughness:.4});
 const stairWindowGlass=new THREE.MeshPhysicalMaterial({color:'#d8e5e7',transparent:true,opacity:.25,roughness:.12,depthWrite:false,side:THREE.DoubleSide});
-const STAIR_DEFAULT={upperLength:2.62,backOffset:4.48,width:1.10,lowerLength:2.03};
+const STAIR_DEFAULT={upperLength:2.62,backOffset:4.75,width:1.10,lowerLength:2.03,flushToWall:true};
 let stairSettings={...STAIR_DEFAULT};
 const STAIR_SAVED_KEY='my-house-3d-stair-v1';
 const stairData=()=>({...stairSettings});
 function validStairSettings(d){
- return !!d&&Object.entries({
-  upperLength:[2.35,2.98],backOffset:[4.23,4.72],width:[.95,1.13],lowerLength:[1.85,2.18]
+ return !!d&&(d.flushToWall===undefined||typeof d.flushToWall==='boolean')&&Object.entries({
+  upperLength:[2.35,2.98],backOffset:[4.20,4.82],width:[.95,1.13],lowerLength:[1.85,2.18]
  }).every(([key,[min,max]])=>typeof d[key]==='number'&&Number.isFinite(d[key])&&d[key]>=min&&d[key]<=max);
 }
 function stairGeometryCheck(d){
@@ -921,9 +925,13 @@ function stairGeometryCheck(d){
  // exterior facade: x >=9.65, right wall corridor x<=13.47, rear z>=-5.30.
  const upperRightX=12.46,upperLeftX=upperRightX-d.upperLength;
  const corridorClear=13.47-(12.06+d.width/2);
- const upperBack=-d.backOffset-d.width/2;
+ // The inside face of the 400mm rear exterior wall is z = -5.30m.
+ // Keep a 10mm visual joint; the flight actually reaches the wall.
+ const wallFlushOffset=5.30-d.width/2-.010;
+ const effectiveBackOffset=d.flushToWall!==false?wallFlushOffset:d.backOffset;
+ const upperBack=-effectiveBackOffset-d.width/2;
  const lowerStart=-1.32,lowerEnd=lowerStart-d.lowerLength;
- return {corridorClear,upperLeftX,upperBack,lowerEnd,
+ return {corridorClear,upperLeftX,upperBack,lowerEnd,effectiveBackOffset,wallGap:5.30+upperBack,
   allowed:corridorClear>=.84&&upperLeftX>=9.45&&upperBack>=-5.30&&lowerEnd>=-3.55};
 }
 function disposeStair(){
@@ -939,7 +947,7 @@ function rebuildStaircase(){
  disposeStair();
  const riser=.17,lowerN=7,turnN=3,upperN=12;
  const lowGoing=d.lowerLength/lowerN,upperGoing=d.upperLength/upperN;
- const rightX=12.06,lowerStart=-1.32,upperZ=-d.backOffset;
+ const rightX=12.06,lowerStart=-1.32,upperZ=-check.effectiveBackOffset;
  const upperRightX=12.46,upperLeftX=upperRightX-d.upperLength;
  // Each stepped concrete block reaches the floor: no floating treads.
  const step=(x,y,z,w,depth,axis)=>{
@@ -949,13 +957,31 @@ function rebuildStaircase(){
  };
  for(let i=0;i<lowerN;i++){
   const z=lowerStart-(i+.5)*lowGoing;
-  step(rightX,(i+1)*riser,z,d.width,lowGoing+.005,'z');
+  // A 12mm overlap guarantees the next riser touches the previous
+  // tread without displaying the light slits visible in the screenshot.
+  step(rightX,(i+1)*riser,z,d.width,lowGoing+.012,'z');
  }
+ // Continuous cast-concrete cheek follows the LOWER flight on its open
+ // left edge. This makes the stair appear structurally connected rather
+ // than a row of isolated cubes.
+ const lowerCheek=new THREE.Shape();
+ lowerCheek.moveTo(0,0);
+ lowerCheek.lineTo(-d.lowerLength,0);
+ lowerCheek.lineTo(-d.lowerLength,lowerN*riser-.035);
+ lowerCheek.lineTo(0,.14);
+ lowerCheek.closePath();
+ const lowerSolid=new THREE.Mesh(
+  new THREE.ExtrudeGeometry(lowerCheek,{depth:.07,bevelEnabled:false}),stairFace);
+ lowerSolid.position.set(rightX-d.width/2+.022,0,lowerStart);
+ lowerSolid.rotation.y=-Math.PI/2;
+ lowerSolid.castShadow=false;lowerSolid.receiveShadow=true;
+ stairsGroup.add(lowerSolid);
  // 90-degree turn: grounded concrete winders, contiguous in plan.
  const backTurn=lowerStart-d.lowerLength;
  for(let i=0;i<turnN;i++){
   const z=backTurn-(i+.5)*.21;
-  step(rightX-i*.08,(lowerN+i+1)*riser,z,d.width-i*.045,.218,'z');
+  // Slight overlap forms a continuous quarter turn at the rear.
+  step(rightX-i*.08,(lowerN+i+1)*riser,z,d.width-i*.045,.229,'z');
  }
  // Upper run follows rear wall and finishes at the left-hand passage.
  for(let i=0;i<upperN;i++){
@@ -991,11 +1017,14 @@ function syncStairControls(){
  ['stairStretch','upperLength'],['stairSetback','backOffset'],
  ['stairWidth','width'],['stairLowerLength','lowerLength']]){
   E(id).value=String(stairSettings[key]);
-  E(id+'Value').textContent=stairSettings[key].toFixed(2).replace('.',',')+' м';
+  E(id+'Value').textContent=(key==='backOffset'?stairGeometryCheck(stairSettings).effectiveBackOffset:stairSettings[key]).toFixed(2).replace('.',',')+' м';
  }
  const q=stairGeometryCheck(stairSettings);
- E('stairClearance').textContent='Проход справа: '+q.corridorClear.toFixed(2).replace('.',',')+
-  ' м · левый край: '+q.upperLeftX.toFixed(2).replace('.',',')+' м';
+ E('stairWallLock').checked=stairSettings.flushToWall!==false;
+ E('stairSetback').disabled=stairSettings.flushToWall!==false;
+ E('stairSetback').value=String(q.effectiveBackOffset);
+ E('stairClearance').textContent='К задней стене: '+Math.round(q.wallGap*100)+' см · проход у двери: '+
+  q.corridorClear.toFixed(2).replace('.',',')+' м';
 }
 function setStairDimension(key,value){
  const previous={...stairSettings};
@@ -1006,6 +1035,14 @@ function setStairDimension(key,value){
  rebuildStaircase();syncStairControls();
  // Persist the settings and update design history at the end of interaction.
 }
+E('stairWallLock').onchange=e=>{
+ const prev={...stairSettings};
+ stairSettings.flushToWall=e.target.checked;
+ if(!stairGeometryCheck(stairSettings).allowed){
+  stairSettings=prev;syncStairControls();toast('Не удаётся прижать лестницу к стене');return;
+ }
+ rebuildStaircase();syncStairControls();saveCurrentDesign();
+};
 const stairLight=new THREE.PointLight('#ffe2be',.52,4.8,2);
 stairLight.position.set(11.38,2.45,-3.77);scene.add(stairLight);
 rebuildStaircase();
@@ -1956,7 +1993,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=52');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=53');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
