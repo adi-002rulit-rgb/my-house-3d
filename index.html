@@ -142,7 +142,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V51</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V52</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -244,6 +244,11 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <h3>Мебель, текстиль и освещение</h3>
 
 <div class="designDivider">Новые материалы · 2026</div>
+<div class="showGrid">
+<button type="button" id="styleModernWarm">Тёплый минимализм</button>
+<button type="button" id="styleModernNatural">Натуральный дуб</button>
+<button type="button" id="styleModernContrast">Контрастный премиум</button>
+</div>
 <label for="accentWall2026">Акцентная стена зала</label>
 <select id="accentWall2026">
 <option value="none">Без акцента · чистая стена</option>
@@ -1951,7 +1956,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=51');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=52');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1999,6 +2004,40 @@ E('stairRestore').onclick=()=>{
  }catch(e){toast('Не удалось восстановить настройки')}
 };
 syncStairControls();
+
+
+const curated2026={
+ warm:{
+ base:'cashmere',wall:'cashmere',floor:'naturalBeige',tile:'travertine',
+ decor:{accent:'microcement',cabinet:'cashmere',splash:'travertine',metal:'champagne',ceiling:'subtle',decor:'minimal'}
+ },
+ natural:{
+ base:'linen',wall:'linen',floor:'rawOak',tile:'limestone',
+ decor:{accent:'oak',cabinet:'oak',splash:'limestone',metal:'bronze',ceiling:'indirect',decor:'styled'}
+ },
+ contrast:{
+ base:'contrast',wall:'mushroom',floor:'richWalnut',tile:'graphite',
+ decor:{accent:'walnut',cabinet:'espresso',splash:'graphite',metal:'black',ceiling:'linear',decor:'minimal'}
+ }
+};
+function setCuratedStyle2026(id){
+ const p=curated2026[id];if(!p)return;
+ const previousSuspend=designHistorySuspend;designHistorySuspend=true;
+ try{
+  applyPreset(p.base);
+  setClientWalls(p.wall);setClientFloor(p.floor);
+  // Use valid stone palette keys, even if natural material labels differ.
+  setClientTile(Object.prototype.hasOwnProperty.call(tileChoices,p.tile)?p.tile:'sand');
+  interiorDesign2026={...p.decor};
+  applyDesign2026(false);
+  clientCamera('living');
+ }finally{designHistorySuspend=previousSuspend}
+ if(!designHistorySuspend)saveCurrentDesign();
+ toast('Готовый стиль применён. Все детали можно менять');
+}
+E('styleModernWarm').onclick=()=>setCuratedStyle2026('warm');
+E('styleModernNatural').onclick=()=>setCuratedStyle2026('natural');
+E('styleModernContrast').onclick=()=>setCuratedStyle2026('contrast');
 
 function snapshotConcept(){return{design2026:{...interiorDesign2026},stair:stairData(),style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
