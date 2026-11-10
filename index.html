@@ -135,7 +135,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V46</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V47</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -712,7 +712,7 @@ segmented(9.525,-5.5,9.525,-1.05,[
  {at:3.13,width:1.13,kind:'door',leaf:false} // left vestibule opening from stair hall
 ],interiorMats.cashmere,.25);
 segmented(9.6,-1.05,9.6,5.5,[
- {at:3.05,width:1.45,kind:'door',leaf:false} // single living room door into main hall
+ {at:3.05,width:1.40,kind:'door',leaf:false} // ONLY living room entrance: double door, two 700 mm leaves
 ],interiorMats.cashmere,.4);
 // Right front hall wall = 13.32..13.72 (400 mm).
 // Right rear stair/wardrobe partition = 13.47..13.72 (250 mm).
@@ -720,7 +720,7 @@ segmented(13.595,-5.5,13.595,-1.05,[
  {at:3.14,width:1.12,kind:'door',leaf:false} // wardrobe opening toward stair hall
 ],interiorMats.linen,.25);
 segmented(13.52,-1.05,13.52,5.5,[
- {at:2.35,width:1.45,kind:'door',leaf:false} // ONLY kitchen entrance from corridor
+ {at:2.35,width:1.40,kind:'door',leaf:false} // ONLY kitchen entrance: double door, two 700 mm leaves
 ],interiorMats.linen,.4);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
@@ -911,11 +911,11 @@ box(stairsGroup,LEFT+.03,2.90,BACK-.52,1.72,.055,.055,railMat);
 // Architectural opening count/size and wall collisions are unchanged.
 const doorDisplayGroup=new THREE.Group();model.add(doorDisplayGroup);
 const roomDoorSpecs=[
- {room:'living',x:9.6,z:2.00,axis:'z',width:1.45},
- {room:'kitchen',x:13.52,z:1.30,axis:'z',width:1.45},
- {room:'bedroom',x:5.725,z:-2.07,axis:'z',width:.95},
- {room:'bathroom',x:7.30,z:-2.675,axis:'x',width:1.0},
- {room:'wardrobe',x:13.595,z:-2.36,axis:'z',width:1.12}
+ {room:'living',x:9.6,z:2.00,axis:'z',width:1.40,leafCount:2},
+ {room:'kitchen',x:13.52,z:1.30,axis:'z',width:1.40,leafCount:2},
+ {room:'bedroom',x:5.725,z:-2.07,axis:'z',width:.95,leafCount:1},
+ {room:'bathroom',x:7.30,z:-2.675,axis:'x',width:1.0,leafCount:1},
+ {room:'wardrobe',x:13.595,z:-2.36,axis:'z',width:1.12,leafCount:1}
 ];
 // Door leaf centers are derived from each segmented() opening's start+at (not at+width/2). The previous 3D leaves were misaligned by half an opening.
 // The set above matches the source of truth: segmented() door openings.
@@ -981,8 +981,13 @@ function buildDoorLeaf(root,wide,style,color,metal){
 function buildDoorFor(spec){
  const cfg=doorAssignments[spec.room],g=new THREE.Group();g.userData.room=spec.room;
  doorDisplayGroup.add(g);
- const usable=Math.min(spec.width-.08,1.35),twoLeaves=usable>1.17;
- const leafCount=twoLeaves?2:1,leafWidth=usable/leafCount;
+ // Door count is an explicit architectural specification, never inferred from width.
+ // Living + kitchen: 2 × 0.70 m. All other interior doors: a single leaf.
+ const leafCount=spec.leafCount;
+ const usable=spec.width;
+ const leafWidth=usable/leafCount;
+ if(![1,2].includes(leafCount))throw Error('Invalid door configuration');
+ if(leafCount===2&&Math.abs(leafWidth-.70)>1e-8)throw Error('Double leaves must be 700 mm each');
  // Pivot aligned with wall plane, actual slab(s) kept light and open by default.
  const xRotation=spec.axis==='z'?-Math.PI/2:0;
  g.position.set(spec.x,0,spec.z);g.rotation.y=xRotation;
@@ -994,6 +999,7 @@ function buildDoorFor(spec){
    g.add(pivot);
    buildDoorLeaf(pivot,leafWidth,cfg.design,cfg.color,cfg.metal);
    const sign=i===0?1:-1;
+   // Open double leaves in opposite directions away from the central meeting.
    pivot.rotation.y=cfg.opening==='open'?sign*1.12:0;
  }
  // Frame around existing opening, material match.
@@ -1724,7 +1730,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=46');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=47');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
