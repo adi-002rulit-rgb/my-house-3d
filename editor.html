@@ -202,7 +202,7 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.1</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.2</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -224,7 +224,7 @@ label {color:#d1d1d8}
 </aside>
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
-<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
 <div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><button id="exitStairView" type="button" hidden>Вернуть весь дом</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
@@ -574,6 +574,8 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const c
 let renderer,camera,scene,orbit,transform,threeRoots=new Map(),raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 const canvas3d=$('view3d');
 let yardMesh=null;
+let gridVisible=true;
+let groundGrid=null;
 const upperFloorGroup=new THREE.Group();
 let activeFloor=1;
 let stairPreview=false;
@@ -588,6 +590,16 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.12;
 scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
 const buildingGroup=new THREE.Group();scene.add(buildingGroup);
+// Floor grid sits above the yard's top surface (-0.02 m), but beneath house floors.
+groundGrid=new THREE.GridHelper(40,40,0x0a84ff,0x45454b);
+groundGrid.position.set(9.5,-.012,0);
+scene.add(groundGrid);
+$('toggleGrid').onclick=()=>{
+ gridVisible=!gridVisible;
+ groundGrid.visible=gridVisible&&activeFloor===1&&!stairPreview;
+ $('toggleGrid').classList.toggle('active',gridVisible);
+ $('toggleGrid').setAttribute('aria-pressed',String(gridVisible));
+};
 buildingGroup.add(upperFloorGroup);
 // Fill light is already provided by a hemisphere light; avoid redundant AmbientLight.
 scene.add(new THREE.HemisphereLight('#fff8ec','#9baab6',1.05));
@@ -607,7 +619,15 @@ sun.shadow.camera.near=0.5;sun.shadow.camera.far=65;
 sun.shadow.bias=-0.00025;sun.shadow.normalBias=.025;
 scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
-orbit=new OrbitControls(camera,canvas3d);orbit.target.set(9.6,0,0);orbit.enableDamping=true;orbit.update();
+orbit=new OrbitControls(camera,canvas3d);
+orbit.target.set(9.6,0,0);
+orbit.enableDamping=true;
+orbit.dampingFactor=.05;
+orbit.minDistance=2;
+orbit.maxDistance=50;
+// A slight below-horizon angle is permitted for examining the staircase soffit.
+orbit.maxPolarAngle=Math.PI/2+.12;
+orbit.update();
 transform=new TransformControls(camera,canvas3d);
 transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
 transform.showY=false; // Floor-plan editor: never allow vertical movement of a 2D-positioned object.
@@ -1023,6 +1043,7 @@ function drawUpperFloorPlan(w,h){
 function exitStairPreview(){
  stairPreview=false;
  $('exitStairView').hidden=true;
+ if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
  for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
  for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
  upperFloorGroup.visible=activeFloor===2;
@@ -1034,6 +1055,7 @@ function showStairPreview(){
  }
  // Do not change saved house data: this is a camera-only inspection mode.
  stairPreview=true;activeFloor=1;
+ if(groundGrid)groundGrid.visible=false;
  $('floor1').classList.add('active');$('floor2').classList.remove('active');
  $('floorCaption').textContent='Просмотр лестницы без стен и мебели';
  $('exitStairView').hidden=false;
@@ -1058,6 +1080,7 @@ $('exitStairView').onclick=()=>{
 function setFloorView(floor){
  exitStairPreview();
  activeFloor=floor===2?2:1;
+ if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
  $('floor1').classList.toggle('active',activeFloor===1);
  $('floor2').classList.toggle('active',activeFloor===2);
  $('floorCaption').textContent=activeFloor===1?'Редактирование первого этажа':
