@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.2</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.3</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -1190,8 +1190,9 @@ function buildStair(o){
  const from=g.front+visibleLength,to=g.front+g.backRun;
  if(to-from>.02){
   const slab=meshMat('#d5c8b7',.58,.015);
-  cube(root,g.left+w/2,state.height-.09,(from+to)/2,
+  const fallback=cube(root,g.left+w/2,state.height-.09,(from+to)/2,
    w,.18,to-from,slab);
+  fallback.userData.stairCeilingFallback=true;
  }
 }
 function buildFurniture(o){
@@ -1362,6 +1363,17 @@ function drawUpperFloorPlan(w,h){
  ctx.fillText('2 ЭТАЖ · П-ОБРАЗНЫЙ ПРОЁМ',14,h-16);
 }
 // Inspection modes use camera and visibility only; no changes to house state.
+// Never show two overlapping copies of the upper-storey concrete.
+function syncCeilingVisibility(){
+ const ceilingOn=!stairPreview&&(activeFloor===2||interiorCeilingVisible);
+ upperFloorGroup.visible=ceilingOn;
+ for(const st of state.stairs){
+  const root=threeRoots.get(st.id);
+  if(root)root.traverse(mesh=>{
+   if(mesh.userData?.stairCeilingFallback)mesh.visible=!ceilingOn&&!stairPreview;
+  });
+ }
+}
 function exitStairPreview(){
  stairPreview=false;
  interiorCeilingVisible=false;
@@ -1370,7 +1382,7 @@ function exitStairPreview(){
  for(const [id,root] of threeRoots)
   root.visible=activeFloor===1||state.stairs.some(st=>st.id===id);
  for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
- upperFloorGroup.visible=activeFloor===2;
+ syncCeilingVisibility();
 }
 function showStairPreview(){
  const st=state.stairs[0];
@@ -1383,7 +1395,7 @@ function showStairPreview(){
  selected=null;transform.detach();refreshInspector();refreshList();
  for(const [id,root] of threeRoots)root.visible=state.stairs.some(v=>v.id===id);
  for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=false;
+ syncCeilingVisibility();
  const g=stairGeometry(st);
  orbit.target.set((g.left+g.right)/2,state.elevation+state.height*.48,
   g.front+.75);
@@ -1400,7 +1412,7 @@ function showHallInside(){
  selected=null;transform.detach();refreshInspector();refreshList();
  for(const root of threeRoots.values())root.visible=true;
  for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=true;
+ syncCeilingVisibility();
  if(groundGrid)groundGrid.visible=false;
  const st=state.stairs[0];
  const g=st?stairGeometry(st):null;
@@ -1419,7 +1431,7 @@ function inspectLeftPassage(){
  selected=null;transform.detach();refreshInspector();refreshList();
  for(const root of threeRoots.values())root.visible=true;
  for(const mesh of floorMeshes)mesh.visible=true;
- upperFloorGroup.visible=true;
+ syncCeilingVisibility();
  if(groundGrid)groundGrid.visible=false;
  const passage=state.openings.find(o=>o.id==='stairArch'&&o.type==='passage');
  const leftWall=passage&&wallFor(passage);
@@ -1462,7 +1474,7 @@ function setFloorView(floor){
  selected=null;refreshInspector();refreshList();
  for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
  for(const root of floorMeshes)root.visible=activeFloor===1;
- upperFloorGroup.visible=activeFloor===2;
+ syncCeilingVisibility();
  if(activeFloor===2){
   orbit.target.set(11.1,state.elevation+state.height,-2.8);
   camera.position.set(16,state.elevation+state.height+9,1.2);
@@ -1545,7 +1557,7 @@ buildUpperFloor();
 // Reapply visibility without resetting the camera each time state changes.
 for(const [id,root] of threeRoots)root.visible=stairPreview?state.stairs.some(t=>t.id===id):(activeFloor===1||state.stairs.some(t=>t.id===id));
 for(const root of floorMeshes)root.visible=stairPreview||activeFloor===1;
-upperFloorGroup.visible=!stairPreview&&(activeFloor===2||interiorCeilingVisible);
+syncCeilingVisibility();
 const active=activeFloor===1?threeRoots.get(selected):null;if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
 if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
 processSceneValidation(false);
