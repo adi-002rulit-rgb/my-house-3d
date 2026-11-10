@@ -67,7 +67,7 @@ body:not(.technical) #studio button{min-width:110px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V21</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V22</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -92,19 +92,43 @@ body:not(.technical) #studio button{min-width:110px}
 <option value="mushroom">Mushroom Stone</option>
 <option value="char">Soft Char</option>
 </select>
-<label for="clientFloor">Цвет деревянного пола</label>
-<select id="clientFloor">
-<option value="natural">Натуральный дуб</option>
-<option value="light">Светлый дуб</option>
-<option value="honey">Медовый дуб</option>
-<option value="smoked">Тёмный дуб</option>
-</select>
-<label for="clientTile">Цвет плитки</label>
+<label for="clientFloor">Цвет деревянного пола · 21 оттенок</label>
+<select id="clientFloor"><option value="honeyOak">Honey Oak · медовый дуб</option>
+<option value="naturalBeige">Natural Beige · натуральный беж</option>
+<option value="warmGreige">Warm Greige · тёплый грейж</option>
+<option value="caramelMaple">Caramel Maple · карамельный клён</option>
+<option value="richWalnut">Rich Walnut · орех</option>
+<option value="smokeyTaupe">Smokey Taupe · дымчатый тауп</option>
+<option value="mochaEspresso">Mocha Espresso · мокко</option>
+<option value="graphiteOak">Graphite Oak · графитовый дуб</option>
+<option value="charcoalAsh">Charcoal Ash · угольный ясень</option>
+<option value="driftwoodGray">Driftwood Gray · серое дерево</option>
+<option value="whitewashPine">Whitewash Pine · выбеленная сосна</option>
+<option value="white">White · белёный дуб</option>
+<option value="ash">Ash · ясень</option>
+<option value="vanilla">Vanilla · ванильный дуб</option>
+<option value="caramel">Caramel · карамель</option>
+<option value="brown">Brown · коричневый</option>
+<option value="moka">Moka · тёмный мокко</option>
+<option value="wheatOak">Wheat Oak · пшеничный дуб · тренд 2026</option>
+<option value="rawOak">Raw Oak · необработанный дуб · тренд 2026</option>
+<option value="chestnut">Chestnut · каштан · тренд 2026</option>
+<option value="softTaupe">Soft Taupe · мягкий тауп · тренд 2026</option></select>
+<div id="floorSwatch" style="height:27px;border-radius:6px;border:1px solid #ffffff5e;background:#D6B48D;margin-top:6px" aria-label="Образец цвета пола"></div>
+<label for="floorCovering">Тип напольного покрытия</label>
+<select id="floorCovering"><option value="engineered">Инженерная доска</option><option value="solid">Массив дерева</option><option value="laminate">Ламинат</option><option value="lvt">LVT / SPC · винил</option></select>
+<label for="floorPattern">Рисунок укладки</label>
+<select id="floorPattern"><option value="wide">Широкая доска · матовая</option><option value="plank">Классическая доска</option><option value="herringbone">Ёлочка · herringbone</option><option value="chevron">Французская ёлочка · chevron</option></select>
+<label for="clientTile">Керамогранит и камень · цвет</label>
 <select id="clientTile">
 <option value="sand">Тёплый светлый камень</option>
 <option value="marble">Светлый мрамор</option>
-<option value="greige">Грейж-керамогранит</option>
+<option value="greige">Грейж</option>
 <option value="graphite">Графит</option>
+<option value="limestone">Известняк · limestone</option>
+<option value="travertine">Травертин</option>
+<option value="microcement">Микроцемент</option>
+<option value="terrazzo">Терраццо</option>
 </select>
 <label for="clientView">Красивый ракурс</label>
 <select id="clientView">
@@ -309,22 +333,27 @@ if(o.leaf!==false){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axi
 else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start,start+.065,.83,2.4,mat.oak);piece(end-.065,end,.83,2.4,mat.oak);piece(start+.07,end-.07,.85,2.37,mat.glass);piece(start,end,1.6,1.65,mat.oak)}
 }
 }
+// Independent floor materials: furniture must never change when selecting a floor.
+const floorFinishes={
+ wood:finish('oak','#D6B48D',2.5,.83),
+ tile:finish('stone','#ded9d1',2.3,.66)
+};
 const rooms=[
-{id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.30,range:[.4,9.4,-.7,5.3],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
-{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.3,-1.1],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
-{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.625,cz:-4.05,range:[5.85,9.40,-5.30,-2.80],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
+{id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.30,range:[.4,9.4,-.7,5.3],floor:floorFinishes.wood,eye:[4.65,1.65,2.2],yaw:Math.PI},
+{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.3,-1.1],floor:floorFinishes.wood,eye:[3,1.65,-3.1],yaw:0},
+{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.625,cz:-4.05,range:[5.85,9.40,-5.30,-2.80],floor:floorFinishes.tile,eye:[7.2,1.65,-4.0],yaw:0},
 {id:'stair',name:'Лестница',area:'',cx:11.56,cz:-3.45,range:[9.65,13.47,-5.3,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
-{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.3,-1.1],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
-{id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.30,range:[9.8,13.32,-.7,5.3],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
-{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.175,cz:2.225,range:[13.72,18.63,-.85,5.3],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
-{id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:mat.oak,eye:[-15.1,1.65,.2],yaw:Math.PI},
+{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.3,-1.1],floor:floorFinishes.wood,eye:[16.1,1.65,-3.3],yaw:0},
+{id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.30,range:[9.8,13.32,-.7,5.3],floor:floorFinishes.tile,eye:[11.55,1.65,4.1],yaw:0},
+{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.175,cz:2.225,range:[13.72,18.63,-.85,5.3],floor:floorFinishes.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
+{id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:floorFinishes.wood,eye:[-15.1,1.65,.2],yaw:Math.PI},
 {id:'garage',name:'Гараж',area:'40,00 м²',cx:-15.1,cz:7.1,range:[-17.4,-12.6,4.1,10.4],floor:mat.stone,eye:[-15.1,1.65,7],yaw:Math.PI},
 {id:'courtyard',name:'Двор',area:'',cx:-6,cz:3,range:[-11.5,-2,-4.5,10],floor:mat.stone,eye:[-8.5,1.65,4],yaw:0}
 ];
 
 for(const r of rooms){const [a,b,c,d]=r.range;slab((a+b)/2,(c+d)/2,b-a,d-c,r.floor);}
 // One continuous floor finish from front entrance to stairwell, no threshold wall.
-slab(11.56,-.12,3.52,10.55,mat.tile,.065);
+slab(11.56,-.12,3.52,10.55,floorFinishes.tile,.065);
 // WALLS AND OPENINGS: authoritative source IMG_6632 dimensional ground-floor plan.
 // 'at' distances measured from the first point of each segment. Approximate positions
 // of individual glazing segments should be checked against original CAD before construction.
@@ -384,7 +413,7 @@ segmented(5.725,-5.5,5.725,-1.05,[{at:3.43,width:.95,kind:'door',leaf:false}],in
 // from the open left-side distribution vestibule; enter via an unobstructed doorway.
 segmented(5.85,-2.675,9.4,-2.675,[{at:1.45,width:1.0,kind:'door',leaf:false}],interiorMats.linen,.25); // bathroom front 250mm
 // Floor for the small vestibule joining bedroom, bathroom and the stair hall.
-slab(7.62,-1.91,3.55,1.20,mat.tile,.068);
+slab(7.62,-1.91,3.55,1.20,floorFinishes.tile,.068);
 // Low-profile plaster wall finish sample zones, on existing interior walls only.
 // Small, flush panels add depth without creating a new partition or blocking any entrance.
 box(model,2.85,1.65,-.825,3.45,2.80,.025,interiorMats.mushroom,false); // living accent wall
@@ -671,7 +700,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=21';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=22';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -770,30 +799,67 @@ function renderMinimap(){
 
 
 /* Client showroom — independent internal wall / wood floor / ceramic controls. */
-let clientStyle='linen', clientWall='mix',clientFloor='natural',clientTile='sand',clientView='general';
+let clientStyle='linen', clientWall='mix',clientFloor='honeyOak',clientTile='sand',clientView='general';
 const stylePresets={
- linen:{wall:'linen',wood:'light',tile:'marble'},
- cashmere:{wall:'cashmere',wood:'natural',tile:'sand'},
- dove:{wall:'dove',wood:'honey',tile:'greige'},
- contrast:{wall:'mushroom',wood:'smoked',tile:'graphite'}
+ linen:{wall:'linen',wood:'rawOak',tile:'marble'},
+ cashmere:{wall:'cashmere',wood:'naturalBeige',tile:'sand'},
+ dove:{wall:'dove',wood:'warmGreige',tile:'greige'},
+ contrast:{wall:'mushroom',wood:'richWalnut',tile:'graphite'}
 };
-const woodChoices={natural:'#c4a88a',light:'#ddcfb6',honey:'#b99569',smoked:'#806753'};
-const tileChoices={sand:'#ded9d1',marble:'#f1eee7',greige:'#c8bdb0',graphite:'#7b7e80'};
-let conceptA=null,conceptB=null;
+const woodChoices={"honeyOak":"#D6B48D","naturalBeige":"#C8B49D","warmGreige":"#A99B8B","caramelMaple":"#B58F6C","richWalnut":"#896548","smokeyTaupe":"#827365","mochaEspresso":"#67594D","graphiteOak":"#514B47","charcoalAsh":"#464544","driftwoodGray":"#B7B0A9","whitewashPine":"#E1D6C5","white":"#EAE0D0","ash":"#AB9C89","vanilla":"#D8B88E","caramel":"#AA815C","brown":"#765A46","moka":"#4F4841","wheatOak":"#C7AC82","rawOak":"#D1BEA4","chestnut":"#906C51","softTaupe":"#A89B8E"};
+const tileChoices={sand:'#ded9d1',marble:'#f1eee7',greige:'#c8bdb0',graphite:'#7b7e80',limestone:'#d0c5b5',travertine:'#c6ad8e',microcement:'#aaa69f',terrazzo:'#d8d1c5'};
+let floorCover='engineered',floorPattern='wide',conceptA=null,conceptB=null;
 function retexture(m,kind,hex,repeat=2.4){
  if(m.map){m.map.dispose();m.map=surfaceTexture(kind,hex,repeat);m.color.set('#ffffff')}
  else m.color.set(hex);
  m.needsUpdate=true;
 }
-function setClientFloor(v){
- clientFloor=v;const hex=woodChoices[v];
- // Change flooring and decorative timber; keep fabric, walls and structural geometry unchanged.
- for(const m of [mat.oak,mat.wood,mat.floor])retexture(m,'oak',hex,2.5);
+function woodFloorMap(hex,layout,cover){
+ const size=768,c=document.createElement('canvas');c.width=c.height=size;
+ const ctx=c.getContext('2d');ctx.fillStyle=hex;ctx.fillRect(0,0,size,size);
+ let random=117;function rnd(){random=(random*1664525+1013904223)>>>0;return random/4294967296}
+ // A visual approximation of boards/wood grain, not a scanned manufacturer texture.
+ const gap=layout==='wide'?112:layout==='plank'?68:85;
+ const plank=(x,y,w,h,angle=0)=>{
+ ctx.save();ctx.translate(x,y);ctx.rotate(angle);
+ ctx.fillStyle='rgba(255,245,230,'+(rnd()*.065)+')';ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle='rgba(61,46,30,.19)';ctx.lineWidth=2;ctx.strokeRect(0,0,w,h);
+ for(let i=0;i<17;i++){const yy=rnd()*h;ctx.beginPath();ctx.strokeStyle='rgba(77,50,30,'+(.025+rnd()*.075)+')';ctx.lineWidth=.35+rnd();ctx.moveTo(4,yy);ctx.bezierCurveTo(w*.33,yy+6*rnd(),w*.66,yy-6*rnd(),w-4,yy);ctx.stroke()}
+ ctx.restore();
+ };
+ if(layout==='herringbone'||layout==='chevron'){
+  const slant=layout==='chevron'?Math.PI/4:Math.PI/3;
+  for(let row=-12;row<20;row++)for(let col=-12;col<20;col++){
+   const x=col*100+row*44,y=row*96+col*13;
+   plank(x,y,135,44,slant);plank(x+62,y+60,135,44,-slant)
+  }
+ }else{
+  for(let y=0,row=0;y<size;y+=gap,row++){
+   const offset=(row%3)*-160;
+   for(let x=offset-100;x<size+230;x+=270)plank(x,y,267,gap-1)
+  }
+ }
+ if(cover==='laminate'||cover==='lvt'){
+  ctx.fillStyle='rgba(255,255,255,.045)';ctx.fillRect(0,0,size,size);
+ }
+ const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
+ tex.repeat.set(layout==='wide'?2.4:layout==='plank'?2.6:3.2,layout==='wide'?2.4:layout==='plank'?2.6:3.2);
+ tex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);return tex;
+}
+function changeWoodFloor(){
+ const m=floorFinishes.wood;
+ if(m.map)m.map.dispose();
+ m.map=woodFloorMap(woodChoices[clientFloor],floorPattern,floorCover);
+ m.color.set('#ffffff');m.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.88;
+ m.needsUpdate=true;
+ E('floorSwatch').style.background=woodChoices[clientFloor];
  syncDesign();
 }
+function setClientFloor(v){clientFloor=v;changeWoodFloor()}
 function setClientTile(v){
  clientTile=v;const hex=tileChoices[v];
- retexture(mat.tile,'stone',hex,2.3);
+ retexture(floorFinishes.tile,v==='microcement'?'plaster':'stone',hex,2.3);
+ floorFinishes.tile.roughness=v==='marble'?.3:v==='microcement'?.92:.65;
  syncDesign();
 }
 function setClientWalls(v){clientWall=v;setInteriorPalette(v);syncDesign()}
@@ -801,7 +867,7 @@ function syncDesign(){
  E('clientWalls').value=clientWall;E('clientFloor').value=clientFloor;E('clientTile').value=clientTile;
  const r=rooms.find(q=>q.id===roomID);
  E('styleSummary').textContent='Стены: '+(clientWall==='mix'?'сочетание':interiorSwatches[clientWall].name)
- +' · пол: '+E('clientFloor').selectedOptions[0].textContent
+ +' · пол: '+E('clientFloor').selectedOptions[0].textContent+' · '+E('floorPattern').selectedOptions[0].textContent
  +(r?' · '+r.name:'');
 }
 function applyPreset(v){
@@ -817,16 +883,18 @@ function clientCamera(v){
  else enter(v);
  E('clientView').value=v;syncDesign();
 }
-function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,view:clientView,night}}
+function snapshotConcept(){return{style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  clientStyle=d.style;E('clientStyle').value=d.style;
- setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
+ floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
  updateNight(d.night);clientCamera(d.view);toast('Вариант отделки восстановлен');
 }
 E('clientStyle').onchange=e=>applyPreset(e.target.value);
 E('clientWalls').onchange=e=>setClientWalls(e.target.value);
 E('clientFloor').onchange=e=>setClientFloor(e.target.value);
+E('floorCovering').onchange=e=>{floorCover=e.target.value;changeWoodFloor()};
+E('floorPattern').onchange=e=>{floorPattern=e.target.value;changeWoodFloor()};
 E('clientTile').onchange=e=>setClientTile(e.target.value);
 E('clientView').onchange=e=>clientCamera(e.target.value);
 E('saveA').onclick=()=>{conceptA=snapshotConcept();toast('Вариант A сохранён')};
