@@ -27,7 +27,7 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V16</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V17</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
@@ -190,13 +190,13 @@ else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start
 }
 }
 const rooms=[
-{id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.25,range:[.4,9.4,-.75,5.25],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
+{id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.30,range:[.4,9.4,-.7,5.3],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
 {id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.3,-1.1],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
 {id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.625,cz:-4.05,range:[5.85,9.40,-5.30,-2.80],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
 {id:'stair',name:'Лестница',area:'',cx:11.56,cz:-3.45,range:[9.65,13.47,-5.3,-1.15],floor:mat.stone,eye:[11.6,1.65,-.3],yaw:0},
 {id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.25,cz:-3.25,range:[13.72,18.78,-5.3,-1.1],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
-{id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.1,range:[9.8,13.32,-.75,5.25],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
-{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.25,cz:2.175,range:[13.72,18.63,-.9,5.25],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
+{id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.30,range:[9.8,13.32,-.7,5.3],floor:mat.tile,eye:[11.55,1.65,4.1],yaw:0},
+{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.175,cz:2.225,range:[13.72,18.63,-.85,5.3],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
 {id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:mat.oak,eye:[-15.1,1.65,.2],yaw:Math.PI},
 {id:'garage',name:'Гараж',area:'40,00 м²',cx:-15.1,cz:7.1,range:[-17.4,-12.6,4.1,10.4],floor:mat.stone,eye:[-15.1,1.65,7],yaw:Math.PI},
 {id:'courtyard',name:'Двор',area:'',cx:-6,cz:3,range:[-11.5,-2,-4.5,10],floor:mat.stone,eye:[-8.5,1.65,4],yaw:0}
@@ -230,7 +230,7 @@ segmented(18.83,-5.5,18.83,5.5,[],mat.wall,.4); // east external 400mm
 // 400mm walls on the original plan
 // Living room has only ONE entrance: from main corridor at x=9.6.
 // Rear wall toward bedroom is solid, without a door.
-segmented(.4,-.95,9.6,-.95,[],interiorMats.dove,.4); // 400mm front/rear partition
+segmented(.4,-.9,9.6,-.9,[],interiorMats.dove,.4); // 400mm front/rear partition
 // PARTITION GRID from first-floor dimension chains:
 // Left front hall wall = 9.40..9.80 (400 mm); rear bath/stair wall = 9.40..9.65 (250 mm).
 // Corridor living-room doorway: only one at z≈2.0; left rear vestibule has its separate opening.
@@ -252,7 +252,7 @@ segmented(13.52,-1.05,13.52,5.5,[
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
 // Kitchen has ONE entrance only from the central corridor (west wall).
 // Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
-segmented(13.72,-.95,18.63,-.95,[],interiorMats.char,.4); // kitchen/wardrobe 400mm transverse wall
+segmented(13.72,-.975,18.63,-.975,[],interiorMats.char,.25); // kitchen/wardrobe 250mm wall
 // Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
 segmented(5.725,-5.5,5.725,-1.05,[{at:3.43,width:.95,kind:'door',leaf:false}],interiorMats.cashmere,.25); // bedroom / vestibule 250mm wall
 // REMOVED: this longitudinal wall crossed the bathroom and left vestibule on the 19.03 x 11.40 ground-floor plan.
@@ -511,7 +511,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=16';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=17';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
