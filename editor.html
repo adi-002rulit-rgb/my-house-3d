@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.7</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.8</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -382,7 +382,7 @@ mkOpen('bedWindow','window','Спальня · слева','west',2.3,1.65,.83,2
 mkOpen('livingD','door','Дверь зала 70+70','livingHall',2.9,1.4,0,2.2,2),
 mkOpen('kitchenD','door','Дверь кухни 70+70','kitchenHall',2.2,1.4,0,2.2,2),
 mkOpen('wardrobeD','door','Дверь кладовой','stairRight',3.14,1.12,0,2.2,1),
-mkOpen('bedD','door','Дверь спальни','bedroomRight',3.43,.95,0,2.2,1),
+mkOpen('bedD','door','Дверь спальни','stairLeft',3.43,.95,0,2.2,1),
 mkOpen('bathD','door','Дверь ванной','bathFront',1.575,1,0,2.2,1)
 ];
 const rooms=[
@@ -1464,6 +1464,16 @@ try{
  const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');
  if(saved){
   validate(saved);state=saved;
+  // Restore the original bedroom door to the left wall of the stair hall.
+  // Move only the known misplaced default, preserving user-customized doors.
+  const bedroomDoor=state.openings.find(o=>o.id==='bedD'&&o.type==='door');
+  if(bedroomDoor&&bedroomDoor.wall==='bedroomRight'&&
+     Math.abs(bedroomDoor.offset-3.43)<.001&&
+     Math.abs(bedroomDoor.width-.95)<.001){
+   bedroomDoor.wall='stairLeft';
+   validate(state);
+   localStorage.setItem(STORAGE,JSON.stringify(state));
+  }
   // One-time non-destructive shortening of the first staircase run by 35 cm.
   // Do not replace customized lengths or modify other project objects.
   const stair=state.stairs.find(o=>o.id==='stair1');
