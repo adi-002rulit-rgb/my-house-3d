@@ -18,9 +18,9 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурный 3D-тур V4</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурный 3D-тур V5</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
-<div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
+<div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
 <div id="nav"><span></span><button data-move="up">▲</button><span></span><button data-move="left">◀</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
 <div id="rot"><button data-move="turnleft">↶</button><button data-move="turnright">↷</button></div>
@@ -70,7 +70,7 @@ box(back,16,.65,11,.22,1.3,5,mat.wall);
 for(let i=0;i<14;i++){let xx=-33+i*3.3;if(xx>-23&&xx<-14)continue;box(back,xx,.8,15,.42,1.6,.42,mat.edge);}
 // House model origin: x 0-16.13, z -5.7..5.7. Main front faces +z
 // Main корпус: 19.03 x 11.40 m, interior spans 9.00 x 6.00 living, 3.52 corridor, 4.91 x 6.15 kitchen. Heights remain provisional.
-const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.22; // overall wall-line dimensions of main house from IMG_6632
+const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.74; // overall wall-line dimensions of main house from IMG_6632
 function segmented(x1,z1,x2,z2,openings=[],material=mat.wall){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
 const bounds=[0,...openings.flatMap(o=>[o.at,o.at+o.width]),length].sort((a,b)=>a-b);
@@ -78,7 +78,11 @@ const uniq=[...new Set(bounds.map(v=>Math.round(v*10000)/10000))];
 function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:.20,high-low,axis==='z'?end-start:.20,m)}
 for(let i=0;i<uniq.length-1;i++){let start=uniq[i],end=uniq[i+1],center=(start+end)/2,o=openings.find(p=>center>p.at&&center<p.at+p.width);
 if(!o)piece(start,end,0,H,material);
-else if(o.kind==='door'){piece(start,end,2.35,H,material);let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);if(o.glass){piece(start+.08,end-.08,.08,2.19,mat.glass)}}
+else if(o.kind==='door'){piece(start,end,2.35,H,material);let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
+const cx=axis==='x'?x1+sign*(start+.13):x1;
+const cz=axis==='z'?z1+sign*(start+.13):z1;
+const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);
+hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}
 else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start,start+.065,.83,2.4,mat.oak);piece(end-.065,end,.83,2.4,mat.oak);piece(start+.07,end-.07,.85,2.37,mat.glass);piece(start,end,1.6,1.65,mat.oak)}
 }
 }
@@ -100,18 +104,22 @@ for(const r of rooms){const [a,b,c,d]=r.range;slab((a+b)/2,(c+d)/2,b-a,d-c,r.flo
 // 'at' distances measured from the first point of each segment. Approximate positions
 // of individual glazing segments should be checked against original CAD before construction.
 const collisionWalls=[];
+// Source: IMG_6632 + labelled first-floor plan: rear bedroom, bath,
+// staircase landing, wardrobe; front two living-room windows, entrance, kitchen.
+// Exact offset from column axes is still preliminary; no extra invented windows.
 segmented(0,-5.7,19.03,-5.7,[
-{at:1.9,width:1.3,kind:'window'},
-{at:6.5,width:1.15,kind:'window'},
-{at:10.0,width:1.05,kind:'window'},
-{at:15.1,width:1.3,kind:'window'}]);
+{at:2.15,width:1.65,kind:'window'},  // bedroom
+{at:6.55,width:1.05,kind:'window'}, // bathroom
+{at:10.7,width:1.05,kind:'window'}, // stairwell
+{at:15.5,width:1.65,kind:'window'}]);
 segmented(0,5.7,19.03,5.7,[
-{at:2.2,width:1.6,kind:'window'},
-{at:6.0,width:1.6,kind:'window'},
-{at:10.65,width:1.75,kind:'door',glass:true},
-{at:15.7,width:1.55,kind:'window'}]);
-segmented(0,-5.7,0,5.7,[{at:2.9,width:1.25,kind:'window'}]);
-segmented(19.03,-5.7,19.03,5.7,[{at:5.8,width:1.20,kind:'window'}]);
+{at:2.15,width:1.75,kind:'window'},  // living room first
+{at:6.1,width:1.75,kind:'window'},   // living room second
+{at:10.7,width:1.7,kind:'door',glass:true}, // front door
+{at:15.7,width:1.65,kind:'window'}]); // kitchen
+segmented(0,-5.7,0,5.7); // no window unless dimensioned elevation confirms
+segmented(19.03,-5.7,19.03,5.7,[{at:6.25,width:1.5,kind:'window'}]);
+
 // 400mm walls on the original plan
 segmented(0,-.95,9.6,-.95,[{at:8.0,width:1.25,kind:'door'}],mat.wall);
 segmented(9.6,-5.7,9.6,5.7,[{at:6.65,width:1.55,kind:'door'}],mat.wall);
@@ -155,10 +163,40 @@ box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
-// Staircase: source 22 risers x 170 mm, treads 300 mm; simplified visual,
- // position correct, exact rises need alignment to finished floor levels.
-for(let i=0;i<11;i++)box(model,10.25+i*.135,.10+i*.15,-4.83+i*.20,1.5,.19,.30,mat.oak);
-for(let i=0;i<11;i++)box(model,11.85,.10+(11+i)*.15,-2.65+i*.13,1.46,.19,.28,mat.oak);
+// FULL U-SHAPED STAIRCASE based on two-flight stair shown in IMG_6650
+// and stair specification 22R x 170, 21G x 300 from the 1st floor PDF.
+// First flight: from foyer (-1.2m Z) towards rear; return flight runs back toward foyer.
+const stairsGroup=new THREE.Group();model.add(stairsGroup);
+const ST=0.17, TREAD=0.300, FIRST=11, SX1=10.45, SX2=12.42, START=-1.35;
+const stairMat=M('#c2bdb3'), railMat=M('#68777b',.45,.45);
+// Floor-to-floor rise 22x170mm = 3.74m. Intermediate landing at 1.87m.
+for(let i=0;i<FIRST;i++){
+ const z=START-(i+.5)*TREAD;
+ box(stairsGroup,SX1,(i+1)*ST/2,z,1.42,(i+1)*ST,TREAD-.016,stairMat);
+}
+const BACK=START-FIRST*TREAD;
+box(stairsGroup,(SX1+SX2)/2,1.83,BACK-.43,3.33,.14,.82,stairMat);
+for(let i=0;i<FIRST;i++){
+ const z=BACK+(i+.5)*TREAD;
+ const elev=(FIRST+i+1)*ST;
+ box(stairsGroup,SX2,elev/2,z,1.42,elev,TREAD-.016,stairMat);
+}
+// Balustrade: vertical balusters following both inclined flights.
+for(let i=0;i<FIRST;i++){
+ let z1=START-(i+.5)*TREAD;
+ let z2=BACK+(i+.5)*TREAD;
+ box(stairsGroup,SX1-.74,(i+1)*ST+.46,z1,.045,.92,.045,railMat);
+ box(stairsGroup,SX2+.74,(FIRST+i+1)*ST+.46,z2,.045,.92,.045,railMat);
+}
+for(let i=0;i<2;i++){
+ const x=i===0?SX1-.74:SX2+.74;
+ let a=box(stairsGroup,x,i===0?1.68:3.45,(START+BACK)/2,.055,.07,3.65,railMat);
+ a.rotation.x=i===0?-.50:.50;
+}
+for(let j=0;j<7;j++)box(stairsGroup,SX1-.58+j*.3,2.38,BACK-.72,.042,1.1,.042,railMat);
+box(stairsGroup,(SX1+SX2)/2,2.94,BACK-.72,3.1,.075,.075,railMat);
+// Stair zone remains selected from room menu and is visible in top-down dollhouse mode.
+
 // Rear wardrobe, wall to wall shelving
 for(let xx of [14.20,18.16]){box(model,xx,1.02,-3.25,.45,2.05,3.2,mat.wood);
 for(let i=0;i<4;i++)box(model,xx,.40+i*.48,-3.25,.48,.05,3.00,mat.oak)}
@@ -188,10 +226,10 @@ const picks=[];for(let r of rooms){let [a,b,c,d]=r.range;const mesh=new THREE.Me
 // Room name labels hover above floor
 function label(room){if(!room.area)return;let cv=document.createElement('canvas');cv.width=512;cv.height=128;let ctx=cv.getContext('2d');ctx.fillStyle='rgba(255,251,241,.92)';ctx.beginPath();ctx.roundRect(5,5,502,118,18);ctx.fill();ctx.fillStyle='#283945';ctx.textAlign='center';ctx.font='bold 36px Arial';ctx.fillText(room.name,256,55);ctx.font='28px Arial';ctx.fillText(room.area,256,95);
 let texture=new THREE.CanvasTexture(cv);texture.colorSpace=THREE.SRGBColorSpace;let sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthWrite:false,transparent:true}));sp.scale.set(2.65,.66,1);sp.position.set(room.cx,1.12,room.cz);sp.userData.room=room.id;model.add(sp);picks.push(sp)}
-rooms.filter(r=>!['stair','courtyard'].includes(r.id)).forEach(label);
+rooms.filter(r=>!['courtyard'].includes(r.id)).forEach(label);
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
-function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=true});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(17,30,35);orbit.target.set(-1.3,0,1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
+function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=true});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
 function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;look(r.eye[0],r.eye[1],r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
