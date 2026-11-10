@@ -110,16 +110,49 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #showroom #clientDayNight[aria-pressed="true"]{background:#29465f;border-color:#a8c1d6;color:#ecf6ff}
 #showroom .interiorFinePrint{font-size:10px;line-height:1.5;color:#c4c8c5;padding:9px;background:#ffffff0b;border-radius:8px;margin:8px 0}
 @media(max-width:900px){#showroom .showroomTabs button{font-size:8.5px;padding:6px 1px}}
+
+#clientQuickBar{position:fixed;right:12px;top:102px;z-index:7;display:flex;gap:5px;align-items:center;background:#132734d9;padding:6px;border-radius:13px;border:1px solid #d8c19b50;backdrop-filter:blur(15px)}
+#clientQuickBar button{font-size:11px;padding:8px 10px;white-space:nowrap;border-radius:8px}
+#clientQuickBar button[aria-pressed="true"],#clientQuickBar button[aria-expanded="true"]{background:#bb9b6a;color:#14222b}
+#tourCaption{position:fixed;z-index:6;bottom:153px;left:50%;transform:translateX(-50%);padding:11px 15px;background:#142837ed;border:1px solid #e4cba066;border-radius:13px;text-align:center;font-size:13px;max-width:min(90vw,550px);pointer-events:none}
+#tourCaption[hidden],#clientPlan[hidden],#quickHelp[hidden]{display:none}
+#clientPlan{position:fixed;z-index:9;right:14px;top:159px;width:min(500px,90vw);padding:14px;background:#132633f5;border:1px solid #dec49a90;border-radius:15px;box-shadow:0 15px 40px #0007;backdrop-filter:blur(19px)}
+#clientPlan .planHeading{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#f4ead9}
+#clientPlan .planHeading button{padding:4px 9px;font-size:18px}
+#clientPlan canvas{width:100%;height:auto;background:#f2efe8;border-radius:9px;display:block;cursor:pointer;margin-top:10px;touch-action:manipulation}
+#clientPlan p{font-size:11px;color:#d4c9b9;line-height:1.4;margin:8px 0 0}
+#quickHelp{position:fixed;z-index:10;right:14px;top:159px;max-width:min(360px,90vw);padding:15px;border-radius:14px;border:1px solid #d5b88a;background:#142938f8;font-size:12px;line-height:1.6}
+#quickHelp p{margin:9px 0}#quickHelp kbd{border:1px solid #ffffff60;padding:1px 5px;border-radius:4px}
+#quickHelp button{margin-top:8px}
+@media(max-width:900px){#clientQuickBar{right:7px;top:83px;flex-wrap:wrap;max-width:220px;justify-content:flex-end}#clientQuickBar button{padding:5px 7px;font-size:10px}#clientPlan,#quickHelp{right:6px;top:150px}#tourCaption{bottom:125px;padding:7px 10px;font-size:11px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V41</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V42</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
 <button id="techToggle" aria-pressed="false">⚙ Режим архитектора</button>
+<nav id="clientQuickBar" aria-label="Быстрые инструменты клиента">
+ <button id="quickPlan" aria-expanded="false" title="Нажмите комнату на плане">▦ План комнат</button>
+ <button id="quickTour" aria-pressed="false" title="Последовательный показ дома">▶ Тур по дому</button>
+ <button id="quickPrevious" title="Предыдущая точка тура">←</button>
+ <button id="quickNext" title="Следующая точка тура">→</button>
+ <button id="quickGuide" aria-expanded="false" title="Как пользоваться проектом">?</button>
+</nav>
+<div id="tourCaption" role="status" hidden></div>
+<aside id="clientPlan" hidden aria-label="Интерактивный план первого этажа">
+ <div class="planHeading"><b>Первый этаж · навигация</b><button type="button" id="closePlan" aria-label="Закрыть план">×</button></div>
+ <canvas id="planCanvas" width="680" height="440" role="img" aria-label="Схема помещений. Нажмите комнату, чтобы войти в неё."></canvas>
+ <p>Выбери помещение на плане. Схема ориентировочная, точные размеры — на исходном чертеже.</p>
+</aside>
+<div id="quickHelp" hidden><b>Как показать дом клиенту</b>
+<p>Выбери комнату на плане или запусти экскурсию. Во вкладках слева меняй отделку, интерьер и двери.</p>
+<p>Кнопки A/B сохраняют два варианта. «Поделиться» отправляет выбранную отделку в ссылке.</p>
+<p>Мышь: поворот и масштаб. <kbd>1</kbd> — общий вид, <kbd>2</kbd> — вид сверху, <kbd>3</kbd> — коридор, <kbd>P</kbd> — план, <kbd>Esc</kbd> — закрыть подсказку.</p>
+<button id="closeQuickHelp">Понятно</button></div>
 <aside id="showroom" aria-label="Дизайн-студия">
 <h2>Дизайн-студия</h2>
 <p>Создайте несколько вариантов будущего дома.</p>
@@ -1134,7 +1167,9 @@ function focusRoom(){const r=rooms.find(x=>x.id===roomID)||rooms[0];if(current!=
 function topCamera(){if(current!=='overview')overview();orbit.target.set(7,0,1);camera.position.set(7,35,1.01);orbit.update();toast('План сверху')}
 function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target).multiplyScalar(k).add(orbit.target);orbit.update()}else{camera.fov=Math.max(42,Math.min(75,camera.fov*k));camera.updateProjectionMatrix()}}
 function screenshot(){try{renderer.render(scene,camera);let a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='3d-dom-'+roomID+'.png';a.click();toast('Снимок подготовлен')}catch(e){toast('Сохранение снимка недоступно')}}
-function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false')}
+function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false');
+ E('quickTour').textContent='▶ Тур по дому';E('quickTour').setAttribute('aria-pressed','false');
+ E('tourCaption').hidden=true}
 E('wallColors').onchange=e=>{setClientWalls(e.target.value);toast('Цвет внутренних стен: '+(e.target.value==='mix'?'комбинация':interiorSwatches[e.target.value].name))};
 const auditDims=[
  ['Корпус','19,03 × 11,40 м'],
@@ -1159,7 +1194,7 @@ document.querySelectorAll('[data-check]').forEach(b=>b.onclick=()=>{const [x,y,z
 E('daynight').onclick=()=>updateNight(!night);
 E('palette').onchange=e=>updateFinish(e.target.value);
 E('topMode').onclick=topCamera;
-E('tour').onclick=()=>{playing=!playing;playIndex=0;playTime=0;E('tour').textContent=playing?'■ Остановить':'▶ Автообзор';E('tour').setAttribute('aria-pressed',String(playing));if(playing)enter(tourRooms[0])};
+E('tour').onclick=toggleClientTour;
 E('roomLabels').onclick=()=>{labelsOn=!labelsOn;updateLabels()};
 E('focus').onclick=focusRoom;
 E('closer').onclick=()=>zoomCamera(.8);
@@ -1179,7 +1214,7 @@ E('prevRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(to
 E('nextRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(tourRooms[(i+1)%tourRooms.length])};
 E('presentation').onclick=()=>{
  cleanView=!cleanView;
- for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo','inspectPanel','minimap','miniToggle','inspectionSpeed','measureText','auditPanel','showroom','techToggle']){
+ for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo','inspectPanel','minimap','miniToggle','inspectionSpeed','measureText','auditPanel','showroom','techToggle','clientQuickBar','clientPlan','quickHelp','tourCaption']){
    const el=E(id);if(el)el.style.display=cleanView?'none':'';
  }
  for(const id of ['controls']){E(id).style.display=cleanView?'none':''}
@@ -1576,7 +1611,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=41');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=42');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1628,6 +1663,104 @@ E('techToggle').onclick=()=>{
  if(!active){doorOverlay.visible=false;collisionOverlay.visible=false;metricGrid.visible=false;measureEnabled=false;E('measureText').style.display='none';E('auditPanel').hidden=true}
 };
 
+
+/* Client-first navigation inspired by 3D walkthrough highlights: schematic,
+ clickable room plan, and a guided tour with short human-readable stops. */
+const presentationStops=[
+ {room:'hallway',title:'Вход и коридор',detail:'Открытая ось от главного входа к лестнице'},
+ {room:'living',title:'Зал · 54 м²',detail:'Два больших окна во двор, отделка стен и пола'},
+ {room:'kitchen',title:'Кухня · 30,2 м²',detail:'Одно широкое окно 3 метра'},
+ {room:'stair',title:'Лестничный узел',detail:'Подъём справа, проход к кладовой'},
+ {room:'bedroom',title:'Спальня',detail:'Боковое окно и варианты интерьера'},
+ {room:'wardrobe',title:'Гардеробная',detail:'Выбор цвета стен, пола и дверей'},
+ {room:'courtyard',title:'Двор и главный вход',detail:'Цоколь и ступени к первому этажу'}
+];
+let presentationStop=0;
+function showTourCaption(){
+ const step=presentationStops[presentationStop];
+ E('tourCaption').hidden=false;
+ E('tourCaption').textContent=(presentationStop+1)+' / '+presentationStops.length+
+  '  ·  '+step.title+' — '+step.detail;
+}
+function goTourStop(i){
+ presentationStop=Math.min(Math.max(0,i),presentationStops.length-1);
+ playIndex=presentationStop;playTime=0;
+ enter(presentationStops[presentationStop].room);
+ showTourCaption();
+}
+function toggleClientTour(){
+ playing=!playing;playTime=0;
+ if(playing)goTourStop(0);
+ else E('tourCaption').hidden=true;
+ E('quickTour').textContent=playing?'Ⅱ Пауза':'▶ Тур по дому';
+ E('quickTour').setAttribute('aria-pressed',String(playing));
+ E('tour').textContent=playing?'■ Остановить':'▶ Автообзор';
+ E('tour').setAttribute('aria-pressed',String(playing));
+}
+E('quickTour').onclick=toggleClientTour;
+function manualTourStep(offset){
+ playing=false;
+ E('quickTour').textContent='▶ Тур по дому';E('quickTour').setAttribute('aria-pressed','false');
+ E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false');
+ goTourStop(presentationStop+offset);
+}
+E('quickPrevious').onclick=()=>manualTourStep(-1);
+E('quickNext').onclick=()=>manualTourStep(1);
+E('closeQuickHelp').onclick=()=>E('quickHelp').hidden=true;
+E('quickGuide').onclick=()=>{
+ const open=E('quickHelp').hidden;E('quickHelp').hidden=!open;E('clientPlan').hidden=true;
+ E('quickGuide').setAttribute('aria-expanded',String(open));
+ E('quickPlan').setAttribute('aria-expanded','false');
+};
+const clientPlanRooms=rooms.filter(r=>['living','kitchen','hallway','stair','bedroom','bathroom','wardrobe'].includes(r.id));
+const pScale=31,pOriginX=45,pOriginY=41;
+const mapPX=x=>pOriginX+x*pScale,mapPZ=z=>pOriginY+(z+5.7)*pScale;
+function drawClientPlan(){
+ const cv=E('planCanvas'),ctx=cv.getContext('2d');
+ ctx.clearRect(0,0,cv.width,cv.height);
+ ctx.fillStyle='#f1ece2';ctx.fillRect(0,0,cv.width,cv.height);
+ ctx.fillStyle='#534b43';ctx.font='bold 16px system-ui';
+ ctx.fillText('ПЛАН ПЕРВОГО ЭТАЖА',38,24);
+ for(const r of clientPlanRooms){
+  const [x1,x2,z1,z2]=r.range;
+  const x=mapPX(x1),y=mapPZ(z1),w=(x2-x1)*pScale,h=(z2-z1)*pScale;
+  const selected=roomID===r.id;
+  ctx.fillStyle=selected?'#d2b188':r.id==='stair'?'#d5dce0':'#eee6dc';
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='#9d9285';ctx.lineWidth=2;ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle='#302f2d';ctx.textAlign='center';ctx.font='bold 13px system-ui';
+  const names={living:'Зал',kitchen:'Кухня',hallway:'Коридор',stair:'Лестница',bedroom:'Спальня',bathroom:'Ванная',wardrobe:'Гардероб'};
+  ctx.fillText(names[r.id],mapPX(r.cx),mapPZ(r.cz));
+ }
+ ctx.strokeStyle='#373e42';ctx.lineWidth=6;
+ ctx.strokeRect(mapPX(0),mapPZ(-5.7),19.03*pScale,11.4*pScale);
+ // Entrance indicator (location only; not a full construction plan).
+ ctx.strokeStyle='#6e8d8e';ctx.lineWidth=7;
+ ctx.beginPath();ctx.moveTo(mapPX(10.45),mapPZ(5.7));ctx.lineTo(mapPX(12.72),mapPZ(5.7));ctx.stroke();
+ ctx.textAlign='left';ctx.fillStyle='#665e53';ctx.font='12px system-ui';
+ ctx.fillText('Вход / двор',mapPX(10.0),mapPZ(5.7)+20);
+}
+function toggleClientPlan(){
+ const open=E('clientPlan').hidden;
+ E('clientPlan').hidden=!open;E('quickHelp').hidden=true;
+ E('quickPlan').setAttribute('aria-expanded',String(open));
+ E('quickGuide').setAttribute('aria-expanded','false');
+ if(open)drawClientPlan();
+}
+E('quickPlan').onclick=toggleClientPlan;
+E('closePlan').onclick=()=>{E('clientPlan').hidden=true;E('quickPlan').setAttribute('aria-expanded','false')};
+E('planCanvas').addEventListener('click',e=>{
+ const cv=E('planCanvas'),rc=cv.getBoundingClientRect();
+ const x=(e.clientX-rc.left)*(cv.width/rc.width);
+ const y=(e.clientY-rc.top)*(cv.height/rc.height);
+ const rx=(x-pOriginX)/pScale,rz=(y-pOriginY)/pScale-5.7;
+ const r=clientPlanRooms.find(q=>rx>=q.range[0]&&rx<=q.range[1]&&rz>=q.range[2]&&rz<=q.range[3]);
+ if(!r){toast('Нажми на одну из комнат на плане');return}
+ playing=false;E('tourCaption').hidden=true;
+ E('quickTour').textContent='▶ Тур по дому';E('quickTour').setAttribute('aria-pressed','false');
+ clientCamera(r.id);E('closePlan').click();
+});
+
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
 function overview(){bedroomWindowFocus.visible=false;model.children.forEach(o=>{if(o.isSprite)o.visible=labelsOn&&!cleanView});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(19,28,26);orbit.target.set(1.5,0,-1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
@@ -1642,7 +1775,7 @@ document.querySelectorAll('[data-move]').forEach(b=>{let k=b.dataset.move;b.addE
 window.addEventListener('keydown',e=>{
  if(e.target&&['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
  keys[e.code]=true;
- if(e.code==='Escape'){overview();E('inspectHelp').hidden=true}
+ if(e.code==='Escape'){E('clientPlan').hidden=true;E('quickHelp').hidden=true;E('quickPlan').setAttribute('aria-expanded','false');E('quickGuide').setAttribute('aria-expanded','false');overview();E('inspectHelp').hidden=true}
  if(e.repeat)return;
  if(e.code==='Digit1')overview();
  if(e.code==='Digit2')topCamera();
@@ -1650,6 +1783,7 @@ window.addEventListener('keydown',e=>{
  if(e.code==='KeyM')toggleMeasure();
  if(e.code==='KeyG')E('gridBtn').click();
  if(e.code==='KeyH')E('keysHelp').click();
+ if(e.code==='KeyP')toggleClientPlan();
 });
 window.addEventListener('keyup',e=>keys[e.code]=false);
 function pointerPos(ev){let rc=canvas.getBoundingClientRect();return new THREE.Vector2((ev.clientX-rc.left)/rc.width*2-1,-((ev.clientY-rc.top)/rc.height)*2+1)}
@@ -1658,7 +1792,10 @@ canvas.addEventListener('pointerdown',e=>{dragStart={x:e.clientX,y:e.clientY,mov
 canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
 canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){if(measureEnabled)clickMeasure(pointerPos(e));else{raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}}dragStart=null});
 function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;if(t-minimapTick>120){minimapTick=t;renderMinimap()}
-if(playing){playTime+=dt;if(playTime>5.5){playTime=0;playIndex=(playIndex+1)%tourRooms.length;enter(tourRooms[playIndex]);}}
+if(playing){playTime+=dt;if(playTime>7.8){
+ if(presentationStop<presentationStops.length-1)goTourStop(presentationStop+1);
+ else stopAuto();
+}}
 if(E('toast').style.display==='block'&&t>toast.until)E('toast').style.display='none';
 if(current==='inside'){if(keys.turnleft||keys.KeyQ)yaw+=dt*1.45;if(keys.turnright||keys.KeyE)yaw-=dt*1.45;
 let f=Number(!!(keys.up||keys.KeyW||keys.ArrowUp))-Number(!!(keys.down||keys.KeyS||keys.ArrowDown));
