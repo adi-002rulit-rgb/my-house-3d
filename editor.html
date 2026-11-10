@@ -94,7 +94,7 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.2</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.3</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -414,13 +414,26 @@ const upperFloorGroup=new THREE.Group();
 let activeFloor=1;
 let upperFloorMeshes=[];
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
-renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.23;
+// The renderer already owns #view3d; never create/append a second canvas.
+const isCompactViewport=window.matchMedia?.('(max-width: 700px)').matches??false;
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,isCompactViewport?1.35:1.75));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.20;
 scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
 const buildingGroup=new THREE.Group();scene.add(buildingGroup);
 buildingGroup.add(upperFloorGroup);
 scene.add(new THREE.HemisphereLight('#fff8ec','#8d9897',2));
-const sun=new THREE.DirectionalLight('#fff2dc',3.0);sun.position.set(14,24,13);sun.castShadow=true;scene.add(sun);
+const sun=new THREE.DirectionalLight('#fff2dc',3.0);
+sun.position.set(14,24,13);
+sun.castShadow=true;
+sun.shadow.mapSize.set(isCompactViewport?512:1024,isCompactViewport?512:1024);
+sun.shadow.camera.left=-24;sun.shadow.camera.right=24;
+sun.shadow.camera.top=24;sun.shadow.camera.bottom=-24;
+sun.shadow.camera.near=1;sun.shadow.camera.far=70;
+sun.shadow.normalBias=.035;
+scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
 orbit=new OrbitControls(camera,canvas3d);orbit.target.set(9.6,0,0);orbit.enableDamping=true;orbit.update();
 transform=new TransformControls(camera,canvas3d);
@@ -790,6 +803,12 @@ const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor)
 for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
 for(const o of state.furniture)buildFurniture(o);
+// The previous renderer had shadows enabled but every cube had castShadow=false.
+// Enable casting selectively for movable furniture and stairs; avoid wall-heavy shadow maps.
+for(const object of [...state.stairs,...state.furniture]){
+ const root=threeRoots.get(object.id);
+ if(root)root.traverse(node=>{if(node.isMesh)node.castShadow=true});
+}
 buildUpperFloor();
 // Reapply visibility without resetting the camera each time state changes.
 for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(t=>t.id===id);
