@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.1</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.2</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -391,7 +391,7 @@ mkOpen('bedWindow','window','Спальня · слева','west',2.3,1.65,.83,2
 mkOpen('livingD','door','Дверь зала 70+70','livingHall',2.9,1.4,0,2.2,2),
 mkOpen('kitchenD','door','Дверь кухни 70+70','kitchenHall',2.2,1.4,0,2.2,2),
 mkOpen('wardrobeD','door','Дверь кладовой','stairRight',3.14,1.12,0,2.2,1),
-mkOpen('stairArch','passage','Открытый проход в спальню','stairLeft',3.43,.95,0,3.44,1),
+mkOpen('stairArch','passage','Открытый проход в спальню','stairLeft',3.73,.95,0,3.44,1),
 mkOpen('bedD','door','Дверь спальни','bedroomRight',3.43,.95,0,2.2,1),
 mkOpen('bathD','door','Дверь ванной','bathFront',1.575,1,0,2.2,1)
 ];
@@ -1606,11 +1606,15 @@ try{
     passage=competing;
    }else if(state.walls.some(w=>w.id==='stairLeft')){
     passage=mkOpen('stairArch','passage','Открытый проход в спальню',
-       'stairLeft',3.43,.95,0,state.height-.30,1);
+       'stairLeft',3.73,.95,0,state.height-.30,1);
     state.openings.push(passage);
    }
   }
   if(passage&&passage.wall==='stairLeft'&&passage.type==='passage'){
+   // Apply the latest +30cm hall-entrance shift to the unchanged default.
+   // A manually repositioned passage must retain its user-selected offset.
+   if(Math.abs(passage.offset-3.43)<.001&&Math.abs(passage.width-.95)<.001)
+    passage.offset=3.73;
    passage.sill=0;
    passage.head=state.height-.30;
   }
