@@ -1,0 +1,1708 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADKH House · Архитектурный редактор</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#ecf2f0;background:#0d1720}
+*{box-sizing:border-box}body{margin:0;height:100dvh;overflow:hidden}
+button,input,select{font:inherit}button{cursor:pointer;border:1px solid #546575;background:#223543;color:#f0f2ef;padding:9px 11px;border-radius:9px}button:hover{background:#365263}button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:#b89a6d;border-color:#dbba8a;color:#12212c;font-weight:750}
+button.active{background:#567d7f;border-color:#90bab4}
+header{height:68px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 18px;background:#152531;border-bottom:1px solid #415261}
+header strong{font-size:17px}header small{display:block;color:#a8b9c3;font-size:11px}
+header .right{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}
+.shell{height:calc(100dvh - 68px);display:grid;grid-template-columns:248px minmax(260px,1fr) 315px;min-width:0}
+.left,.rightPanel{overflow:auto;padding:16px;background:#172733}
+.left{border-right:1px solid #405260}.rightPanel{border-left:1px solid #405260}
+section{border-bottom:1px solid #3a4b55;padding:0 0 16px;margin-bottom:15px}
+h2{font-size:16px;margin:0 0 12px;color:#ebcf9e}h3{font-size:12px;color:#b8c8ce;margin:0 0 9px;text-transform:uppercase;letter-spacing:.05em}
+small,.hint{font-size:11px;color:#b7c6ca;line-height:1.45}p{line-height:1.5}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.actions button{font-size:12px;padding:9px 5px}label{font-size:12px;color:#d0d9d9;display:block;margin:10px 0 5px}
+input:not([type=file]),select{width:100%;background:#243845;color:#f3f4f0;border:1px solid #60717b;border-radius:8px;padding:8px;min-width:0}
+input[type=checkbox]{width:auto}
+.center{display:flex;flex-direction:column;min-width:0;min-height:0;background:#10202b}
+.viewHeader{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 12px;background:#142a37;flex-wrap:wrap}
+.viewHeader button{padding:7px 9px;font-size:12px}
+.viewMode{display:flex;gap:5px}
+.views{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0}
+.pane{position:relative;min-height:0;min-width:0;overflow:hidden}
+.pane:first-child{border-right:1px solid #4a5961}
+.pane canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
+.paneTitle{position:absolute;left:10px;top:10px;padding:6px 10px;border-radius:7px;background:#152530dc;color:#e5e8e3;font-size:12px;pointer-events:none}
+#plan{background:#edece6;cursor:crosshair}
+#view3d{background:#bbccd2}
+#status{padding:8px 12px;font-size:12px;border-top:1px solid #445765;min-height:35px;background:#162935;color:#cad3cc}
+#objectList{max-height:200px;overflow:auto;display:grid;gap:4px}
+#objectList button{text-align:left;font-size:11px;padding:7px 8px}
+#objectList button.active{background:#4a696b}
+#inspector{min-height:145px}
+#inspector .fields{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}
+#inspector .fields label{margin:7px 0}
+#inspector input{font-size:12px;padding:7px}
+#inspector .full{grid-column:1/-1}
+.tips{font-size:11px;color:#cad0c9;line-height:1.55;border-left:2px solid #bda271;padding-left:9px}
+#fileImport{display:none}
+#editNotice{background:#6955374a;border:1px solid #a79164;padding:9px;border-radius:8px}
+@media(max-width:1050px){.shell{grid-template-columns:210px minmax(200px,1fr) 275px}.left,.rightPanel{padding:10px}}
+@media(max-width:770px){body{overflow:auto;height:auto}header{height:auto;flex-wrap:wrap}.shell{height:auto;display:flex;flex-direction:column}.left,.rightPanel{width:100%;max-height:none}.center{height:70dvh;min-height:430px}.views{grid-template-columns:1fr 1fr}.left section{display:inline-block;vertical-align:top;width:48%;margin-right:1%}}
+@media(max-width:480px){.views{grid-template-columns:1fr}.pane{min-height:40dvh}.center{height:90dvh}.left section{width:100%}header .right button{font-size:11px;padding:6px}}
+#toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    pointer-events: none;
+}
+.toast-notification {
+    background: rgba(20, 20, 20, 0.95);
+    color: #f5f5f7;
+    padding: 14px 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 360px;
+    pointer-events: auto;
+    opacity: 0;
+    transform: translateY(-12px);
+    transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 4px solid #0a84ff;
+    backdrop-filter: blur(8px);
+}
+.toast-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.toast-notification.error {
+    border-left-color: #ff453a;
+}
+.toast-notification.warning {
+    border-left-color: #ffd60a;
+}
+@media (max-width: 480px) {
+    #toast-container { left: 12px; right: 12px; top: 12px; }
+    .toast-notification { max-width: none; }
+}
+#stairValidationReport{font-size:11px;line-height:1.5}
+#stairValidationReport p{padding:7px;margin:6px 0;border-radius:7px;border:1px solid #567}
+#stairValidationReport .error{background:#7b332c66;border-color:#ff837a}
+#stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
+#stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
+#cameraArrowPad{position:absolute;right:12px;bottom:14px;display:flex;align-items:center;flex-direction:column;gap:3px;z-index:15;user-select:none;touch-action:manipulation}
+#cameraArrowPad .cameraArrowRow{display:flex;gap:3px}
+#cameraArrowPad button{width:39px;height:39px;padding:0;border-radius:10px;border:1px solid #8aabb7;background:#192e3cda;color:#fff;font-size:20px;font-weight:700;box-shadow:0 2px 9px #0006}
+#cameraArrowPad button:hover,#cameraArrowPad button:active{background:#446d82}
+@media(max-width:700px){#cameraArrowPad button{width:43px;height:43px}}
+
+/* ADKH House V2.6 — integrated dark-glass design system.
+   Uses actual editor selectors instead of unused template class names. */
+:root {
+ --ui-bg:rgba(22,22,24,.88);
+ --ui-bg-hover:rgba(40,40,45,.96);
+ --ui-border:rgba(255,255,255,.13);
+ --ui-text:#f5f5f7;
+ --ui-text-dim:#a6a6af;
+ --ui-accent:#0a84ff;
+ --ui-accent-hover:#0071e3;
+ --ui-radius:12px;
+ --ui-shadow:0 12px 40px rgba(0,0,0,.34);
+ color:var(--ui-text);
+ background:#101114;
+ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+header {
+ background:rgba(22,22,24,.97);
+ border-bottom:1px solid var(--ui-border);
+ box-shadow:0 3px 16px #0004;
+}
+header small,.hint,small { color:var(--ui-text-dim); }
+.left,.rightPanel {
+ background:#1c1d21;
+ border-color:var(--ui-border);
+ color:var(--ui-text);
+ scrollbar-color:#555763 transparent;
+}
+.center { background:#13161b; }
+.viewHeader { background:#1b1d23;border-bottom:1px solid var(--ui-border); }
+section { border-bottom:1px solid var(--ui-border); }
+section h2 {color:#f6f6f8;font-weight:650}
+section h3 {color:#b9c0ce}
+button {
+ background:#2c2d33;
+ color:var(--ui-text);
+ border:1px solid var(--ui-border);
+ border-radius:9px;
+ transition:background .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+button:hover {background:var(--ui-bg-hover);border-color:#666d7b}
+button.active,button.primary,header button.primary,#objectList button.active {
+ background:var(--ui-accent);
+ color:white;
+ border-color:var(--ui-accent);
+}
+button.active:hover,button.primary:hover,header button.primary:hover {background:var(--ui-accent-hover)}
+button:focus-visible,input:focus-visible,select:focus-visible {
+ outline:2px solid var(--ui-accent);
+ outline-offset:2px;
+}
+input:not([type=file]):not([type=color]),select {
+ background:#24262c;
+ color:var(--ui-text);
+ border:1px solid #555961;
+ border-radius:9px;
+}
+input[type=color] {background:#24262c;border:1px solid #555961}
+label {color:#d1d1d8}
+#inspector .fields label {color:#b3b7c2}
+#status {background:#1e2229;color:#d4d8df;border-color:var(--ui-border)}
+.paneTitle {
+ background:rgba(22,22,24,.82);
+ border:1px solid var(--ui-border);
+ border-radius:var(--ui-radius);
+ color:#f5f5f7;
+ backdrop-filter:blur(14px);
+ -webkit-backdrop-filter:blur(14px);
+ box-shadow:0 3px 12px #0003;
+}
+#editNotice {
+ background:rgba(145,113,45,.13);
+ border:1px solid rgba(221,176,95,.35);
+ color:#e9d5a9;
+}
+#cameraArrowPad button {
+ background:rgba(22,22,24,.88);
+ border-color:rgba(255,255,255,.3);
+ backdrop-filter:blur(12px);
+ -webkit-backdrop-filter:blur(12px);
+}
+#cameraArrowPad button:hover,#cameraArrowPad button:active {background:var(--ui-accent)}
+@media (min-width:771px) {
+ .left section,.rightPanel section {padding-bottom:17px}
+ .viewHeader {gap:10px}
+}
+@media(prefers-reduced-motion:reduce) {
+ button,.toast-notification {transition:none!important}
+}
+
+
+#quickInspectorToggle{position:absolute;top:48px;right:12px;z-index:17;padding:7px 11px;background:#17191fe8;border-color:#767b86}
+#quickInspector{position:absolute;z-index:18;top:86px;right:12px;width:min(290px,calc(100% - 24px));max-height:min(64vh,420px);overflow:auto;padding:13px;border-radius:14px;background:rgba(22,22,24,.94);border:1px solid var(--ui-border);box-shadow:var(--ui-shadow);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#quickInspector[hidden]{display:none!important}
+.quickInspectorHead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.quickInspectorHead strong{font-size:13px;overflow-wrap:anywhere}
+.quickInspectorHead button{padding:4px 9px;font-size:12px}
+#quickInspectorFields{display:grid;grid-template-columns:1fr 1fr;gap:0 9px}
+#quickInspectorFields label{font-size:11px;line-height:1.4}
+#quickInspectorFields input{width:100%;min-width:0}
+#quickInspector .hint{margin:8px 0 0}
+@media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
+
+/* V4.1: premium glass controls mapped to the existing ADKH House DOM. */
+:root{
+ --ui-bg:rgba(22,22,24,.82);
+ --ui-bg-hover:rgba(45,45,50,.92);
+ --ui-border:rgba(255,255,255,.12);
+ --ui-border-focus:rgba(10,132,255,.6);
+ --ui-text:#f5f5f7;
+ --ui-text-dim:#a4a4ae;
+ --ui-accent:#0a84ff;
+ --ui-accent-hover:#0071e3;
+ --ui-radius:14px;
+ --ui-shadow:0 16px 40px rgba(0,0,0,.35);
+}
+.viewHeader{
+ background:rgba(23,24,29,.88);
+ -webkit-backdrop-filter:blur(16px);
+ backdrop-filter:blur(16px);
+ border-bottom:1px solid var(--ui-border);
+}
+.viewMode{flex-wrap:wrap}
+.viewMode button,.actions button,header .right button{
+ border-radius:10px;
+ transition:background .2s cubic-bezier(.16,1,.3,1),border-color .2s,box-shadow .2s;
+}
+.viewMode button.active,.actions button.active,button.primary{
+ box-shadow:0 4px 12px rgba(10,132,255,.22);
+}
+.left,.rightPanel{background:#1b1c20}
+#inspector .fields{row-gap:4px}
+#inspector .fields label,#quickInspectorFields label{
+ font-size:11px;
+ letter-spacing:.015em;
+ color:#b9bac4;
+}
+#inspector input:not([type=color]),#quickInspector input,
+.rightPanel input:not([type=color]),.left select,.rightPanel select{
+ background:rgba(0,0,0,.26);
+ border:1px solid rgba(255,255,255,.2);
+ border-radius:10px;
+}
+#inspector input:focus,#quickInspector input:focus,.rightPanel input:focus,
+.left select:focus,.rightPanel select:focus{
+ outline:none;
+ border-color:var(--ui-accent);
+ box-shadow:0 0 0 3px rgba(10,132,255,.2);
+}
+#quickInspector{
+ width:min(320px,calc(100% - 24px));
+ padding:17px;
+ border-radius:var(--ui-radius);
+ background:rgba(22,22,24,.9);
+ box-shadow:0 16px 40px rgba(0,0,0,.45);
+ -webkit-backdrop-filter:blur(24px);
+ backdrop-filter:blur(24px);
+ animation:adkhInspectorPopup .25s cubic-bezier(.16,1,.3,1) both;
+}
+#quickInspector[hidden]{display:none!important}
+#quickInspector .quickInspectorHead{margin-bottom:7px}
+#quickInspector .quickInspectorHead strong{font-size:14px;font-weight:650}
+#quickInspectorToggle{
+ background:rgba(22,22,24,.82);
+ -webkit-backdrop-filter:blur(16px);
+ backdrop-filter:blur(16px);
+ border-radius:12px;
+}
+@keyframes adkhInspectorPopup{
+ from{opacity:0;transform:translateY(12px)}
+ to{opacity:1;transform:translateY(0)}
+}
+@media(max-width:770px){
+ #quickInspector{width:min(290px,calc(100% - 24px));padding:12px;max-height:54vh}
+ .viewHeader{padding:9px;gap:6px}
+}
+@media(prefers-reduced-motion:reduce){
+ #quickInspector{animation:none}
+}
+</style></head><body>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.8</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<div class="shell">
+<aside class="left">
+<section><h2>Инструменты</h2><div class="actions">
+<button data-tool="select" class="active">↖ Выбрать</button><button data-tool="wall">▥ Стена</button>
+<button id="addDoor">+ Дверь</button><button id="addWindow">+ Окно</button>
+<button id="addFurniture">+ Мебель</button><button id="addStair">↺ Создать / восстановить лестницу</button><button id="viewStair" type="button">👁 Показать лестницу</button><button id="viewHall" type="button">📷 Вид из холла</button><button id="viewLeftPassage" type="button">🚪 Проверить левый проход</button><button id="hallFinish" type="button" aria-pressed="false">✦ Светлая отделка холла</button><button id="rebuildStair" type="button">↺ Перестроить П-лестницу</button>
+</div><p class="hint">Выбери объект на плане, перетащи его или введи точные координаты справа. Стену можно двигать за концы.</p></section>
+<section><h3>Добавить мебель</h3><select id="furnitureType">
+<option value="sofa">Диван</option><option value="table">Стол</option><option value="bed">Кровать</option>
+<option value="cabinet">Шкаф</option><option value="chair">Кресло</option><option value="island">Остров кухни</option>
+<option value="rug">Ковёр</option><option value="plant">Растение</option></select></section>
+<section><h3>Привязка и точность</h3><label for="snap">Сетка, м</label>
+<select id="snap"><option value="0.05">5 см</option><option value="0.1" selected>10 см</option><option value="0.25">25 см</option><option value="0">Без привязки</option></select>
+<div class="actions" style="margin-top:10px"><button id="delete">Удалить</button><button id="duplicate">Копировать</button></div>
+</section>
+<section><h3>Все объекты</h3><div id="objectList"></div></section>
+<section><h3>Важное</h3><p id="editNotice" class="hint">Редактор рассчитан на проектирование вариантов. Толщины, отметки и размеры несущих конструкций не являются проверенным строительным расчётом.</p></section>
+</aside>
+<main class="center">
+<div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
+<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><button id="exitStairView" type="button" hidden>Вернуть весь дом</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
+<div class="views" id="views">
+<div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
+<div class="pane" id="pane3d"><canvas id="view3d"></canvas>
+<button id="quickInspectorToggle" type="button" title="Показать быстрые свойства выбранного объекта" aria-expanded="false">⚙ Свойства</button>
+<div id="quickInspector" hidden>
+ <div class="quickInspectorHead"><strong id="quickInspectorName">Быстрые свойства</strong><button id="quickInspectorClose" type="button" aria-label="Закрыть">✕</button></div>
+ <div id="quickInspectorFields"></div>
+ <p class="hint">Изменения сохраняются в истории Undo/Redo.</p>
+</div><div class="paneTitle">3D · стрелки двигают камеру над домом</div>
+<div id="cameraArrowPad" aria-label="Двигать вид над домом">
+ <button type="button" id="cameraUp" aria-label="Камера вперёд">↑</button>
+ <div class="cameraArrowRow"><button type="button" id="cameraLeft" aria-label="Камера влево">←</button>
+ <button type="button" id="cameraDown" aria-label="Камера назад">↓</button>
+ <button type="button" id="cameraRight" aria-label="Камера вправо">→</button></div>
+</div></div>
+</div><div id="status" role="status">Готово. Нажми на объект на плане или в 3D.</div>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+</main>
+<aside class="rightPanel">
+<section><h2 id="selectedTitle">Свойства объекта</h2><div id="inspector"><p class="hint">Выбери стену, окно, дверь, лестницу, мебель или комнату.</p></div></section>
+<section><h3>Комната и отделка</h3><label for="room">Помещение</label><select id="room"></select>
+<label for="wallColor">Цвет стен комнаты</label><input id="wallColor" type="color" value="#e9e2d8">
+<label for="floorColor">Цвет пола комнаты</label><input id="floorColor" type="color" value="#c1af93">
+<label for="floorPattern">Тип напольного покрытия</label>
+<select id="floorPattern">
+<option value="eng_herringbone">Паркет · английская ёлочка</option>
+<option value="fr_herringbone">Паркет · французская ёлочка</option>
+<option value="plank">Ламинат · палубная доска</option>
+<option value="tile">Керамогранит · плитка</option>
+<option value="solid">Сплошной цвет (старый вид)</option>
+</select>
+<p class="hint">Рисунок сохраняется отдельно для каждой комнаты и масштабируется в метрах.</p>
+<div class="actions" style="margin-top:10px"><button id="materialWarm">Тёплый стиль</button><button id="materialLight">Светлый стиль</button></div>
+</section>
+<section><h3>Проверка проёмов</h3>
+<div id="openingValidationReport" role="status"><p class="hint">Проверка готовится.</p></div></section>
+<section><h3>Диагностика лестницы</h3>
+<div id="stairValidationReport" role="status"><p>Проверка готовится.</p></div>
+</section>
+<section><h3>Общие параметры</h3><label for="buildingHeight">Высота стен, м</label><input id="buildingHeight" type="number" min="2.5" max="5" step=".05">
+<label for="baseElevation">Высота пола над двором, м</label><input id="baseElevation" type="number" min="0" max="1.5" step=".05">
+<p class="hint">Изменения появляются и на плане, и в 3D. Несвязанные пересечения стен требуют последующей проверки.</p></section>
+<section><h3>Сохранение</h3><p class="tips">Изменения сохраняются в браузере. Для переноса на другой компьютер используй «↓ JSON» и «↑ Загрузить». Кнопка «Сохранить» не изменяет исходную модель на GitHub.</p></section>
+</aside></div>
+<input type="file" id="fileImport" accept="application/json,.json">
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {TransformControls} from 'three/addons/controls/TransformControls.js';
+const $=id=>document.getElementById(id);
+const STORAGE='adkh-house-parametric-editor-v1';
+const clone=o=>JSON.parse(JSON.stringify(o));
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.round(n*100)/100};
+const uid=()=>String(Date.now().toString(36)+Math.random().toString(36).slice(2,7));
+const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:'wall',name,x1,z1,x2,z2,t});
+const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});
+function defaultStair(){
+ // Concept only: the riser count is calculated from state.height (17 cm target).
+ // Grounded in the existing hallway walls and door; actual stair measurements not provided.
+ return {id:'stair1',type:'stair',name:'П-образная лестница · два поворота',
+  x:12.9,z:-1.11,width:1.05,lower:1.23,upper:1.65,returnRun:2.635,back:-4.755,rot:0,color:'#ded8cf'};
+}
+function original(){
+const walls=[
+mkWall('front','Фасад во двор',0,5.5,19.03,5.5,.4),
+mkWall('back','Задний фасад',0,-5.5,19.03,-5.5,.4),
+mkWall('west','Левый фасад',0,-5.5,0,5.5,.4),
+mkWall('east','Правый фасад',19.03,-5.5,19.03,5.5,.4),
+mkWall('livingBack','Перегородка зала',.4,-.9,9.6,-.9,.4),
+mkWall('livingHall','Зал / коридор',9.6,-.9,9.6,5.5,.4),
+mkWall('kitchenHall','Кухня / коридор',13.52,-.9,13.52,5.5,.4),
+mkWall('kitchenBack','Перегородка кухни',13.52,-.9,19.03,-.9,.4),
+mkWall('stairRight','Лестница / гардеробная',13.595,-5.5,13.595,-.9,.25),
+mkWall('stairLeft','Лестница / спальня',9.525,-5.5,9.525,-.9,.25),
+mkWall('bedroomRight','Спальня / ванная',5.725,-5.5,5.725,-1.0,.25),
+mkWall('bathFront','Ванная / проход',5.725,-2.675,9.525,-2.675,.25),
+mkWall('bedFront','Спальня / зал',.4,-1.0,9.525,-1.0,.25)];
+const openings=[
+mkOpen('livingW1','window','Зал · окно 1','front',3.2,2.3,.28,3.19),
+mkOpen('livingW2','window','Зал · окно 2','front',6.6,2.3,.28,3.19),
+mkOpen('kitchenW','window','Кухня · окно 3 м','front',16.2,3,.28,3.19),
+mkOpen('frontEntry','door','Главный вход','front',11.55,2.3,0,2.55,2),
+mkOpen('stairWindow','window','Окно лестницы','back',11.35,1.65,1.82,3.52),
+mkOpen('bedWindow','window','Спальня · слева','west',2.3,1.65,.83,2.4),
+mkOpen('livingD','door','Дверь зала 70+70','livingHall',2.9,1.4,0,2.2,2),
+mkOpen('kitchenD','door','Дверь кухни 70+70','kitchenHall',2.2,1.4,0,2.2,2),
+mkOpen('wardrobeD','door','Дверь кладовой','stairRight',3.14,1.12,0,2.2,1),
+mkOpen('stairArch','passage','Открытый проход в спальню','stairLeft',3.43,.95,0,2.99,1),
+mkOpen('bedD','door','Дверь спальни','bedroomRight',3.43,.95,0,2.2,1),
+mkOpen('bathD','door','Дверь ванной','bathFront',1.575,1,0,2.2,1)
+];
+const rooms=[
+{id:'living',name:'Зал',x:.4,z:-.65,w:9,h:5.95,wall:'#e9e2d8',floor:'#c4b098'},
+{id:'kitchen',name:'Кухня',x:13.8,z:-.65,w:4.9,h:5.9,wall:'#ebe2d8',floor:'#ddd5c9'},
+{id:'hall',name:'Коридор',x:9.8,z:-.8,w:3.5,h:6,wall:'#eee9df',floor:'#dad1c5'},
+{id:'stair',name:'Лестница',x:9.8,z:-5.3,w:3.5,h:4.15,wall:'#ebe5dc',floor:'#c9c0b5'},
+{id:'bed',name:'Спальня',x:.4,z:-5.3,w:5.2,h:4.1,wall:'#e9e4db',floor:'#c4aa91'},
+{id:'bath',name:'Ванная',x:5.9,z:-5.3,w:3.4,h:2.5,wall:'#ded8d1',floor:'#d6d1cb'},
+{id:'ward',name:'Гардеробная',x:13.8,z:-5.3,w:4.9,h:4.1,wall:'#e5ded4',floor:'#bfae99'}];
+const furniture=[
+{id:'f1',type:'sofa',name:'Диван',x:4.6,z:1.5,w:3.2,d:1.05,h:.85,rot:0,color:'#d6c9b9'},
+{id:'f2',type:'table',name:'Журнальный стол',x:4.6,z:3,w:1.4,d:.8,h:.48,rot:0,color:'#9a806a'},
+{id:'f3',type:'bed',name:'Кровать',x:2.6,z:-3.4,w:2.1,d:2.0,h:.65,rot:0,color:'#bca791'},
+{id:'f4',type:'cabinet',name:'Шкаф кухни',x:17,z:-.15,w:2.8,d:.6,h:2.15,rot:0,color:'#d6c6b7'},
+{id:'f5',type:'table',name:'Обеденный стол',x:16,z:2.8,w:1.9,d:.9,h:.75,rot:0,color:'#b9a48c'}];
+const stairs=[defaultStair()];
+return {version:1,title:'Мой дом',height:3.74,elevation:.6,walls,openings,rooms,furniture,stairs};
+}
+let state=original(),selected=null,tool='select',history=[],historyAt=-1,loading=false;
+let canvas=$('plan'),ctx=canvas.getContext('2d'),scale=30,pan={x:55,y:55},drag=null,wallFirst=null;
+const all=()=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms.map(r=>({...r,type:'room'}))];
+const find=id=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms].find(x=>x.id===id);
+const wallFor=o=>state.walls.find(w=>w.id===o.wall);
+const wallLength=w=>Math.hypot(w.x2-w.x1,w.z2-w.z1);
+const offsetPoint=(w,t)=>{const l=wallLength(w)||1;return{x:w.x1+(w.x2-w.x1)*t/l,z:w.z1+(w.z2-w.z1)*t/l}};
+const distance=(a,b,c,d)=>Math.hypot(a-c,b-d);
+function validate(s){
+if(!s||s.version!==1||!Array.isArray(s.walls)||!Array.isArray(s.openings)||!Array.isArray(s.rooms)||!Array.isArray(s.furniture)||!Array.isArray(s.stairs))throw Error('Неверный формат проекта');
+if(s.walls.length>150||s.openings.length>150||s.furniture.length>150||s.rooms.length>50||s.stairs.length>20)throw Error('Слишком много объектов');
+if(!Number.isFinite(s.height)||s.height<2.5||s.height>5||!Number.isFinite(s.elevation)||s.elevation<0||s.elevation>1.5)throw Error('Некорректные высоты');
+const keys=new Set();
+for(const o of [...s.walls,...s.openings,...s.furniture,...s.stairs,...s.rooms]){
+if(!o.id||keys.has(o.id)||typeof o.name!=='string')throw Error('Некорректные ID');
+keys.add(o.id);
+if(o.name.length>100)throw Error('Слишком длинное название');
+for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width','lower','upper','returnRun','back','offset','sill','head','t','rot'].includes(k)&&(!Number.isFinite(o[k])||Math.abs(o[k])>200))throw Error('Некорректный размер');
+}
+for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Error('Проём без стены');if(o.width<=0.3||o.offset-o.width/2<-.03||o.offset+o.width/2>wallLength(w)+.03)throw Error('Проём за пределами стены')}
+return true;
+}
+function saveState(){try{localStorage.setItem(STORAGE,JSON.stringify(state));status('Сохранено в этом браузере')}catch(e){status('Ошибка сохранения: '+e.message)}}
+function push(){if(loading)return;
+ processSceneValidation(true);
+ const conflicts=refreshOpeningReport();
+ if(conflicts.length)toastManager.show(conflicts[0],'warning');
+ const t=JSON.stringify(state);if(history[historyAt]===t)return;history=history.slice(0,historyAt+1);history.push(t);if(history.length>70)history.shift();historyAt=history.length-1;saveState();syncActions()}
+function applyHistory(i){if(i<0||i>=history.length)return;loading=true;try{state=JSON.parse(history[i]);validate(state);historyAt=i;selected=null;refreshAll();saveState()}finally{loading=false}syncActions()}
+function syncActions(){$('undo').disabled=historyAt<=0;$('redo').disabled=historyAt>=history.length-1}
+function status(t){$('status').textContent=t}
+function label(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function availableRoomFor(x,z){return state.rooms.find(r=>x>=r.x&&x<=r.x+r.w&&z>=r.z&&z<=r.z+r.h)}
+function safeWallOpenings(w){
+return state.openings.filter(o=>o.wall===w.id).sort((a,b)=>a.offset-b.offset).map(o=>({...o,start:clamp(o.offset-o.width/2,0,wallLength(w)),end:clamp(o.offset+o.width/2,0,wallLength(w))}));
+}
+function select(id){
+ selected=id;refreshInspector();drawPlan();refreshList();
+ // Selecting an already-built mesh must not dispose and recreate the house.
+ transform.detach();
+ const active=threeRoots.get(id);
+ if(active){transform.attach(active);transform.enabled=true}
+ else transform.enabled=false;
+}
+function refreshList(){
+ const fragment=document.createDocumentFragment();$('objectList').replaceChildren();
+ for(const o of all()){if(o.type==='room')continue;const b=document.createElement('button');b.textContent=o.name||o.id;b.className=o.id===selected?'active':'';b.onclick=()=>select(o.id);fragment.appendChild(b)}$('objectList').appendChild(fragment);
+}
+const propertyNames={x:'X, м',z:'Z, м',w:'Ширина X, м',d:'Глубина Z, м',h:'Высота, м',x1:'X начала',z1:'Z начала',x2:'X конца',z2:'Z конца',t:'Толщина стены, м',offset:'Положение по стене, м',width:'Ширина проёма/марша, м',sill:'Низ проёма, м',head:'Верх проёма, м',leaves:'Количество створок',lower:'Нижний марш, м',upper:'Средний марш, м',returnRun:'Третий марш, м',back:'Положение у стены Z, м',rot:'Поворот, °',color:'Цвет'};
+function inspectorField(o,key){
+ const v=o[key],name=propertyNames[key]||key;
+ if(key==='color')return '<label>'+name+'<input data-prop="'+key+'" type="color" value="'+label(v)+'"></label>';
+ if(key==='leaves')return '<label>'+name+'<select data-prop="leaves"><option value="1"'+(v===1?' selected':'')+'>Одна</option><option value="2"'+(v===2?' selected':'')+'>Две</option></select></label>';
+ return '<label>'+name+'<input data-prop="'+key+'" type="number" step="'+(key==='rot'?'5':'.05')+'" value="'+(key==='rot'?Math.round(v*180/Math.PI):v)+'"></label>';
+}
+// Quick 3D inspector shares the original validation/history pipeline.
+let quickInspectorOpen=false;
+function quickFieldsFor(o){
+ if(!o)return[];
+ if(o.type==='stair')return ['x','z','width','lower','upper','returnRun','back','rot'];
+ if(['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(o.type))return ['x','z','w','d','rot'];
+ if(o.type==='wall')return ['x1','z1','x2','z2','t'];
+ if(o.type==='door'||o.type==='window'||o.type==='passage')return ['offset','width','sill','head'].filter(k=>k in o);
+ return ['x','z','w','h'].filter(k=>k in o);
+}
+function commitInspectorProperty(id,key,value){
+ const obj=find(id);if(!obj||!(key in obj))return;
+ const prev=clone(state);
+ const val=key==='color'?value:Number(value);
+ if(key!=='color'&&!Number.isFinite(val)){status('Введи корректное число');return}
+ obj[key]=key==='rot'?val*Math.PI/180:val;
+ if(obj.type==='door'||obj.type==='window'||obj.type==='passage'){
+  const w=wallFor(obj);
+  if(w){
+   obj.width=clamp(obj.width,.4,wallLength(w)-.05);
+   obj.offset=clamp(obj.offset,obj.width/2,wallLength(w)-obj.width/2);
+   obj.sill=clamp(obj.sill,0,state.height-.5);
+   obj.head=clamp(obj.head,obj.sill+.3,state.height);
+  }
+ }
+ try{validate(state);push();refreshAll()}
+ catch(err){state=prev;refreshAll();status(err.message)}
+}
+function refreshQuickInspector(){
+ const panel=$('quickInspector'),o=activeFloor===1?find(selected):null;
+ const visible=quickInspectorOpen&&!!o;
+ panel.hidden=!visible;
+ $('quickInspectorToggle').setAttribute('aria-expanded',String(visible));
+ if(!visible)return;
+ $('quickInspectorName').textContent=o.name||o.type;
+ const container=$('quickInspectorFields');
+ container.replaceChildren();
+ for(const key of quickFieldsFor(o)){
+  const lab=document.createElement('label');
+  lab.textContent=propertyNames[key]||key;
+  const input=document.createElement('input');
+  input.type='number';input.step=key==='rot'?'5':'0.05';
+  input.value=key==='rot'?(o.rot*180/Math.PI).toFixed(1):o[key];
+  input.setAttribute('aria-label',propertyNames[key]||key);
+  input.addEventListener('change',()=>commitInspectorProperty(o.id,key,input.value));
+  lab.appendChild(input);container.appendChild(lab);
+ }
+}
+$('quickInspectorToggle').onclick=()=>{
+ if(!find(selected)||activeFloor===2){status('Выбери объект на первом этаже');return}
+ quickInspectorOpen=!quickInspectorOpen;refreshQuickInspector();
+};
+$('quickInspectorClose').onclick=()=>{quickInspectorOpen=false;refreshQuickInspector()};
+function refreshInspector(){
+refreshQuickInspector();
+const o=find(selected);$('selectedTitle').textContent=o?'Выбрано: '+o.name:'Свойства объекта';
+if(!o){$('inspector').innerHTML='<p class="hint">Нажми на объект в 2D или 3D. Стены можно двигать за углы, двери и окна — вдоль стены.</p>';return}
+let fields=['x','z','w','d','h','rot','color'];
+if(o.type==='wall')fields=['x1','z1','x2','z2','t'];
+if(o.type==='door'||o.type==='window'||o.type==='passage')fields=['offset','width',...(o.type==='door'?['head','leaves']:['sill','head'])];
+if(o.type==='stair')fields=['x','z','width','lower','upper','returnRun','back','rot'];
+if(state.rooms.some(r=>r.id===selected))fields=['x','z','w','h'];
+$('inspector').innerHTML='<label>Название<input id="editName" value="'+label(o.name)+'"></label><div class="fields">'+fields.map(k=>inspectorField(o,k)).join('')+'</div><div class="actions" style="margin-top:10px"><button id="focusObject">Показать</button><button id="removeObject">Удалить</button></div>';
+$('editName').onchange=e=>{o.name=e.target.value.slice(0,100);push();refreshInspector();refreshList()};
+$('inspector').querySelectorAll('[data-prop]').forEach(input=>input.onchange=()=>commitInspectorProperty(o.id,input.dataset.prop,input.value));
+$('focusObject').onclick=()=>{if(o.type==='room'){pan.x=30-o.x*scale;pan.y=25-(o.z+5.7)*scale}drawPlan()};
+$('removeObject').onclick=removeSelected;
+}
+function refreshAll(){refreshList();refreshInspector();refreshRoomUI();drawPlan();build3d();refreshOpeningReport()}
+const roomFloorDefaults={
+ living:'eng_herringbone',kitchen:'tile',bed:'plank',
+ hall:'fr_herringbone',stair:'tile',bath:'tile',ward:'plank'
+};
+function roomFloorPattern(r){return r.floorPattern||roomFloorDefaults[r.id]||'solid'}
+function refreshRoomUI(){
+$('room').innerHTML=state.rooms.map((r,i)=>'<option value="'+label(r.id)+'">'+label(r.name)+'</option>').join('');
+const room=state.rooms.find(r=>r.id===$('room').value)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor;$('floorPattern').value=roomFloorPattern(room)}
+$('buildingHeight').value=state.height;$('baseElevation').value=state.elevation;
+}
+function planPoint(x,z){return{x:pan.x+x*scale,y:pan.y+(z+5.7)*scale}}
+function worldPoint(px,py){return{x:(px-pan.x)/scale,z:(py-pan.y)/scale-5.7}}
+function paintGrid(w,h){ctx.fillStyle='#f0eee9';ctx.fillRect(0,0,w,h);
+const a=worldPoint(0,0),b=worldPoint(w,h);
+ctx.lineWidth=.6;ctx.strokeStyle='#d5d0c6';
+for(let x=Math.floor(a.x);x<b.x;x++){const px=planPoint(x,0).x;ctx.beginPath();ctx.moveTo(px,0);ctx.lineTo(px,h);ctx.stroke()}
+for(let z=Math.floor(a.z);z<b.z;z++){const py=planPoint(0,z).y;ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(w,py);ctx.stroke()}
+}
+function fitPlan(){
+ const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+ scale=clamp(Math.min((r.width-36)/19.5,(r.height-36)/11.8),8,105);
+ pan.x=(r.width-19.03*scale)/2;
+ pan.y=(r.height-11.40*scale)/2;
+ drawPlan();
+}
+$('fitPlan').onclick=fitPlan;
+function drawPlan(){
+const bb=canvas.getBoundingClientRect();if(!bb.width||!bb.height)return;
+const w=bb.width,h=bb.height;canvas.width=Math.round(w*devicePixelRatio);canvas.height=Math.round(h*devicePixelRatio);
+ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);paintGrid(w,h);
+if(activeFloor===2){drawUpperFloorPlan(w,h);return}
+for(const r of state.rooms){const a=planPoint(r.x,r.z);ctx.fillStyle=r.floor;ctx.globalAlpha=.65;ctx.fillRect(a.x,a.y,r.w*scale,r.h*scale);ctx.globalAlpha=1;
+ctx.fillStyle='#6c665e';ctx.font='11px system-ui';ctx.fillText(r.name,a.x+7,a.y+17)}
+for(const w0 of state.walls){
+const a=planPoint(w0.x1,w0.z1),b=planPoint(w0.x2,w0.z2);ctx.strokeStyle=w0.id===selected?'#c68037':'#414f56';ctx.lineWidth=Math.max(3,w0.t*scale);ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+if(w0.id===selected){ctx.fillStyle='#ed9e3d';for(const p of [a,b]){ctx.beginPath();ctx.arc(p.x,p.y,7,0,7);ctx.fill()}}
+}
+for(const o of state.openings){
+const wall=wallFor(o);if(!wall)continue;const p=offsetPoint(wall,o.offset),a=planPoint(p.x,p.z);
+const ang=Math.atan2(wall.z2-wall.z1,wall.x2-wall.x1);
+ctx.save();ctx.translate(a.x,a.y);ctx.rotate(ang);ctx.fillStyle='#f0eee9';ctx.fillRect(-o.width*scale/2,-7,o.width*scale,14);
+ctx.strokeStyle=o.id===selected?'#d27626':o.type==='window'?'#3f98ba':o.type==='passage'?'#6a9c7c':'#9d7757';ctx.lineWidth=o.id===selected?5:3;ctx.beginPath();ctx.moveTo(-o.width*scale/2,0);ctx.lineTo(o.width*scale/2,0);ctx.stroke();ctx.restore();
+}
+for(const o of [...state.furniture,...state.stairs]){
+const p=planPoint(o.x,o.z);const isStair=o.type==='stair';ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
+ctx.fillStyle=isStair?'#d5c7ae':o.color||'#bca994';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';ctx.lineWidth=o.id===selected?3:1.5;
+const width=(isStair?o.width:o.w)*scale,depth=(isStair?o.lower:o.d)*scale;
+if(isStair){
+ const g=stairGeometry(o);
+ ctx.restore();ctx.save();ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+ const rs=[[g.right-g.w,g.right,g.front,g.front+o.lower],
+  [g.left,g.right,g.rear,g.front],[g.left,g.left+g.w,g.front,g.front+g.backRun]];
+ ctx.fillStyle='#d5c7ae';ctx.strokeStyle=o.id===selected?'#de7f1e':'#7a766f';
+ ctx.lineWidth=o.id===selected?3:1.5;
+ for(const [xa,xb,za,zb] of rs){
+  const p=planPoint(xa,za);
+  ctx.fillRect(p.x,p.y,(xb-xa)*scale,(zb-za)*scale);
+  ctx.strokeRect(p.x,p.y,(xb-xa)*scale,(zb-za)*scale);
+ }
+ for(const poly of [...g.firstTurn,...g.secondTurn]){
+  ctx.beginPath();poly.forEach(([x,z],i)=>{const p=planPoint(x,z);i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y)});
+  ctx.closePath();ctx.stroke()
+ }
+ ctx.fillStyle='#334';ctx.font='bold 11px system-ui';ctx.textAlign='center';
+ let p1=planPoint(g.right-g.w/2,g.front+o.lower*.5);ctx.fillText('1',p1.x,p1.y);
+ let p2=planPoint((g.right+g.left)/2,(g.rear+g.front)/2);ctx.fillText('2',p2.x,p2.y);
+ let p3=planPoint(g.left+g.w/2,g.front+g.backRun*.5);ctx.fillText('3',p3.x,p3.y);
+ ctx.restore();ctx.save();ctx.translate(p.x,p.y);ctx.rotate(o.rot||0);
+}else{
+ ctx.fillRect(-width/2,-depth/2,width,depth);
+ ctx.strokeRect(-width/2,-depth/2,width,depth);
+}
+ctx.fillStyle='#34383b';ctx.font='10px system-ui';ctx.textAlign='center';ctx.fillText(o.name,0,0);ctx.restore();
+}
+ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.fillText('РАЗМЕРЫ В МЕТРАХ · СХЕМА',14,h-16);
+}
+function distanceLine(p,a,b){let dx=b.x-a.x,dy=b.y-a.y,l=dx*dx+dy*dy||1,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/l,0,1);return{distance:Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy),t}}
+function hitTest(px,py){
+const p={x:px,y:py};
+for(let i=state.openings.length-1;i>=0;i--){const o=state.openings[i],w=wallFor(o);if(!w)continue;const pt=offsetPoint(w,o.offset),q=planPoint(pt.x,pt.z);if(distance(px,py,q.x,q.y)<13)return{o,part:'open'}}
+for(const o of [...state.stairs,...state.furniture].reverse()){const q=planPoint(o.x,o.z);if(distance(px,py,q.x,q.y)<Math.max(17,Math.min(42,(o.w||o.width)*scale/2)))return{o,part:'item'}}
+for(const w of state.walls){const a=planPoint(w.x1,w.z1),b=planPoint(w.x2,w.z2);if(distance(px,py,a.x,a.y)<10)return{o:w,part:'a'};if(distance(px,py,b.x,b.y)<10)return{o:w,part:'b'}}
+for(const w of state.walls){const a=planPoint(w.x1,w.z1),b=planPoint(w.x2,w.z2);if(distanceLine(p,a,b).distance<9)return{o:w,part:'wall'}}
+for(const r of state.rooms){const a=planPoint(r.x,r.z);if(px>a.x&&px<a.x+r.w*scale&&py>a.y&&py<a.y+r.h*scale)return{o:{...r,type:'room'},part:'room'}}
+return null;
+}
+function coords(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}}
+canvas.addEventListener('pointerdown',e=>{
+if(activeFloor===2){status('2 этаж пока схематичный. Нажми «1 этаж» для редактирования.');return}
+const p=coords(e),w=worldPoint(p.x,p.y);
+if(e.shiftKey||e.button===1){
+ drag={pan:true,startPixels:p,panBefore:{...pan},moved:false};
+ canvas.setPointerCapture(e.pointerId);return;
+}
+if(tool==='wall'){if(!wallFirst){wallFirst={x:snap(w.x),z:snap(w.z)};status('Укажи вторую точку новой стены')}else{
+state.walls.push(mkWall(uid(),'Новая стена',wallFirst.x,wallFirst.z,snap(w.x),snap(w.z)));wallFirst=null;push();refreshAll();status('Стена создана');}return}
+const hit=hitTest(p.x,p.y);select(hit?.o?.id||null);
+if(hit){drag={start:w,old:clone(state),id:hit.o.id,part:hit.part,moved:false};canvas.setPointerCapture(e.pointerId)}
+});
+canvas.addEventListener('pointermove',e=>{
+if(!drag)return;
+const p=coords(e);
+if(drag.pan){
+ pan.x=drag.panBefore.x+p.x-drag.startPixels.x;
+ pan.y=drag.panBefore.y+p.y-drag.startPixels.y;
+ drag.moved=true;drawPlan();return;
+}
+const w=worldPoint(p.x,p.y),dx=snap(w.x-drag.start.x),dz=snap(w.z-drag.start.z);
+const o=find(drag.id),before=[...drag.old.walls,...drag.old.openings,...drag.old.furniture,...drag.old.stairs,...drag.old.rooms].find(x=>x.id===drag.id);if(!o||!before)return;
+drag.moved=Math.hypot(dx,dz)>.001;
+if(o.type==='wall'){
+if(drag.part==='a'||drag.part==='wall'){o.x1=before.x1+dx;o.z1=before.z1+dz}
+if(drag.part==='b'||drag.part==='wall'){o.x2=before.x2+dx;o.z2=before.z2+dz}
+const minimum=Math.max(.2,...state.openings.filter(v=>v.wall===o.id).map(v=>v.offset+v.width/2+.03));
+if(wallLength(o)<minimum){Object.assign(o,before);status('Стена не может стать короче закреплённых проёмов')}
+}else if(o.type==='door'||o.type==='window'){
+const wall=wallFor(o),len=wallLength(wall),ux=(wall.x2-wall.x1)/len,uz=(wall.z2-wall.z1)/len;
+o.offset=clamp(snap(before.offset+dx*ux+dz*uz),o.width/2,len-o.width/2);
+}else{o.x=before.x+dx;o.z=before.z+dz}
+drawPlan();update3dObject(o);
+});
+canvas.addEventListener('pointerup',()=>{
+ if(!drag)return;
+ const was=drag.moved,wasPan=!!drag.pan;drag=null;
+ if(was&&!wasPan){push();refreshAll()}
+});
+canvas.addEventListener('pointercancel',()=>{if(!drag)return;state=drag.old;drag=null;refreshAll()});
+canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const center=worldPoint(p.x,p.y);scale=clamp(scale*(e.deltaY>0?.90:1.10),12,110);pan.x=p.x-center.x*scale;pan.y=p.y-(center.z+5.7)*scale;drawPlan()},{passive:false});
+// Synchronized 3D preview
+let renderer,camera,scene,orbit,transform,threeRoots=new Map(),raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
+const canvas3d=$('view3d');
+let yardMesh=null;
+let gridVisible=true;
+let groundGrid=null;
+const upperFloorGroup=new THREE.Group();
+let activeFloor=1;
+let stairPreview=false;
+let interiorCeilingVisible=false;
+let hallFinished=false;
+let upperFloorMeshes=[];
+renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
+// The renderer already owns #view3d; never create/append a second canvas.
+const isCompactViewport=window.matchMedia?.('(max-width: 700px)').matches??false;
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,isCompactViewport?1.35:1.75));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.12;
+scene=new THREE.Scene();scene.background=new THREE.Color('#c5d4da');
+const buildingGroup=new THREE.Group();scene.add(buildingGroup);
+// Floor grid sits above the yard's top surface (-0.02 m), but beneath house floors.
+groundGrid=new THREE.GridHelper(40,40,0x0a84ff,0x45454b);
+groundGrid.position.set(9.5,-.012,0);
+scene.add(groundGrid);
+$('toggleGrid').onclick=()=>{
+ gridVisible=!gridVisible;
+ groundGrid.visible=gridVisible&&activeFloor===1&&!stairPreview;
+ $('toggleGrid').classList.toggle('active',gridVisible);
+ $('toggleGrid').setAttribute('aria-pressed',String(gridVisible));
+};
+buildingGroup.add(upperFloorGroup);
+// Fill light is already provided by a hemisphere light; avoid redundant AmbientLight.
+scene.add(new THREE.HemisphereLight('#fff8ec','#9baab6',1.05));
+// A single sun aimed at the BUILDING, not at world origin (the plan runs X=0…19m).
+const sun=new THREE.DirectionalLight('#fffaed',1.8);
+sun.position.set(24,30,16);
+sun.target.position.set(9.52,1.8,0);
+scene.add(sun.target);
+sun.castShadow=true;
+// 2K maps cost 4× the memory of 1K. Keep mobile lightweight.
+sun.shadow.mapSize.set(isCompactViewport?768:1536,isCompactViewport?768:1536);
+const shadowExtent=15;
+sun.shadow.camera.left=-shadowExtent;sun.shadow.camera.right=shadowExtent;
+sun.shadow.camera.top=shadowExtent;sun.shadow.camera.bottom=-shadowExtent;
+sun.shadow.camera.near=0.5;sun.shadow.camera.far=65;
+// A small bias and normal bias reduce self-shadow artifacts without detaching the shadows.
+sun.shadow.bias=-0.00025;sun.shadow.normalBias=.025;
+scene.add(sun);
+camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
+orbit=new OrbitControls(camera,canvas3d);
+orbit.target.set(9.6,0,0);
+orbit.enableDamping=true;
+orbit.dampingFactor=.05;
+orbit.minDistance=2;
+orbit.maxDistance=50;
+// A slight below-horizon angle is permitted for examining the staircase soffit.
+orbit.maxPolarAngle=Math.PI/2+.12;
+orbit.update();
+transform=new TransformControls(camera,canvas3d);
+transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
+transform.showY=false; // Floor-plan editor: never allow vertical movement of a 2D-positioned object.
+// three@0.160.1: TransformControls extends Object3D; getHelper() only exists since r169.
+scene.add(transform);
+transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value});
+transform.addEventListener('mouseDown',()=>{drag3d=selected?clone(find(selected)):null});
+let drag3d=null,lastTransformEnd=-1;
+transform.addEventListener('mouseUp',()=>{
+if(!selected||!drag3d)return;const obj=find(selected),root=threeRoots.get(selected);if(!obj||!root)return;
+const mode=transform.getMode();
+if(mode==='translate'){
+if(obj.type==='wall'){const dx=root.position.x-drag3d.x1,dz=root.position.z-drag3d.z1;obj.x1=snap(drag3d.x1+dx);obj.z1=snap(drag3d.z1+dz);obj.x2=snap(drag3d.x2+dx);obj.z2=snap(drag3d.z2+dz)}
+else if(obj.type==='door'||obj.type==='window'){
+const w=wallFor(obj),len=wallLength(w),ux=(w.x2-w.x1)/len,uz=(w.z2-w.z1)/len;
+const pt=offsetPoint(w,obj.offset);obj.offset=clamp(snap((root.position.x-w.x1)*ux+(root.position.z-w.z1)*uz),obj.width/2,len-obj.width/2);
+}else{obj.x=snap(root.position.x);obj.z=snap(root.position.z)}
+}else if(mode==='rotate'&&('rot' in obj)){obj.rot=root.rotation.y}
+else if(mode==='scale'&&obj.type==='stair'){obj.width=clamp(snap(drag3d.width*root.scale.x),.7,2);obj.lower=clamp(snap(drag3d.lower*root.scale.z),1,4);obj.upper=clamp(snap(drag3d.upper*root.scale.x),1.5,5)}
+else if(mode==='scale'&&['sofa','table','bed','cabinet','chair','island','rug','plant'].includes(obj.type)){obj.w=clamp(snap(drag3d.w*root.scale.x),.3,8);obj.h=clamp(snap(drag3d.h*root.scale.y),.2,4);obj.d=clamp(snap(drag3d.d*root.scale.z),.3,8)}
+drag3d=null;lastTransformEnd=performance.now();push();refreshAll();
+});
+function col(v){return new THREE.Color(v)}
+function cube(parent,x,y,z,w,h,d,material){const m=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.008,w),Math.max(.008,h),Math.max(.008,d)),material);m.position.set(x,y,z);m.castShadow=false;m.receiveShadow=true;parent.add(m);return m}
+// Physically based colour/material settings; roughness/metalness are independent.
+function createPBRMaterial(hex,roughness=.77,metalness=0){
+ return new THREE.MeshStandardMaterial({
+  color:hex,
+  roughness:THREE.MathUtils.clamp(roughness,0,1),
+  metalness:THREE.MathUtils.clamp(metalness,0,1)
+ });
+}
+function meshMat(hex,rough=.77,metal=0){return createPBRMaterial(hex,rough,metal)}
+// Four room-specific procedural surface layouts; materials are built per-room
+// and disposed with the room mesh during rebuild. Texture tint is the room floor color.
+function createFloorTexture(type,roomW,roomD){
+ const canvas=document.createElement('canvas');
+ canvas.width=512;canvas.height=512;
+ const ctx=canvas.getContext('2d');
+ const S=512;
+ ctx.fillStyle='#eeeeee';ctx.fillRect(0,0,S,S);
+ const shades=['#f2f2f2','#e6e6e6','#e1e1e1','#ebebeb','#e8e8e8'];
+ const pick=(i,j)=>shades[Math.abs((i*13+j*7+(i*j)%3)%shades.length)];
+ // Draw each cell in pixel space, then repeat tiles with metre-scaled UVs.
+ if(type==='tile'){
+  const n=2,g=2;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+   const x=i*S/n,y=j*S/n,k=S/n;
+   ctx.fillStyle='#cccccc';ctx.fillRect(x,y,k,k);
+   ctx.fillStyle=pick(i,j);ctx.fillRect(x+g,y+g,k-2*g,k-2*g);
+   ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=2;
+   ctx.strokeRect(x+g+4,y+g+4,k-2*g-8,k-2*g-8);
+  }
+ }else if(type==='plank'){
+  const row=8,h=S/row;
+  ctx.strokeStyle='rgba(55,55,55,.33)';ctx.lineWidth=2;
+  for(let j=0;j<row;j++){
+   const offset=j%3*S/3;
+   for(let i=-2;i<5;i++){
+    const x=i*S/2-offset,y=j*h;
+    ctx.fillStyle=pick(i,j);ctx.fillRect(x+1,y+1,S/2-2,h-2);
+    ctx.strokeRect(x,y,S/2,h);
+    ctx.strokeStyle='rgba(85,85,85,.10)';
+    for(let a=1;a<5;a++){ctx.beginPath();ctx.moveTo(x+10,y+h*a/6);ctx.lineTo(x+S/2-10,y+h*a/6);ctx.stroke()}
+    ctx.strokeStyle='rgba(55,55,55,.33)';
+   }
+  }
+ }else if(type==='eng_herringbone'){
+  // Alternating orthogonal rectangular strips, rotated 45 degrees.
+  // Copy adjacent blocks beyond the canvas edges for seamless repeats.
+  const pitch=128;
+  ctx.save();ctx.translate(S/2,S/2);ctx.rotate(Math.PI/4);
+  for(let i=-7;i<7;i++)for(let j=-7;j<7;j++){
+   const x=i*pitch,y=j*pitch;
+   const parity=(i+j+1000)%2===0;
+   ctx.fillStyle=pick(i,j);
+   ctx.fillRect(x+1,y+1,parity?pitch-2:pitch/2-2,parity?pitch/2-2:pitch-2);
+   ctx.strokeStyle='rgba(55,55,55,.4)';ctx.lineWidth=2;
+   ctx.strokeRect(x,y,parity?pitch:pitch/2,parity?pitch/2:pitch);
+  }
+  ctx.restore();
+ }else if(type==='fr_herringbone'){
+  // Chevron meeting at a V, with 45-degree diagonal angled joints.
+  // Periodicity: 128 pixels across and 256 vertically.
+  const pitch=128,vertical=256;
+  ctx.lineWidth=2;ctx.strokeStyle='rgba(60,60,60,.4)';
+  for(let cy=-vertical;cy<S+vertical;cy+=vertical){
+   for(let x=-S;x<S*2;x+=pitch*2){
+    for(let t=0;t<2;t++){
+     const X=x+t*pitch*2,Y=cy;
+     // Symmetrical parallelogram boards meeting at a central axis.
+     const polys=[
+      [[X,Y+128],[X+64,Y+64],[X+64,Y+128],[X,Y+192]],
+      [[X+64,Y+64],[X+128,Y+128],[X+128,Y+192],[X+64,Y+128]],
+      [[X,Y+256],[X+64,Y+192],[X+64,Y+256],[X,Y+320]],
+      [[X+64,Y+192],[X+128,Y+256],[X+128,Y+320],[X+64,Y+256]]
+     ];
+     polys.forEach((poly,index)=>{
+      ctx.beginPath();poly.forEach(([px,py],k)=>k?ctx.lineTo(px,py):ctx.moveTo(px,py));
+      ctx.closePath();ctx.fillStyle=pick(t+index,cy/vertical);ctx.fill();ctx.stroke();
+     });
+    }
+   }
+  }
+ }
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ texture.wrapS=THREE.RepeatWrapping;
+ texture.wrapT=THREE.RepeatWrapping;
+ texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+ // 512px sample spans 1.6 metres; no room-dependent stretching.
+ texture.repeat.set(Math.max(.01,roomW/1.6),Math.max(.01,roomD/1.6));
+ return texture;
+}
+function createFloorMaterial(room){
+ const type=roomFloorPattern(room);
+ if(type==='solid')return meshMat(room.floor,.44,.015);
+ const tex=createFloorTexture(type,room.w,room.h);
+ return new THREE.MeshStandardMaterial({
+  color:room.floor,map:tex,roughness:type==='tile'?.38:.68,metalness:0
+ });
+}
+
+function buildWall(w){
+const len=wallLength(w);if(len<.15)return;
+const root=new THREE.Group();root.position.set(w.x1,0,w.z1);root.rotation.y=-Math.atan2(w.z2-w.z1,w.x2-w.x1);
+// Independent inside finish on both faces of wall, derived from adjacent room.
+const midX=(w.x1+w.x2)/2,midZ=(w.z1+w.z2)/2;
+const nx=-(w.z2-w.z1)/len,nz=(w.x2-w.x1)/len;
+const roomSide=(sign)=>{
+ const x=midX+nx*sign*(w.t/2+.13),z=midZ+nz*sign*(w.t/2+.13);
+ return state.rooms.find(r=>x>=r.x&&x<=r.x+r.w&&z>=r.z&&z<=r.z+r.h)?.wall||'#ede6dc';
+};
+const sideP=meshMat(roomSide(1),.88,.0),sideN=meshMat(roomSide(-1),.88,.0),edge=meshMat('#ded7cd',.92,.0);
+const material=[edge,edge,edge,edge,sideN,sideP];
+const openings=safeWallOpenings(w);
+let cursor=0;const H=state.height;
+function span(a,b,from=0,to=H){if(b-a>.01&&to-from>.02)cube(root,(a+b)/2,(from+to)/2,0,b-a,to-from,w.t,material)}
+for(const o of openings){
+span(cursor,o.start);
+span(o.start,o.end,0,o.sill);
+span(o.start,o.end,o.head,H);
+cursor=Math.max(cursor,o.end);
+}
+span(cursor,len);
+root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
+for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
+if(o.type==='passage'){
+ // Open architectural passage: wall opening with a 30cm lintel below ceiling.
+ // Intentionally no door leaf, frame, or trim.
+}else if(o.type==='window'){
+const isStairWindow=o.id==='stairWindow';
+const m=meshMat(isStairWindow?'#333b41':'#394952',.37,.24),
+ glass=new THREE.MeshPhysicalMaterial({
+  color:isStairWindow?'#c7dfe6':'#a9d4de',transparent:true,
+  opacity:isStairWindow?.29:.24,roughness:.09,metalness:0,
+  side:THREE.DoubleSide,depthWrite:false,clearcoat:.35,clearcoatRoughness:.14
+ });
+const ht=o.head-o.sill;cube(oroot,0,(o.head+o.sill)/2,0,o.width-.10,ht-.08,.018,glass);
+for(const x of [-o.width/2+.025,o.width/2-.025])cube(oroot,x,(o.head+o.sill)/2,0,.050,ht,.075,m);
+for(const y of [o.sill+.025,o.head-.025])cube(oroot,0,y,0,o.width,.05,.075,m);
+cube(oroot,0,(o.head+o.sill)/2,0,.042,ht,.075,m);
+cube(oroot,0,o.sill,0,o.width+.08,.042,w.t+.14,meshMat('#dcd6cb'));
+if(isStairWindow){
+ // Discreet plaster reveal and deep sill around the existing, unchanged opening.
+ const trim=meshMat(hallFinished?'#efebe5':'#d8d3ca',.87);
+ const inset=w.t/2+.016;
+ for(const x of [-o.width/2-.028,o.width/2+.028]){
+  cube(oroot,x,(o.sill+o.head)/2,inset,.055,ht+.09,.045,trim);
+ }
+ cube(oroot,0,o.head+.027,inset,o.width+.10,.055,.045,trim);
+ cube(oroot,0,o.sill-.027,inset,o.width+.10,.055,.05,trim);
+ // Thin secondary frame detail on the inside face.
+ cube(oroot,0,(o.sill+o.head)/2,inset+.03,.025,ht-.06,.024,m);
+}
+}else{
+const wood=meshMat('#b8a18b');let leaves=o.leaves===2?2:1,leafW=o.width/leaves;
+for(let i=0;i<leaves;i++){const x=-o.width/2+(i+.5)*leafW;cube(oroot,x,o.head/2,0,leafW-.018,o.head-.08,.053,wood)}
+for(const x of [-o.width/2,o.width/2])cube(oroot,x,o.head/2,0,.06,o.head,.08,meshMat('#907c67'));
+cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
+}
+}}
+
+// Parametric 90-degree staircase with risers distributed from current floor height.
+// Geometric concept only: NOT engineering-ready and NOT verified as-built.
+// Two left 90-degree turns: -Z -> -X -> +Z. No intermediate landings.
+function stairGeometry(o){
+ const w=o.width,right=o.x+w/2;
+ // Middle run length is editable; its end locates the third flight by the left wall.
+ const bridge=o.upper,left=right-2*w-bridge;
+ const rear=o.back-w/2,front=o.back+w/2;
+ const backRun=Number.isFinite(o.returnRun)&&o.returnRun>0?o.returnRun:o.lower;
+ // 24 equal risers at 3.74m (15.58cm each); distribute them to
+ // reproduce the lower stair profile visible under the existing window.
+ // These are visual study parameters, not measured as-built step counts.
+ const total=Math.max(16,Math.round(state.height/.156)),turnN=3;
+ const straight=total-turnN*2;
+ // Preserve the same 24 identical rises, but keep the window-side treads
+ // below the existing stair-window sill (1.82m in the original house).
+ // With 3.74m storey height: 5 first + 3 turning + 3 middle = 11 rises
+ // = 1.714m. The remaining 10 straight rises are on the return flight.
+ const firstN=Math.max(3,Math.round(straight*.28));
+ const midN=Math.max(2,Math.round(straight*.17));
+ const lastN=straight-firstN-midN;
+ // Four end treads are visually replaced by the upper-storey floor slab.
+ // Leave the original riser distribution available for future as-built calibration.
+ const visibleLastN=Math.max(1,lastN-4);
+ const cast=(cx,cz,a)=>{
+  const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
+  return [cx+dx*r,cz+dz*r]
+ };
+ const fan=(cx,cz,start)=>{
+  const p=[cx,cz],out=[];
+  for(let i=0;i<turnN;i++){
+   const a=start-i*Math.PI/(2*turnN),b=start-(i+1)*Math.PI/(2*turnN);
+   out.push([p,cast(cx,cz,a),cast(cx,cz,(a+b)/2),cast(cx,cz,b)])
+  }
+  return out
+ };
+ return {w,width:w,left,right,rear,front,bridge,backRun,total,firstN,midN,lastN,visibleLastN,turnN,
+  firstTurn:fan(right-w,front,0),secondTurn:fan(left+w,front,-Math.PI/2)};
+}
+function stairPolygon(root,poly,height,material,baseHeight=0){
+ // Extrusion around Y: local Shape coordinates X/-Z, rotate -90° about X.
+ const shape=new THREE.Shape();
+ poly.forEach((p,i)=>i?shape.lineTo(p[0],-p[1]):shape.moveTo(p[0],-p[1]));
+ shape.closePath();
+ const geometry=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false,steps:1});
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.rotation.x=-Math.PI/2;
+ mesh.position.y=baseHeight;
+ mesh.receiveShadow=true;root.add(mesh);
+}
+// Extruded monolithic stringer whose TOP follows the treads and UNDERSIDE is smooth.
+// Cross-section is in run/height coordinates, then oriented into world X/Z.
+function stairRunShell(root,{count,depth,rise,startLevel,width,originX,originZ,yaw,material}){
+ const total=count*depth,shape=new THREE.Shape();
+ const bottomAtStart=Math.max(0,startLevel-.22);
+ shape.moveTo(0,bottomAtStart);
+ shape.lineTo(0,startLevel+rise);
+ for(let i=0;i<count;i++){
+  const t=(i+1)*depth;
+  shape.lineTo(t,startLevel+(i+1)*rise);
+  if(i<count-1)shape.lineTo(t,startLevel+(i+2)*rise);
+ }
+ const endLevel=startLevel+count*rise;
+ // The stringer thickness is intentionally visible below the steps.
+ const thick=.22;
+ shape.lineTo(total,endLevel-thick);
+ const y0=bottomAtStart,y1=endLevel-thick;
+ // Smoothly bowed soffit, with a small concavity near its midspan.
+ shape.quadraticCurveTo(total*.54,(y0+y1)/2-.12,0,y0);
+ shape.closePath();
+ const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:width,bevelEnabled:false,steps:1}),material);
+ mesh.rotation.y=yaw;
+ mesh.position.set(originX,0,originZ);
+ mesh.castShadow=true;mesh.receiveShadow=true;
+ root.add(mesh);
+ return mesh;
+}
+// Continuous 90° concrete soffit below the winder steps. The bottom rises
+// smoothly through the turn, while the top follows three stepped tread levels.
+// The square turning footprint is the SAME one returned by stairGeometry(o).
+function stairTurnSoffit(root,g,rise,material){
+ const width=g.width;
+ const pivotX=-width/2,pivotZ=g.turnFront;
+ const positions=[];
+ const angleSlices=18,radialSlices=6;
+ const halfPi=Math.PI/2;
+ const vertex=(theta,r,topY)=>{
+  const x=pivotX+r*Math.cos(theta),z=pivotZ-r*Math.sin(theta);
+  const t=theta/halfPi;
+  const smooth=t-.045*Math.sin(Math.PI*t);
+  const bottomY=(g.lowerN+g.winderN*smooth)*rise-.22;
+  return [x,topY?topY.value:bottomY,z];
+ };
+ function tri(a,b,c){positions.push(...a,...b,...c)}
+ function quad(a,b,c,d){tri(a,b,c);tri(a,c,d)}
+ for(let step=0;step<g.winderN;step++){
+  const level=(g.lowerN+step+1)*rise;
+  const topY={value:level-.035};
+  const points=[];
+  for(let ai=0;ai<=angleSlices;ai++){
+   const theta=(step+ai/angleSlices)*halfPi/g.winderN;
+   const maxRadius=width/Math.max(Math.cos(theta),Math.sin(theta));
+   const ring=[];
+   for(let ri=0;ri<=radialSlices;ri++){
+    const r=.0005+(maxRadius-.0005)*ri/radialSlices;
+    ring.push({top:vertex(theta,r,topY),bottom:vertex(theta,r,null)});
+   }
+   points.push(ring);
+  }
+  for(let ai=0;ai<angleSlices;ai++)for(let ri=0;ri<radialSlices;ri++){
+   const a=points[ai][ri],b=points[ai][ri+1];
+   const c=points[ai+1][ri+1],d=points[ai+1][ri];
+   quad(a.top,b.top,c.top,d.top);
+   quad(d.bottom,c.bottom,b.bottom,a.bottom);
+  }
+  // Close the two radial edges and the inside/outside faces.
+  for(let ri=0;ri<radialSlices;ri++){
+   const a=points[0][ri],b=points[0][ri+1];
+   const c=points[angleSlices][ri],d=points[angleSlices][ri+1];
+   quad(a.bottom,b.bottom,b.top,a.top);
+   quad(d.bottom,c.bottom,c.top,d.top);
+  }
+  for(let ai=0;ai<angleSlices;ai++){
+   const a=points[ai][radialSlices],b=points[ai+1][radialSlices];
+   const c=points[ai][0],d=points[ai+1][0];
+   quad(a.bottom,b.bottom,b.top,a.top);
+   quad(d.bottom,c.bottom,c.top,d.top);
+  }
+ }
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+ geometry.computeVertexNormals();
+ const mesh=new THREE.Mesh(geometry,material);
+ mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);
+ return mesh;
+}
+function buildStair(o){
+ const root=new THREE.Group();
+ root.position.set(0,0,0);root.rotation.y=o.rot||0;
+ root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
+ if(!Number.isFinite(o.width)||o.width<=0||o.lower<=0||o.upper<=0)return;
+ const g=stairGeometry(o);if(g.bridge<=.15||g.lastN<=0)return;
+ const rise=state.height/g.total,w=g.w;
+ const concrete=meshMat(hallFinished?'#d6c8b6':(o.color||'#ded8cf'),.82),finish=meshMat(hallFinished?'#e6ddd0':'#ebe4da',.58);
+ // First run descends in plan towards the window (-Z).
+ const d1=o.lower/g.firstN;
+ stairRunShell(root,{count:g.firstN,depth:d1,rise,startLevel:0,
+  width:w,originX:g.right-w,originZ:g.front+o.lower,yaw:Math.PI/2,material:concrete});
+ for(let i=0;i<g.firstN;i++)cube(root,g.right-w/2,(i+1)*rise-.02,
+  g.front+o.lower-(i+.5)*d1,w-.02,.043,d1-.012,finish);
+ // First left winder turn.
+ let level=g.firstN;
+ for(const poly of g.firstTurn){
+  ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
+  stairPolygon(root,poly,.042,finish,level*rise-.036)
+ }
+ // Short middle run beneath the rear window, towards -X.
+ const d2=g.bridge/g.midN;
+ stairRunShell(root,{count:g.midN,depth:d2,rise,startLevel:level*rise,
+  width:w,originX:g.right-w,originZ:g.front,yaw:Math.PI,material:concrete});
+ for(let i=0;i<g.midN;i++)cube(root,g.right-w-(i+.5)*d2,(level+i+1)*rise-.02,
+  (g.rear+g.front)/2,d2-.012,.043,w-.02,finish);
+ level+=g.midN;
+ // Second left winder turn.
+ for(const poly of g.secondTurn){
+  ++level;stairPolygon(root,poly,.20,concrete,level*rise-.20);
+  stairPolygon(root,poly,.042,finish,level*rise-.036)
+ }
+ // Last six visible treads now climb exactly to the second-floor slab.
+ // The first two flights and window-side stair heights remain unchanged.
+ // This is a visual approximation: the upper six risers are taller than
+ // the lower risers, so real step heights must eventually be measured.
+ const d3=g.backRun/g.lastN,visibleLength=d3*g.visibleLastN;
+ const startLevel=level*rise;
+ const upperRise=(state.height-startLevel)/g.visibleLastN;
+ stairRunShell(root,{count:g.visibleLastN,depth:d3,rise:upperRise,startLevel,
+  width:w,originX:g.left+w,originZ:g.front,yaw:-Math.PI/2,material:concrete});
+ for(let i=0;i<g.visibleLastN;i++)cube(root,g.left+w/2,startLevel+(i+1)*upperRise-.02,
+  g.front+(i+.5)*d3,w-.02,.043,d3-.012,finish);
+ // Show the portion of second-floor concrete slab replacing the treads
+ // in first-floor inspection mode (upperFloorGroup is otherwise hidden).
+ const from=g.front+visibleLength,to=g.front+g.backRun;
+ if(to-from>.02){
+  const slab=meshMat('#d5c8b7',.58,.015);
+  cube(root,g.left+w/2,state.height-.09,(from+to)/2,
+   w,.18,to-from,slab);
+ }
+}
+function buildFurniture(o){
+const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
+const color=meshMat(o.color||'#c1aa91');
+if(o.type==='rug'){cube(root,0,.045,0,o.w,.045,o.d,color);return}
+if(o.type==='plant'){cube(root,0,.25,0,.35,.5,.35,meshMat('#b4a18c'));const crown=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.25,o.w/2),10,10),meshMat('#617965'));crown.position.y=.95;root.add(crown);return}
+if(o.type==='sofa'){cube(root,0,.38,0,o.w,.55,o.d,color);cube(root,0,.81,-o.d/2+.12,o.w,.54,.23,color);for(const side of [-1,1])cube(root,side*(o.w/2-.11),.58,0,.22,.45,o.d,color);return}
+if(o.type==='bed'){cube(root,0,.28,0,o.w,.34,o.d,color);cube(root,0,.57,-o.d/2+.10,o.w,.56,.18,color);cube(root,0,.50,.20,o.w-.12,.14,o.d-.5,meshMat('#ded6cc'));return}
+if(o.type==='cabinet'){cube(root,0,o.h/2,0,o.w,o.h,o.d,color);for(let x=-o.w/2+.5;x<o.w/2;x+=.55)cube(root,x,o.h/2,o.d/2+.015,.018,o.h-.08,.02,meshMat('#9e8d78'));return}
+if(o.type==='chair'){cube(root,0,.42,0,o.w,.26,o.d,color);cube(root,0,.81,-o.d/2+.07,o.w,.62,.17,color);return}
+cube(root,0,o.h,0,o.w,.10,o.d,color);
+for(const x of [-o.w/2+.13,o.w/2-.13])for(const z of [-o.d/2+.13,o.d/2-.13])cube(root,x,o.h/2,z,.10,o.h,.10,meshMat('#555a57'));
+}
+let floorMeshes=[];
+
+// Integrated, editor-schema-aware staircase diagnostics.
+// Adapted from Gemini's suggestion; unlike that draft all dimensions are METRES.
+class ToastManager{
+ show(message,type='info',duration=4000){
+  const container=$('toast-container');
+  if(!container)return;
+  const toast=document.createElement('div');
+  toast.className='toast-notification '+(type==='error'?'error':type==='warning'?'warning':'');
+  toast.textContent=message;container.appendChild(toast);
+  requestAnimationFrame(()=>toast.classList.add('show'));
+  setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),300)},duration);
+  while(container.children.length>3)container.firstChild.remove();
+ }
+}
+const toastManager=new ToastManager();
+const highlightedStairs=new Map();
+const errorStairMaterial=new THREE.MeshStandardMaterial({
+ color:0xff3b30,roughness:.45,transparent:true,opacity:.8
+});
+function clearStairHighlights(){
+ // Restore materials before disposal/rebuild; no stale uuid/material map.
+ for(const [id,old] of highlightedStairs){
+  const g=threeRoots.get(id);
+  if(g)g.traverse(mesh=>{if(mesh.isMesh&&old.has(mesh))mesh.material=old.get(mesh)});
+ }
+ highlightedStairs.clear();
+}
+function highlightStair(id){
+ const g=threeRoots.get(id);
+ if(!g||highlightedStairs.has(id))return;
+ const old=new Map();
+ g.traverse(mesh=>{if(mesh.isMesh){old.set(mesh,mesh.material);mesh.material=errorStairMaterial}});
+ highlightedStairs.set(id,old);
+}
+function auditStair(o){
+ const errors=[],warnings=[];
+ if(!o||!['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))||
+   o.width<=0||o.lower<=0||o.upper<=0)return {errors:['Некорректные размеры лестницы'],warnings,metrics:null};
+ const g=stairGeometry(o),rise=state.height/g.total;
+ if(g.bridge<=.15)errors.push('Не хватает ширины для среднего марша');
+ if(g.rear< -5.30-.01)errors.push('Поворот пересекает заднюю стену');
+ const leftWall=state.walls.find(w=>w.id==='stairLeft');
+ if(leftWall&&g.left<leftWall.x1+leftWall.t/2-.01)errors.push('Третий марш пересекает левую стену');
+ const rightWall=state.walls.find(w=>w.id==='stairRight');
+ if(rightWall&&g.right>rightWall.x1-rightWall.t/2+.01)errors.push('Первый марш пересекает правую стену');
+ if(g.front+o.lower>-.9)errors.push('Начало первого марша выходит за лестничный холл');
+ if(g.front+g.backRun>-.9)errors.push('Третий марш выходит за лестничный холл');
+ const stairWindow=state.openings.find(v=>v.id==='stairWindow');
+ if(stairWindow){
+  const windowSideHeight=(g.firstN+g.turnN+g.midN)*rise;
+  if(windowSideHeight>stairWindow.sill-.03)
+   warnings.push('Лестница под окном: верх среднего марша '+Math.round(windowSideHeight*100)+' см, подоконник '+Math.round(stairWindow.sill*100)+' см.');
+ }
+ // A stair flight must not lie along the wardrobe doorway on the right wall.
+ const door=state.openings.find(v=>v.type==='door'&&v.wall==='stairRight');
+ const doorWall=state.walls.find(v=>v.id==='stairRight');
+ if(door&&doorWall){
+  const doorCenter=offsetPoint(doorWall,door.offset);
+  const doorRear=doorCenter.z-door.width/2;
+  const stairFront=g.front+o.lower;
+  if(stairFront>doorRear-.04)
+   errors.push('Нижний марш перекрывает проём гардеробной на '+Math.max(0,Math.round((stairFront-doorRear)*100))+' см.');
+ }
+ const passage=state.openings.find(p=>p.id==='stairArch'&&p.wall==='stairLeft');
+ if(passage){
+  const wall=state.walls.find(w=>w.id==='stairLeft');
+  if(wall){
+   const pt=offsetPoint(wall,passage.offset);
+   const cornerZ=pt.z+passage.width/2;
+   const endZ=g.front+g.backRun;
+   if(endZ>cornerZ+.03)
+    warnings.push('Третий марш выходит за угол левого проёма на '+Math.round((endZ-cornerZ)*100)+' см');
+  }
+ }
+ const upperRise=(state.height-(g.firstN+g.turnN+g.midN+g.turnN)*rise)/g.visibleLastN;
+ if(upperRise>.21){
+  warnings.push('Визуальная модель: подъём третьего марша '+Math.round(upperRise*100)+' см против '+Math.round(rise*100)+' см на остальных маршах. Требуются реальные замеры ступеней.');
+ }
+ const steps=[o.lower/g.firstN,g.bridge/g.midN,g.backRun/g.lastN];
+ steps.forEach((v,i)=>{if(v<.25||v>.38)warnings.push('Марш '+(i+1)+': проступь '+Math.round(v*100)+' см требует проверки')});
+ if(!Number.isFinite(o.returnRun))warnings.push('Восстанови П-образную лестницу кнопкой для сохранения третьего марша');
+ warnings.push('Это концепция. Размеры забежных ступеней, радиусы, зазор возле окна и высоту прохода нужно измерить.');
+ return {errors,warnings,metrics:{rise,total:g.total,first:steps[0],middle:steps[1],last:steps[2]}};
+}
+let lastValidationSignature='';
+function processSceneValidation(notify=false){
+ clearStairHighlights();
+ const reports=[];
+ for(const stair of state.stairs){
+  const r=auditStair(stair);
+  if(r.errors.length)highlightStair(stair.id);
+  reports.push({stair,r});
+ }
+ const issues=reports.flatMap(({stair,r})=>[
+  ...r.errors.map(message=>({kind:'error',message:stair.name+': '+message})),
+  ...r.warnings.map(message=>({kind:'warning',message:stair.name+': '+message}))
+ ]);
+ const report=$('stairValidationReport');
+ if(!reports.length){report.innerHTML='<p>В проекте нет лестницы.</p>';return}
+ const first=reports[0].r;
+ const fmt=n=>(n*100).toFixed(1).replace('.',',')+' см';
+ const metrics=first.metrics?'<p class="ok">Расчёт при '+first.metrics.total+' подступенках: высота '+fmt(first.metrics.rise)+
+  ', нижняя проступь '+fmt(first.metrics.first)+', верхняя '+fmt(first.metrics.last)+'.</p>':'';
+ report.innerHTML=metrics+(issues.length?issues.map(i=>'<p class="'+i.kind+'">'+label(i.message)+'</p>').join(''):
+  '<p class="ok">Предусмотренные упрощённые проверки пройдены. Для строительства необходим обмер и инженерный проект.</p>');
+ const signature=JSON.stringify(issues);
+ if(notify&&issues.length&&signature!==lastValidationSignature)
+  toastManager.show(issues[0].message,issues[0].kind,4700);
+ lastValidationSignature=signature;
+}
+
+
+function upperFloorOpening(){
+ const o=state.stairs[0];if(!o)return null;
+ const g=stairGeometry(o);
+ return {x0:g.left,x1:g.left+g.w,x2:g.right-g.w,x3:g.right,
+  z0:g.rear,z1:g.front,z2:g.front+Math.max(o.lower,g.backRun*g.visibleLastN/g.lastN)}
+}
+function buildUpperFloor(){
+ const y=state.height-.09,mat=meshMat('#d5c8b7',.56,.02),o=upperFloorOpening();
+ const L=.2,R=18.83,B=-5.30,F=5.30;
+ function slab(x0,x1,z0,z1){
+  if(x1-x0<=.03||z1-z0<=.03)return;
+  upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,y,(z0+z1)/2,x1-x0,.18,z1-z0,mat))
+ }
+ if(!o){slab(L,R,B,F);return}
+ const x0=clamp(o.x0,L,R),x1=clamp(o.x1,L,R),x2=clamp(o.x2,L,R),x3=clamp(o.x3,L,R);
+ const z0=clamp(o.z0,B,F),z1=clamp(o.z1,B,F),z2=clamp(o.z2,B,F);
+ slab(L,x0,B,F);slab(x0,x1,B,z0);slab(x0,x1,z2,F);
+ slab(x1,x2,B,z0);slab(x1,x2,z1,F);
+ slab(x2,x3,B,z0);slab(x2,x3,z2,F);slab(x3,R,B,F);
+ upperFloorMeshes.push(cube(upperFloorGroup,(x0+x1)/2,state.height+.013,
+  z2+.10,Math.max(.15,x1-x0-.04),.022,.20,meshMat('#a28f78')));
+}
+function drawUpperFloorPlan(w,h){
+ const o=upperFloorOpening(),p=planPoint(.2,-5.30),q=planPoint(18.83,5.30);
+ ctx.fillStyle='#d6c8b5';ctx.fillRect(p.x,p.y,q.x-p.x,q.y-p.y);
+ ctx.strokeStyle='#455561';ctx.lineWidth=3;ctx.strokeRect(p.x,p.y,q.x-p.x,q.y-p.y);
+ if(o){
+  const rs=[[o.x0,o.x3,o.z0,o.z1],[o.x0,o.x1,o.z1,o.z2],[o.x2,o.x3,o.z1,o.z2]];
+  for(const [xa,xb,za,zb] of rs){
+   const a=planPoint(xa,za);ctx.fillStyle='#152530';
+   ctx.fillRect(a.x,a.y,(xb-xa)*scale,(zb-za)*scale);
+   ctx.strokeStyle='#d48735';ctx.lineWidth=2;
+   ctx.strokeRect(a.x,a.y,(xb-xa)*scale,(zb-za)*scale)
+  }
+  const x=planPoint(o.x0,o.z2+.45);
+  ctx.fillStyle='#254e42';ctx.font='bold 12px system-ui';
+  ctx.fillText('ВЫХОД НА 2 ЭТАЖ ↑',x.x,x.y);
+ }else{ctx.fillStyle='#34444a';ctx.fillText('Нет лестницы',p.x+20,p.y+35)}
+ ctx.fillStyle='#3e5561';ctx.font='bold 12px system-ui';ctx.textAlign='left';
+ ctx.fillText('2 ЭТАЖ · П-ОБРАЗНЫЙ ПРОЁМ',14,h-16);
+}
+// Inspection modes use camera and visibility only; no changes to house state.
+function exitStairPreview(){
+ stairPreview=false;
+ interiorCeilingVisible=false;
+ $('exitStairView').hidden=true;
+ if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
+ for(const [id,root] of threeRoots)
+  root.visible=activeFloor===1||state.stairs.some(st=>st.id===id);
+ for(const mesh of floorMeshes)mesh.visible=activeFloor===1;
+ upperFloorGroup.visible=activeFloor===2;
+}
+function showStairPreview(){
+ const st=state.stairs[0];
+ if(!st){status('Лестница не найдена — восстанови её перед просмотром.');return}
+ stairPreview=true;activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('exitStairView').hidden=false;
+ $('floorCaption').textContent='Отдельный осмотр лестницы';
+ if(groundGrid)groundGrid.visible=false;
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const [id,root] of threeRoots)root.visible=state.stairs.some(v=>v.id===id);
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=false;
+ const g=stairGeometry(st);
+ orbit.target.set((g.left+g.right)/2,state.elevation+state.height*.48,
+  g.front+.75);
+ camera.position.set(g.right+2.8,state.elevation+state.height+2.2,g.front+5);
+ orbit.update();drawPlan();
+ status('Лестница без стен. Верни весь дом кнопкой над 3D-экраном.');
+}
+function showHallInside(){
+ exitStairPreview();
+ interiorCeilingVisible=true;
+ activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('floorCaption').textContent='Вид из лестничного холла · существующая планировка';
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const root of threeRoots.values())root.visible=true;
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=true;
+ if(groundGrid)groundGrid.visible=false;
+ const st=state.stairs[0];
+ const g=st?stairGeometry(st):null;
+ const cx=g?(g.left+g.right)/2:11.5;
+ orbit.target.set(cx,state.elevation+2.0,-4.1);
+ camera.position.set(cx,state.elevation+2.15,-.36);
+ orbit.update();drawPlan();
+ status('Вид на лестницу и окно из холла. Поворачивай камеру внутри помещения.');
+}
+function inspectLeftPassage(){
+ exitStairPreview();
+ interiorCeilingVisible=true;
+ activeFloor=1;
+ $('floor1').classList.add('active');$('floor2').classList.remove('active');
+ $('floorCaption').textContent='Осмотр левого прохода в спальню';
+ selected=null;transform.detach();refreshInspector();refreshList();
+ for(const root of threeRoots.values())root.visible=true;
+ for(const mesh of floorMeshes)mesh.visible=true;
+ upperFloorGroup.visible=true;
+ if(groundGrid)groundGrid.visible=false;
+ const passage=state.openings.find(o=>o.id==='stairArch'&&o.type==='passage');
+ const leftWall=passage&&wallFor(passage);
+ if(!passage||!leftWall){
+  status('Левый проход не найден. Обнови страницу до версии V5.0.');
+  return;
+ }
+ const pt=offsetPoint(leftWall,passage.offset);
+ orbit.target.set(pt.x,state.elevation+passage.head*.50,pt.z);
+ camera.position.set(pt.x+2.0,state.elevation+passage.head*.53,pt.z+.45);
+ orbit.update();drawPlan();
+ status('Левый проход открыт: проём '+passage.width.toFixed(2)+' м, сверху '+Math.round((state.height-passage.head)*100)+' см стены. Дверь спальни — дальше.');
+}
+$('viewLeftPassage').onclick=inspectLeftPassage;
+$('viewStair').onclick=showStairPreview;
+$('viewHall').onclick=showHallInside;
+$('exitStairView').onclick=()=>{
+ exitStairPreview();
+ $('floorCaption').textContent='Редактирование первого этажа';
+ status('Полный дом восстановлен.');
+};
+$('hallFinish').onclick=()=>{
+ hallFinished=!hallFinished;
+ $('hallFinish').classList.toggle('active',hallFinished);
+ $('hallFinish').setAttribute('aria-pressed',String(hallFinished));
+ $('hallFinish').textContent=hallFinished?'✦ Светлая отделка: вкл.':'✦ Светлая отделка холла';
+ refreshAll();
+ status(hallFinished?'Показан концепт светлой отделки холла':'Возвращён базовый вид холла');
+};
+
+function setFloorView(floor){
+ exitStairPreview();
+ activeFloor=floor===2?2:1;
+ if(groundGrid)groundGrid.visible=gridVisible&&activeFloor===1;
+ $('floor1').classList.toggle('active',activeFloor===1);
+ $('floor2').classList.toggle('active',activeFloor===2);
+ $('floorCaption').textContent=activeFloor===1?'Редактирование первого этажа':
+  'Схематичный второй этаж · без выдуманных помещений';
+ transform.detach();
+ selected=null;refreshInspector();refreshList();
+ for(const [id,root] of threeRoots)root.visible=activeFloor===1||state.stairs.some(s=>s.id===id);
+ for(const root of floorMeshes)root.visible=activeFloor===1;
+ upperFloorGroup.visible=activeFloor===2;
+ if(activeFloor===2){
+  orbit.target.set(11.1,state.elevation+state.height,-2.8);
+  camera.position.set(16,state.elevation+state.height+9,1.2);
+ }else{
+  orbit.target.set(9.6,0,0);
+  camera.position.set(25,23,25);
+ }
+ orbit.update();drawPlan();
+}
+$('floor1').onclick=()=>setFloorView(1);
+$('floor2').onclick=()=>setFloorView(2);
+
+// Reversible visual finishes: these meshes are NOT part of the saved floorplan.
+function buildHallInterior(){
+ if(!hallFinished)return;
+ const room=state.rooms.find(r=>r.id==='stair');
+ if(!room)return;
+ const group=new THREE.Group();
+ buildingGroup.add(group);
+ floorMeshes.push(group); // 3D rebuild disposes these preview-only meshes.
+ // Floor colour/pattern is applied by the same room surface system.
+ // Keep only the skirting here, so a second tile mesh cannot hide it.
+ // Fine plaster skirting on the inner faces, stopping short of door openings.
+ const skirting=meshMat('#ebe5dc',.88);
+ const walls=state.walls.filter(w=>['stairLeft','stairRight'].includes(w.id));
+ for(const wall of walls){
+  const endA=Math.min(wall.z1,wall.z2),endB=Math.max(wall.z1,wall.z2);
+  const doorSpans=state.openings.filter(o=>o.wall===wall.id&&['door','passage'].includes(o.type)).map(o=>{
+   const c=offsetPoint(wall,o.offset);
+   return [c.z-o.width/2-.04,c.z+o.width/2+.04]
+  });
+  const x=wall.id==='stairLeft'?wall.x1+wall.t/2+.017:wall.x1-wall.t/2-.017;
+  for(let z=endA+.05;z<endB-.05;z+=.4){
+   const za=z,zb=Math.min(z+.4,endB-.05);
+   if(doorSpans.some(([a,b])=>za<b&&zb>a))continue;
+   cube(group,x,.13,(za+zb)/2,.027,.13,zb-za,skirting);
+  }
+ }
+}
+
+function build3d(){
+transform.detach();
+clearStairHighlights();
+const disposedGeometry=new Set(),disposedMaterial=new Set(),disposedTextures=new Set();
+for(const o of [...threeRoots.values(),...floorMeshes,...upperFloorMeshes]){
+ o.parent?.remove(o);
+ o.traverse(child=>{
+  if(!child.isMesh)return;
+  const g=child.geometry;
+  if(g&&!disposedGeometry.has(g)){disposedGeometry.add(g);g.dispose()}
+  const mats=Array.isArray(child.material)?child.material:[child.material];
+  for(const m of mats){
+   if(!m||m===errorStairMaterial||disposedMaterial.has(m))continue;
+   disposedMaterial.add(m);
+   for(const key of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap']){
+    const tex=m[key];if(tex&&!disposedTextures.has(tex)){disposedTextures.add(tex);tex.dispose()}
+   }
+   m.dispose();
+  }
+ });
+}
+threeRoots.clear();floorMeshes=[];upperFloorMeshes=[];
+ buildingGroup.position.y=state.elevation;
+ if(yardMesh){scene.remove(yardMesh);yardMesh.geometry.dispose();yardMesh.material.dispose()}
+ yardMesh=cube(scene,9.5,-.08,0,38,.12,26,meshMat('#c2c0b5',.78,.02));
+ for(const r of state.rooms){
+const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,createFloorMaterial(r));floorMeshes.push(m);
+}
+for(const w of state.walls)buildWall(w);
+for(const o of state.stairs)buildStair(o);
+for(const o of state.furniture)buildFurniture(o);
+buildHallInterior();
+// The previous renderer had shadows enabled but every cube had castShadow=false.
+// Enable casting selectively for movable furniture and stairs; avoid wall-heavy shadow maps.
+for(const object of [...state.stairs,...state.furniture]){
+ const root=threeRoots.get(object.id);
+ if(root)root.traverse(node=>{if(node.isMesh)node.castShadow=true});
+}
+buildUpperFloor();
+// Reapply visibility without resetting the camera each time state changes.
+for(const [id,root] of threeRoots)root.visible=stairPreview?state.stairs.some(t=>t.id===id):(activeFloor===1||state.stairs.some(t=>t.id===id));
+for(const root of floorMeshes)root.visible=stairPreview||activeFloor===1;
+upperFloorGroup.visible=!stairPreview&&(activeFloor===2||interiorCeilingVisible);
+const active=activeFloor===1?threeRoots.get(selected):null;if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
+if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
+processSceneValidation(false);
+resize3d();
+}
+function update3dObject(o){
+ const mesh=threeRoots.get(o.id);
+ if(mesh&&o.type!=='wall'&&o.type!=='door'&&o.type!=='window'&&o.type!=='room'){
+  mesh.position.x=o.x;mesh.position.z=o.z;
+ }
+ // Walls and openings are reconstructed only when the pointer is released.
+}
+function resize3d(){const r=canvas3d.getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+let pointer3DStart=null;
+canvas3d.addEventListener('pointerdown',e=>{
+ pointer3DStart={x:e.clientX,y:e.clientY};
+});
+canvas3d.addEventListener('pointerup',e=>{
+ if(activeFloor===2)return;
+ if(transform.dragging||performance.now()-lastTransformEnd<350)return;
+ if(pointer3DStart&&Math.hypot(e.clientX-pointer3DStart.x,e.clientY-pointer3DStart.y)>7)return;
+const r=canvas3d.getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;
+raycaster.setFromCamera(mouse,camera);const hits=raycaster.intersectObjects([...threeRoots.values()],true);
+for(const hit of hits){let p=hit.object;while(p&&!p.userData?.editorId)p=p.parent;if(p?.userData?.editorId){select(p.userData.editorId);return}}
+});
+function mode(m){const o=find(selected);if(m==='scale'&&(!o||!['sofa','table','bed','cabinet','chair','island','rug','plant','stair'].includes(o.type))){status('Изменяй размеры стен и проёмов в панели свойств');return}
+if(m==='rotate'&&(!o||!['sofa','table','bed','cabinet','chair','island','rug','plant','stair'].includes(o.type))){status('Поворот стен: редактируй концы на плане');return}
+transform.setMode(m);
+for(const [id,mode] of [['moveMode','translate'],['rotateMode','rotate'],['scaleMode','scale']])$(id).classList.toggle('active',mode===m);
+}
+function removeSelected(){if(!selected)return;const target=find(selected);
+if(state.rooms.some(r=>r.id===selected)){status('Комнаты нельзя удалять в этой версии');return}
+if(target.type==='wall'){state.openings=state.openings.filter(o=>o.wall!==selected)}
+for(const k of ['walls','openings','stairs','furniture'])state[k]=state[k].filter(o=>o.id!==selected);
+selected=null;push();refreshAll()}
+function duplicateSelected(){const o=find(selected);if(!o||state.rooms.some(r=>r.id===selected)){status('Выбери объект, который можно копировать');return}
+let p=clone(o);p.id=uid();p.name+=' · копия';
+if(p.type==='wall'){p.x1+=.5;p.x2+=.5;p.z1+=.5;p.z2+=.5;state.walls.push(p)}
+else if(p.type==='door'||p.type==='window'){const w=wallFor(p);p.offset=clamp(p.offset+.25,p.width/2,wallLength(w)-p.width/2);state.openings.push(p)}
+else{p.x+=.5;p.z+=.5;state[p.type==='stair'?'stairs':'furniture'].push(p)}
+selected=p.id;push();refreshAll()}
+function findFreeOpening(w,width){
+ const ends=safeWallOpenings(w),L=wallLength(w),margin=.08;
+ let gaps=[],last=margin;
+ for(const o of ends){if(o.start-last>=width+margin)gaps.push([last,o.start]);last=Math.max(last,o.end)+margin}
+ if(L-margin-last>=width)gaps.push([last,L-margin]);
+ if(!gaps.length)return null;
+ gaps.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+ return snap((gaps[0][0]+gaps[0][1])/2);
+}
+function auditOpenings(){
+ const issues=[];
+ for(const w of state.walls){
+  const os=safeWallOpenings(w),L=wallLength(w);
+  for(const o of os){
+   if(o.start<-.001||o.end>L+.001||o.end-o.start<.3)issues.push('Проём «'+o.name+'» выходит за пределы стены «'+w.name+'».');
+  }
+  for(let i=1;i<os.length;i++){
+   if(os[i].start<os[i-1].end-.01)
+    issues.push('Пересекаются проёмы: «'+os[i-1].name+'» и «'+os[i].name+'».');
+  }
+ }
+ return issues;
+}
+function refreshOpeningReport(){
+ const issues=auditOpenings();
+ $('openingValidationReport').innerHTML=issues.length?issues.map(x=>'<p class="error">'+label(x)+'</p>').join(''):
+  '<p class="ok">Пересечений проёмов на одной стене не найдено.</p>';
+ return issues;
+}
+function addOpening(type){
+const w=find(selected)?.type==='wall'?find(selected):state.walls.find(x=>x.id==='livingHall');
+if(!w)return;
+if(wallLength(w)<1){status('Эта стена слишком короткая для проёма');return;}
+const width=Math.min(type==='door'?.9:1.3,wallLength(w)-.10);
+const free=findFreeOpening(w,width);
+if(free===null){status('На стене нет свободного места для нового проёма');toastManager.show('Выбери другую стену — места для проёма нет','warning');return}
+const center=free;
+const o=mkOpen(uid(),type,type==='door'?'Новая дверь':'Новое окно',w.id,center,width,type==='door'?0:.8,type==='door'?2.2:2.5,1);
+state.openings.push(o);selected=o.id;push();refreshAll();
+}
+function addItem(){
+const type=$('furnitureType').value;
+const preset={sofa:[2.6,1,.85],table:[1.5,.9,.75],bed:[2.1,2.1,.55],cabinet:[1.8,.55,2.2],chair:[.8,.8,.85],island:[2.0,.95,.9],rug:[2.2,1.5,.06],plant:[.55,.55,1.2]}[type];
+const o={id:uid(),type,name:{sofa:'Диван',table:'Стол',bed:'Кровать',cabinet:'Шкаф',chair:'Кресло',island:'Кухонный остров',rug:'Ковёр',plant:'Растение'}[type],x:11,z:2,w:preset[0],d:preset[1],h:preset[2],rot:0,color:'#c6b6a1'};
+state.furniture.push(o);selected=o.id;push();refreshAll();
+}
+function addStair(){
+ if(state.stairs.length){selected=state.stairs[0].id;select(selected);status('Лестница уже существует. Выбрана для редактирования.');return}
+ const o=defaultStair();
+ if(find(o.id))o.id=uid();
+ state.stairs.push(o);selected=o.id;push();refreshAll();status('Новая лестница создана в холле — проверь размеры и предупреждения');
+}
+document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{tool=b.dataset.tool;wallFirst=null;document.querySelectorAll('[data-tool]').forEach(a=>a.classList.toggle('active',a===b));status(tool==='wall'?'Нажми начальную и конечную точки стены':'Режим выбора объектов')});
+$('rebuildStair').onclick=()=>{
+ if(!confirm('Заменить только лестницу П-образной схемой с двумя левыми поворотами?'))return;
+ const old=state.stairs[0],o=defaultStair();
+ if(old){o.id=old.id;o.color=old.color||o.color}
+ else if(find(o.id))o.id=uid();
+ state.stairs=[o];selected=o.id;stairPreview=false;
+ push();refreshAll();showStairPreview();
+ status('Новая П-образная лестница. Проверяй ракурсы и реальные размеры.');
+};
+$('addDoor').onclick=()=>addOpening('door');$('addWindow').onclick=()=>addOpening('window');$('addFurniture').onclick=addItem;$('addStair').onclick=addStair;
+$('delete').onclick=removeSelected;$('duplicate').onclick=duplicateSelected;
+$('moveMode').onclick=()=>mode('translate');$('rotateMode').onclick=()=>mode('rotate');$('scaleMode').onclick=()=>mode('scale');
+$('undo').onclick=()=>applyHistory(historyAt-1);$('redo').onclick=()=>applyHistory(historyAt+1);$('save').onclick=saveState;
+$('restoreDefault').onclick=()=>{
+ if(!confirm('Сбросить редактор к исходному плану? Несохранённые правки будут потеряны. Сначала можно скачать JSON.'))return;
+ state=original();selected=null;
+ history=[JSON.stringify(state)];historyAt=0;
+ saveState();syncActions();refreshAll();fitPlan();status('Исходный план восстановлен');
+};
+$('export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='adkh-house-project.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)};
+$('import').onclick=()=>$('fileImport').click();
+$('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
+try{if(file.size>2e6)throw Error('Файл слишком большой');const d=JSON.parse(await file.text());validate(d);state=d;selected=null;push();refreshAll();status('Проект загружен из JSON')}
+catch(err){status('Не удалось загрузить: '+err.message)}e.target.value=''};
+$('room').onchange=refreshRoomUI;
+$('wallColor').onchange=e=>{const r=state.rooms.find(x=>x.id===$('room').value);if(r){r.wall=e.target.value;push();refreshAll()}};
+$('floorColor').onchange=e=>{const r=state.rooms.find(x=>x.id===$('room').value);if(r){r.floor=e.target.value;push();refreshAll()}};
+$('floorPattern').onchange=e=>{
+ const r=state.rooms.find(x=>x.id===$('room').value);
+ if(r){r.floorPattern=e.target.value;push();refreshAll();}
+};
+$('materialWarm').onclick=()=>{for(const r of state.rooms){r.wall='#e4d6c6';r.floor='#c7af90'}push();refreshAll()};
+$('materialLight').onclick=()=>{for(const r of state.rooms){r.wall='#f0ede5';r.floor='#dfd7c8'}push();refreshAll()};
+$('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push();refreshAll()};
+$('baseElevation').onchange=e=>{state.elevation=clamp(+e.target.value,0,1.5);push();refreshAll()};
+for(const [id,mode] of [['planOnly','plan'],['split','split'],['only3d','3d']])$(id).onclick=()=>{const a=$('pane2d'),b=$('pane3d');a.style.display=mode==='3d'?'none':'';b.style.display=mode==='plan'?'none':'';$('views').style.gridTemplateColumns=mode==='split'?'1fr 1fr':'1fr';for(const btn of ['planOnly','split','only3d'])$(btn).classList.toggle('active',btn===id);resize3d();drawPlan()};
+// Screen-relative camera panning. Keeps camera and orbit target at the same distance.
+function panCamera(dx,dz,amount=.7){
+ if(transform.dragging)return;
+ const vx=camera.position.x-orbit.target.x,vz=camera.position.z-orbit.target.z;
+ const length=Math.hypot(vx,vz)||1;
+ const rightX=vz/length,rightZ=-vx/length;
+ const forwardX=-vx/length,forwardZ=-vz/length;
+ const mx=(rightX*dx+forwardX*dz)*amount;
+ const mz=(rightZ*dx+forwardZ*dz)*amount;
+ camera.position.x+=mx;camera.position.z+=mz;
+ orbit.target.x+=mx;orbit.target.z+=mz;
+ orbit.update();
+}
+const cameraArrows={cameraUp:[0,1],cameraDown:[0,-1],cameraLeft:[-1,0],cameraRight:[1,0]};
+for(const [id,dir] of Object.entries(cameraArrows)){
+ $(id).addEventListener('click',()=>panCamera(...dir));
+}
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName))return;
+const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+if(arrowDirections[e.key]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+ e.preventDefault();
+ if(e.shiftKey){
+  pan.x-=arrowDirections[e.key][0]*24;
+  pan.y+=arrowDirections[e.key][1]*24;
+  drawPlan();
+ }else panCamera(...arrowDirections[e.key]);
+ return;
+}
+if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click()}
+if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();$('redo').click()}
+if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();saveState()}
+if(e.code==='Delete'||e.code==='Backspace')removeSelected();
+if(e.code==='Escape'){wallFirst=null;select(null)}});
+let lastPlanSize='';
+const ro=new ResizeObserver(()=>{
+ resize3d();
+ const rect=canvas.getBoundingClientRect(),sz=rect.width+'x'+rect.height;
+ if(sz!==lastPlanSize){lastPlanSize=sz;fitPlan();}
+ else drawPlan();
+});ro.observe($('pane2d'));ro.observe($('pane3d'));
+function tick(){requestAnimationFrame(tick);if(document.hidden)return;orbit.update();renderer.render(scene,camera)}
+try{
+ const saved=JSON.parse(localStorage.getItem(STORAGE)||'null');
+ if(saved){
+  validate(saved);state=saved;
+  // Repair the known V4.8 door-placement regression on saved projects.
+  // The stair-hall opening is an unframed passage, with a 45cm lintel.
+  // Only move the named default bedroom door when its location matches
+  // the accidental left-wall placement of V4.8.
+  const bedroomDoor=state.openings.find(o=>o.id==='bedD'&&o.type==='door');
+  if(bedroomDoor&&bedroomDoor.wall==='stairLeft'){
+   bedroomDoor.wall='bedroomRight';
+  }
+  let passage=state.openings.find(o=>o.id==='stairArch');
+  if(!passage){
+   const competing=state.openings.find(o=>o.wall==='stairLeft'
+       &&Math.abs(o.offset-3.43)<.01&&Math.abs(o.width-.95)<.01);
+   if(competing){
+    competing.type='passage';
+    competing.name='Открытый проход в спальню';
+    competing.sill=0;competing.head=state.height-.30;
+    passage=competing;
+   }else if(state.walls.some(w=>w.id==='stairLeft')){
+    passage=mkOpen('stairArch','passage','Открытый проход в спальню',
+       'stairLeft',3.43,.95,0,state.height-.75,1);
+    state.openings.push(passage);
+   }
+  }
+  if(passage&&passage.wall==='stairLeft'&&passage.type==='passage'){
+   // Keep original horizontal placement. Lower the previous default
+   // opening top by another 30cm; leave customized heights untouched.
+   if(Math.abs(passage.offset-3.73)<.001&&Math.abs(passage.width-.95)<.001)
+    passage.offset=3.43;
+   if([state.height-.30,state.height-.45].some(h=>Math.abs(passage.head-h)<.001))
+    passage.head=state.height-.75;
+   passage.sill=0;
+  }
+  validate(state);
+  localStorage.setItem(STORAGE,JSON.stringify(state));
+  // One-time non-destructive shortening of the first staircase run by 35 cm.
+  // Do not replace customized lengths or modify other project objects.
+  const stair=state.stairs.find(o=>o.id==='stair1');
+  if(stair&&Math.abs(stair.lower-3.12)<.001&&Math.abs(stair.back+4.755)<.001
+   &&Math.abs(stair.width-1.05)<.001){
+   stair.lower=2.77;
+   validate(state);
+   localStorage.setItem(STORAGE,JSON.stringify(state));
+  }
+  // Narrowly migrate the unchanged default first-flight length only.
+  // Preserve manual edits and keep all riser heights / other house objects.
+  const lowerStair=state.stairs.find(o=>o.id==='stair1');
+  if(lowerStair&&[2.77,3.12].some(v=>Math.abs(lowerStair.lower-v)<.001)
+   &&Math.abs(lowerStair.back+4.755)<.001&&Math.abs(lowerStair.width-1.05)<.001){
+   lowerStair.lower=1.23;
+   validate(state);
+   localStorage.setItem(STORAGE,JSON.stringify(state));
+  }
+  // Existing stair return used to run 48.5 cm past the near corner
+  // of the left open passage. Update only the known default geometry.
+  // The second-floor slab opening follows g.backRun in upperFloorOpening().
+  const lastFlight=state.stairs.find(o=>o.id==='stair1');
+  const leftPassage=state.openings.find(o=>o.id==='stairArch'
+       &&o.wall==='stairLeft'&&o.type==='passage');
+  if(lastFlight&&leftPassage&&Math.abs(lastFlight.returnRun-3.12)<.001
+   &&Math.abs(lastFlight.back+4.755)<.001&&Math.abs(lastFlight.width-1.05)<.001
+   &&Math.abs(leftPassage.offset-3.43)<.001&&Math.abs(leftPassage.width-.95)<.001){
+   const wall=state.walls.find(w=>w.id==='stairLeft');
+   if(wall){
+    const doorway=offsetPoint(wall,leftPassage.offset);
+    const nearCorner=doorway.z+leftPassage.width/2;
+    const turnFront=lastFlight.back+lastFlight.width/2;
+    lastFlight.returnRun=Number((nearCorner-turnFront).toFixed(3));
+    validate(state);
+    localStorage.setItem(STORAGE,JSON.stringify(state));
+   }
+  }
+  // Restore the prior window height only when it still matches our exact
+  // V4.3 automatic +12 cm adjustment. Manually changed windows remain intact.
+  const win=state.openings.find(o=>o.id==='stairWindow'&&o.wall==='back');
+  if(win&&Math.abs(win.sill-1.94)<.001&&Math.abs(win.head-3.64)<.001){
+   win.sill=1.82;win.head=3.52;
+   validate(state);
+   localStorage.setItem(STORAGE,JSON.stringify(state));
+   status('Окно возвращено на прежнюю высоту; лестница пересчитана.');
+  }else status('Лестница пересчитана; личные размеры окна сохранены.');
+ }
+}catch(e){status('Ошибка загрузки сохранённого проекта: '+e.message)}
+history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();tick();
+</script></body></html>
