@@ -47,8 +47,17 @@ input[type=checkbox]{width:auto}
 @media(max-width:1050px){.shell{grid-template-columns:210px minmax(200px,1fr) 275px}.left,.rightPanel{padding:10px}}
 @media(max-width:770px){body{overflow:auto;height:auto}header{height:auto;flex-wrap:wrap}.shell{height:auto;display:flex;flex-direction:column}.left,.rightPanel{width:100%;max-height:none}.center{height:70dvh;min-height:430px}.views{grid-template-columns:1fr 1fr}.left section{display:inline-block;vertical-align:top;width:48%;margin-right:1%}}
 @media(max-width:480px){.views{grid-template-columns:1fr}.pane{min-height:40dvh}.center{height:90dvh}.left section{width:100%}header .right button{font-size:11px;padding:6px}}
+#toast-container{position:fixed;top:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.toast-notification{background:rgba(30,30,30,.92);color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 12px #0005;font-size:13px;max-width:320px;pointer-events:auto;opacity:0;transform:translateY(-10px);transition:opacity .3s,transform .3s;border-left:4px solid #007aff}
+.toast-notification.show{opacity:1;transform:translateY(0)}
+.toast-notification.error{border-left-color:#ff3b30}.toast-notification.warning{border-left-color:#ffcc00}
+#stairValidationReport{font-size:11px;line-height:1.5}
+#stairValidationReport p{padding:7px;margin:6px 0;border-radius:7px;border:1px solid #567}
+#stairValidationReport .error{background:#7b332c66;border-color:#ff837a}
+#stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
+#stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.2</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.3</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -75,6 +84,7 @@ input[type=checkbox]{width:auto}
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
 <div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · выбор объекта и стрелки для перемещения</div></div>
 </div><div id="status" role="status">Готово. Нажми на объект на плане или в 3D.</div>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 </main>
 <aside class="rightPanel">
 <section><h2 id="selectedTitle">Свойства объекта</h2><div id="inspector"><p class="hint">Выбери стену, окно, дверь, лестницу, мебель или комнату.</p></div></section>
@@ -82,6 +92,9 @@ input[type=checkbox]{width:auto}
 <label for="wallColor">Цвет стен комнаты</label><input id="wallColor" type="color" value="#e9e2d8">
 <label for="floorColor">Цвет пола комнаты</label><input id="floorColor" type="color" value="#c1af93">
 <div class="actions" style="margin-top:10px"><button id="materialWarm">Тёплый стиль</button><button id="materialLight">Светлый стиль</button></div>
+</section>
+<section><h3>Диагностика лестницы</h3>
+<div id="stairValidationReport" role="status"><p>Проверка готовится.</p></div>
 </section>
 <section><h3>Общие параметры</h3><label for="buildingHeight">Высота стен, м</label><input id="buildingHeight" type="number" min="2.5" max="5" step=".05">
 <label for="baseElevation">Высота пола над двором, м</label><input id="baseElevation" type="number" min="0" max="1.5" step=".05">
@@ -169,7 +182,7 @@ for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Er
 return true;
 }
 function saveState(){try{localStorage.setItem(STORAGE,JSON.stringify(state));status('Сохранено в этом браузере')}catch(e){status('Ошибка сохранения: '+e.message)}}
-function push(){if(loading)return;const t=JSON.stringify(state);if(history[historyAt]===t)return;history=history.slice(0,historyAt+1);history.push(t);if(history.length>70)history.shift();historyAt=history.length-1;saveState();syncActions()}
+function push(){if(loading)return;processSceneValidation(true);const t=JSON.stringify(state);if(history[historyAt]===t)return;history=history.slice(0,historyAt+1);history.push(t);if(history.length>70)history.shift();historyAt=history.length-1;saveState();syncActions()}
 function applyHistory(i){if(i<0||i>=history.length)return;loading=true;try{state=JSON.parse(history[i]);validate(state);historyAt=i;selected=null;refreshAll();saveState()}finally{loading=false}syncActions()}
 function syncActions(){$('undo').disabled=historyAt<=0;$('redo').disabled=historyAt>=history.length-1}
 function status(t){$('status').textContent=t}
@@ -391,8 +404,117 @@ cube(root,0,o.h,0,o.w,.10,o.d,color);
 for(const x of [-o.w/2+.13,o.w/2-.13])for(const z of [-o.d/2+.13,o.d/2-.13])cube(root,x,o.h/2,z,.10,o.h,.10,meshMat('#555a57'));
 }
 let floorMeshes=[];
+
+// Integrated, editor-schema-aware staircase diagnostics.
+// Adapted from Gemini's suggestion; unlike that draft all dimensions are METRES.
+class ToastManager{
+ show(message,type='info',duration=4000){
+  const container=$('toast-container');
+  if(!container)return;
+  const toast=document.createElement('div');
+  toast.className='toast-notification '+(type==='error'?'error':type==='warning'?'warning':'');
+  toast.textContent=message;container.appendChild(toast);
+  requestAnimationFrame(()=>toast.classList.add('show'));
+  setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),300)},duration);
+  while(container.children.length>3)container.firstChild.remove();
+ }
+}
+const toastManager=new ToastManager();
+const highlightedStairs=new Map();
+const errorStairMaterial=new THREE.MeshStandardMaterial({
+ color:0xff3b30,roughness:.45,transparent:true,opacity:.8
+});
+function clearStairHighlights(){
+ // Restore materials before disposal/rebuild; no stale uuid/material map.
+ for(const [id,old] of highlightedStairs){
+  const g=threeRoots.get(id);
+  if(g)g.traverse(mesh=>{if(mesh.isMesh&&old.has(mesh))mesh.material=old.get(mesh)});
+ }
+ highlightedStairs.clear();
+}
+function highlightStair(id){
+ const g=threeRoots.get(id);
+ if(!g||highlightedStairs.has(id))return;
+ const old=new Map();
+ g.traverse(mesh=>{if(mesh.isMesh){old.set(mesh,mesh.material);mesh.material=errorStairMaterial}});
+ highlightedStairs.set(id,old);
+}
+function auditStair(o){
+ const errors=[],warnings=[];
+ const positive=['x','z','width','lower','upper','back','rot'].every(k=>Number.isFinite(o[k]))&&o.width>0&&o.lower>0&&o.upper>0;
+ if(!positive)return {errors:['Недопустимые числовые параметры лестницы.'],warnings,metrics:null};
+ const rise=state.height/22;
+ const lowerTread=o.lower/7,upperTread=o.upper/12;
+ const scoreLower=2*rise+lowerTread,scoreUpper=2*rise+upperTread;
+ const metrics={rise,lowerTread,upperTread,scoreLower,scoreUpper};
+ if(o.width<.90)warnings.push('Ширина марша меньше ориентировочных 0,90 м.');
+ if(lowerTread<.25)warnings.push('Проступь нижнего марша менее 25 см.');
+ if(upperTread<.25)warnings.push('Проступь верхнего марша менее 25 см.');
+ if(scoreLower<.60||scoreLower>.64)warnings.push('Нижний марш: 2h + b вне ориентировочного диапазона 60–64 см.');
+ if(scoreUpper<.60||scoreUpper>.64)warnings.push('Верхний марш: 2h + b вне ориентировочного диапазона 60–64 см.');
+ if(Math.abs(Math.sin(o.rot||0))>.001){
+  warnings.push('Лестница повёрнута: автоматическая проверка пересечений в плане ограничена.');
+ }else{
+  // Origin is the CENTER of the lower flight; the upper flight goes LEFT.
+  const left=o.x-o.upper,right=o.x+o.width/2;
+  const rear=o.back-o.width/2;
+  const rearWall=state.walls.find(w=>w.id==='back');
+  const rearInside=rearWall?rearWall.z1+rearWall.t/2:-5.30;
+  if(left<9.52)errors.push('Верхний марш пересекает левую перегородку лестничного холла.');
+  if(rear<rearInside-.02)errors.push('Верхний марш пересекает заднюю стену.');
+  if(rear>rearInside+.08)warnings.push('Зазор между лестницей и задней стеной больше 8 см.');
+  const wardrobeWall=state.walls.find(w=>w.id==='stairRight');
+  const wardrobeInner=wardrobeWall?wardrobeWall.x1-wardrobeWall.t/2:13.47;
+  if(right>wardrobeInner-.02)errors.push('Нижний марш пересекает стену у гардеробной.');
+  // Check corner/upper landing connection based on modeled concrete boxes.
+  const rearCorner=o.z-o.lower-.15-.20*2-.12;
+  const frontUpper=o.back+o.width/2;
+  if(rearCorner>frontUpper+.035)
+   errors.push('Между поворотом и верхним маршем есть разрыв '+Math.round((rearCorner-frontUpper)*100)+' см.');
+  // Door opening: a 2D proximity check only (not a structural safety certificate).
+  const door=state.openings.find(d=>d.wall==='stairRight'&&d.type==='door');
+  if(door&&wardrobeWall){
+   const pt=offsetPoint(wardrobeWall,door.offset);
+   const minZ=pt.z-door.width/2,maxZ=pt.z+door.width/2;
+   const lowerMinZ=o.z-o.lower-.10,lowerMaxZ=o.z+.10;
+   if(right>wardrobeInner-.10&&minZ<lowerMaxZ&&maxZ>lowerMinZ)
+    errors.push('Нижний марш слишком близко к дверному проёму гардеробной.');
+  }
+  const windows=state.openings.filter(d=>d.wall==='back'&&d.type==='window');
+  if(windows.length&&state.height<3.5)warnings.push('Проверь высоту лестницы под окном и перекрытием на месте.');
+ }
+ return {errors,warnings,metrics};
+}
+let lastValidationSignature='';
+function processSceneValidation(notify=false){
+ clearStairHighlights();
+ const reports=[];
+ for(const stair of state.stairs){
+  const r=auditStair(stair);
+  if(r.errors.length)highlightStair(stair.id);
+  reports.push({stair,r});
+ }
+ const issues=reports.flatMap(({stair,r})=>[
+  ...r.errors.map(message=>({kind:'error',message:stair.name+': '+message})),
+  ...r.warnings.map(message=>({kind:'warning',message:stair.name+': '+message}))
+ ]);
+ const report=$('stairValidationReport');
+ if(!reports.length){report.innerHTML='<p>В проекте нет лестницы.</p>';return}
+ const first=reports[0].r;
+ const fmt=n=>(n*100).toFixed(1).replace('.',',')+' см';
+ const metrics=first.metrics?'<p class="ok">Расчёт при 22 подступенках: высота '+fmt(first.metrics.rise)+
+  ', нижняя проступь '+fmt(first.metrics.lowerTread)+', верхняя '+fmt(first.metrics.upperTread)+'.</p>':'';
+ report.innerHTML=metrics+(issues.length?issues.map(i=>'<p class="'+i.kind+'">'+label(i.message)+'</p>').join(''):
+  '<p class="ok">Предусмотренные упрощённые проверки пройдены. Для строительства необходим обмер и инженерный проект.</p>');
+ const signature=JSON.stringify(issues);
+ if(notify&&issues.length&&signature!==lastValidationSignature)
+  toastManager.show(issues[0].message,issues[0].kind,4700);
+ lastValidationSignature=signature;
+}
+
 function build3d(){
 transform.detach();
+clearStairHighlights();
 for(const o of [...threeRoots.values(),...floorMeshes]){
  o.parent?.remove(o);
  o.traverse(child=>{if(child.isMesh){child.geometry?.dispose();if(child.material){
@@ -411,6 +533,7 @@ for(const o of state.stairs)buildStair(o);
 for(const o of state.furniture)buildFurniture(o);
 const active=threeRoots.get(selected);if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
 if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
+processSceneValidation(false);
 resize3d();
 }
 function update3dObject(o){const m=threeRoots.get(o.id);if(!m)return;
