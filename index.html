@@ -18,13 +18,13 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · интерактивный 3D-тур · V9</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · интерактивный 3D-тур · V10</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="stair">Лестница</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
 <div id="nav"><span></span><button data-move="up">▲</button><span></span><button data-move="left">◀</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
 <div id="rot"><button data-move="turnleft">↶</button><button data-move="turnright">↷</button></div>
-<div id="source">Зал: один проём из коридора, без лишнего дверного полотна · кухня: одно окно</div>
+<div id="source">Зал и кухня: по одному входу из коридора · кухня: одно окно во двор</div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -179,7 +179,9 @@ segmented(9.6,-5.7,9.6,5.7,[{at:7.7,width:1.45,kind:'door',leaf:false}],mat.wall
 segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
-segmented(13.52,-1.05,19.03,-1.05,[{at:2.48,width:1.12,kind:'door'}],mat.wall);
+// Kitchen has ONE entrance only from the central corridor (west wall).
+// Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
+segmented(13.52,-1.05,19.03,-1.05,[],mat.wall);
 segmented(5.8,-5.7,5.8,-1.05,[{at:2.4,width:.92,kind:'door'}],mat.wall);
 segmented(8.85,-5.7,8.85,-1.05,[{at:3.25,width:.92,kind:'door'}],mat.wall);
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
