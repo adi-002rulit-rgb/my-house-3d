@@ -110,8 +110,8 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V32</strong><small id="status">Первый этаж · объёмный обзор</small></div>
-<div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
+<div id="title"><strong>Дом · дизайн-презентация · V33</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
 <button id="techToggle" aria-pressed="false">⚙ Режим архитектора</button>
@@ -255,6 +255,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <option value="general">Весь дом</option>
 <option value="living">Зал</option>
 <option value="kitchen">Кухня</option>
+<option value="kitchenWindow">Окно кухни · 3 метра</option>
 <option value="hallway">Коридор</option>
 <option value="bedroom">Спальня</option>
 <option value="bedroomWindowInside">Окно спальни · изнутри</option>
@@ -1028,7 +1029,7 @@ E('prevRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(to
 E('nextRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(tourRooms[(i+1)%tourRooms.length])};
 E('presentation').onclick=()=>{
  cleanView=!cleanView;
- for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo','inspectPanel','minimap','miniToggle','inspectionSpeed','measureText','auditPanel']){
+ for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo','inspectPanel','minimap','miniToggle','inspectionSpeed','measureText','auditPanel','showroom','techToggle']){
    const el=E(id);if(el)el.style.display=cleanView?'none':'';
  }
  for(const id of ['controls']){E(id).style.display=cleanView?'none':''}
@@ -1036,7 +1037,12 @@ E('presentation').onclick=()=>{
  E('presentation').textContent=cleanView?'◩ Вернуть панели':'◫ Без панелей';
  E('studio').style.maxHeight=cleanView?'none':'';
  labelsVisibleSafe();
- if(!cleanView){E('minimap').style.display=mapVisible?'block':'none';E('measureText').style.display=measureEnabled?'block':'none';E('auditPanel').hidden=true;}
+ if(!cleanView){
+   E('minimap').style.display=mapVisible?'block':'none';
+   E('measureText').style.display=measureEnabled?'block':'none';
+   E('auditPanel').hidden=true;
+   buttons();showInfo();
+ }else E('inspectHelp').hidden=true;
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
@@ -1116,7 +1122,7 @@ E('miniToggle').onclick=()=>{mapVisible=!mapVisible;E('minimap').style.display=m
 E('speedSlider').oninput=e=>{moveSpeed=Number(e.target.value);E('speedValue').textContent=moveSpeed.toFixed(1)+' м/с'};
 E('mouseSlider').oninput=e=>{mouseScale=Number(e.target.value);E('mouseValue').textContent=mouseScale.toFixed(1)+'×'};
 function renderMinimap(){
- if(!mapVisible)return;
+ if(!mapVisible||!document.body.classList.contains('technical')||cleanView)return;
  const cvs=E('minimap'),ctx=cvs.getContext('2d'),w=cvs.width,h=cvs.height;
  ctx.clearRect(0,0,w,h);ctx.fillStyle='#102532';ctx.fillRect(0,0,w,h);
  const x0=18,z0=22,scale=20.2;
@@ -1282,6 +1288,12 @@ function clientCamera(v){
   yaw=Math.PI;pitch=0;camera.rotation.set(0,yaw,0,'YXZ');
   E('status').textContent='Зал · панорамные окна с низким подоконником';
  }
+ else if(v==='kitchenWindow'){
+   enter('kitchen');
+   camera.position.set(16.2,1.65,1.65);
+   yaw=Math.PI;pitch=0;camera.rotation.set(0,yaw,0,'YXZ');
+   E('status').textContent='Кухня · единственное окно шириной 3 метра';
+ }
  else if(v==='bedroomWindowInside'){
    enter('bedroom');
    // Positive yaw looks toward -X, directly toward the new LEFT wall window.
@@ -1327,7 +1339,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=32');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=33');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
