@@ -70,19 +70,61 @@ body:not(.technical) #studio button{min-width:110px}
 #doorSampleSquare{display:inline-block;flex-shrink:0;width:33px;height:43px;background:#F0E9DF;border:2px solid #a3947b;border-radius:2px;box-shadow:inset 0 0 0 2px #ffffff38}
 #catalogDetails{font-size:11px;margin-top:10px;color:#dcccb3}#catalogDetails summary{cursor:pointer;text-decoration:underline}
 #catalogDetails a{display:block;color:#e7d2a8;margin-top:7px;text-decoration:underline}
+
+/* Presentation-first showroom layout: one purpose per tab, desktop and mobile. */
+#showroom{width:335px;max-width:min(35vw,360px);top:83px;max-height:calc(100dvh - 171px);padding:16px;scrollbar-width:thin;scrollbar-color:#ac9775 #192937}
+#showroom h2{font-size:19px;letter-spacing:.02em}
+#showroom p{margin-bottom:9px}
+#showroom [data-show-content][hidden]{display:none!important}
+#showroom .showroomTabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:13px 0 12px;position:sticky;top:-16px;padding:7px 0;background:#13222df5;z-index:2}
+#showroom .showroomTabs button{width:100%;font-size:11px;padding:9px 2px;background:#31434d;color:#dedbd3;border:1px solid #ffffff1d;transition:background .2s}
+#showroom .showroomTabs button[aria-selected="true"]{background:#c6a979;color:#1a232b;border-color:#e5c99e;font-weight:700}
+#showroom [data-show-content] h3{font-size:13px;font-weight:600;color:#f1e0c7;margin:6px 0 11px}
+#showroom #styleSummary{position:sticky;bottom:-16px;background:#1f3341;padding:9px;margin:14px -8px -8px;border:1px solid #c6b18c4f;border-radius:9px;font-weight:500;line-height:1.45}
+#showroom #clientGuide{margin:11px 0 0;font-size:10px;color:#c9c8c2;line-height:1.5}
+#showroom .swatches{gap:7px;flex-wrap:wrap}
+#showroom .swatches button{width:39px;height:34px;min-width:39px;padding:0;border:2px solid #ffffff8f;border-radius:7px;box-shadow:0 2px 6px #0002}
+#showroom .swatches button[aria-pressed="true"]{outline:2px solid #d1ae78;outline-offset:2px}
+#showroom #designReset{margin-top:10px;background:transparent;border-color:#bba78470;color:#e6d7bf}
+body:not(.technical) #studio{top:auto;right:12px;bottom:92px;display:flex;flex-direction:row;gap:5px;max-height:none;overflow:visible;max-width:calc(100vw - 400px)}
+body:not(.technical) #studio button{min-width:100px;padding:10px}
+#techToggle{top:57px;right:12px}
+#showroom [data-show-content] select{background:#293b46}
+#showroom .showGrid button{background:#33495a}
+@media(max-width:900px){
+ #showroom{top:102px;width:210px;max-width:55vw;max-height:calc(100dvh - 220px);padding:10px}
+ #showroom .showroomTabs{top:-10px;margin:7px 0;padding:5px 0}
+ #showroom .showroomTabs button{font-size:9px;padding:7px 1px}
+ #showroom #styleSummary{bottom:-10px}
+ body:not(.technical) #studio{right:5px;bottom:84px;max-width:calc(100vw - 215px);flex-wrap:wrap;justify-content:flex-end}
+ body:not(.technical) #studio button{padding:6px;font-size:10px;min-width:70px}
+ #techToggle{top:43px}
+}
+@media(max-width:580px){
+ #showroom{top:112px;max-height:53dvh;max-width:52vw}
+ body:not(.technical) #studio{bottom:84px;max-width:55vw}
+ body:not(.technical) #studio button{font-size:9px;min-width:60px}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V29</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V30</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
 <button id="techToggle" aria-pressed="false">⚙ Режим архитектора</button>
 <aside id="showroom" aria-label="Дизайн-студия">
-<h2>Дизайн-студия дома</h2>
-<p>Меняй отделку и сравнивай варианты прямо в 3D.</p>
+<h2>Дизайн-студия</h2>
+<p>Создайте несколько вариантов будущего дома.</p>
+<div class="showroomTabs" role="tablist" aria-label="Разделы дизайн-студии">
+<button type="button" data-show-tab="finishes" aria-selected="true" role="tab">Отделка</button>
+<button type="button" data-show-tab="doors" aria-selected="false" role="tab">Двери</button>
+<button type="button" data-show-tab="views" aria-selected="false" role="tab">Просмотр</button>
+</div>
+<section data-show-content="finishes" role="tabpanel">
+<h3>Стены и напольные покрытия</h3>
 <label for="clientStyle">Готовый стиль</label>
 <select id="clientStyle">
 <option value="linen">Светлый премиум</option>
@@ -90,7 +132,13 @@ body:not(.technical) #studio button{min-width:110px}
 <option value="dove">Современный спокойный</option>
 <option value="contrast">Контрастный</option>
 </select>
-<div class="swatches" aria-hidden="true"><span style="background:#F0E9DF"></span><span style="background:#D2C6B6"></span><span style="background:#B7AA9A"></span><span style="background:#8F8274"></span><span style="background:#6E655C"></span></div>
+<div class="swatches" aria-label="Быстрый выбор оттенка стен">
+<button type="button" data-wall-swatch="linen" title="Linen Plaster" style="background:#F0E9DF" aria-label="Linen Plaster"></button>
+<button type="button" data-wall-swatch="cashmere" title="Cashmere Greige" style="background:#D2C6B6" aria-label="Cashmere Greige"></button>
+<button type="button" data-wall-swatch="dove" title="Warm Dove" style="background:#B7AA9A" aria-label="Warm Dove"></button>
+<button type="button" data-wall-swatch="mushroom" title="Mushroom Stone" style="background:#8F8274" aria-label="Mushroom Stone"></button>
+<button type="button" data-wall-swatch="char" title="Soft Char" style="background:#6E655C" aria-label="Soft Char"></button>
+</div>
 <label for="clientWalls">Цвет внутренних стен</label>
 <select id="clientWalls">
 <option value="mix">Сочетание оттенков</option>
@@ -139,6 +187,9 @@ body:not(.technical) #studio button{min-width:110px}
 <option value="terrazzo">Терраццо</option>
 </select>
 
+<button id="designReset" type="button">↺ Сбросить отделку</button>
+</section>
+<section data-show-content="doors" role="tabpanel" hidden>
 <section id="doorStudio">
 <h3>Межкомнатные двери</h3>
 <label for="clientDoorTarget">Для какого помещения</label>
@@ -195,7 +246,10 @@ body:not(.technical) #studio button{min-width:110px}
 <a href="https://dveri.com/catalog/dveri-mezhkomnatnyye" target="_blank" rel="noopener">Bravo · Россия</a>
 </details>
 </section>
-<label for="clientView">Красивый ракурс</label>
+</section>
+<section data-show-content="views" role="tabpanel" hidden>
+<h3>Ракурсы и варианты проекта</h3>
+<label for="clientView">Выбрать помещение</label>
 <button id="bedroomWindowShortcut" title="Открыть левый фасад и показать новое окно спальни" style="margin:5px 0 7px;background:#9d7b48;color:#fff8ea">◉ Показать новое окно спальни</button>
 <select id="clientView">
 <option value="general">Весь дом</option>
@@ -212,7 +266,9 @@ body:not(.technical) #studio button{min-width:110px}
 <button id="saveA">Запомнить A</button><button id="saveB">Запомнить B</button>
 <button id="viewA">Показать A</button><button id="viewB">Показать B</button>
 </div>
-<div id="styleSummary">Стиль: светлый премиум · натуральный дуб</div>
+</section>
+<div id="styleSummary" role="status">Настройте стены, пол и двери.</div>
+<div id="clientGuide">Изменения видны сразу. Используйте вкладку «Просмотр» для сравнения A/B и показа заказчику.</div>
 </aside>
 <div id="inspectPanel">
 <button id="measureBtn" aria-pressed="false" title="Измерить две точки на плане">⌁ Рулетка</button>
@@ -973,7 +1029,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=29';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=30';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
@@ -1099,6 +1155,32 @@ E('clientDoorHardware').onchange=e=>setDoorDetail('metal',e.target.value);
 E('clientDoorOpen').onchange=e=>setDoorDetail('opening',e.target.value);
 syncDoorControls();
 
+
+// Clear separation between client design tasks; architect controls remain optional.
+let showroomTab='finishes';
+function selectShowroomTab(tab){
+ if(!['finishes','doors','views'].includes(tab))return;
+ showroomTab=tab;
+ document.querySelectorAll('[data-show-content]').forEach(el=>el.hidden=el.dataset.showContent!==tab);
+ document.querySelectorAll('[data-show-tab]').forEach(btn=>{
+   const active=btn.dataset.showTab===tab;btn.setAttribute('aria-selected',String(active));
+ });
+}
+document.querySelectorAll('[data-show-tab]').forEach(btn=>btn.onclick=()=>selectShowroomTab(btn.dataset.showTab));
+document.querySelectorAll('[data-wall-swatch]').forEach(btn=>btn.onclick=()=>{
+ setClientWalls(btn.dataset.wallSwatch);
+ toast('Стены: '+interiorSwatches[btn.dataset.wallSwatch].name);
+});
+function updateWallSwatch(){
+ document.querySelectorAll('[data-wall-swatch]').forEach(btn=>btn.setAttribute('aria-pressed',String(btn.dataset.wallSwatch===clientWall)));
+}
+E('designReset').onclick=()=>{
+ E('clientStyle').value='linen';applyPreset('linen');
+ E('floorCovering').value='engineered';floorCover='engineered';
+ E('floorPattern').value='wide';floorPattern='wide';changeWoodFloor();
+ toast('Отделка возвращена к светлому варианту');
+};
+
 /* Client showroom — independent internal wall / wood floor / ceramic controls. */
 let clientStyle='linen', clientWall='mix',clientFloor='honeyOak',clientTile='sand',clientView='general';
 const stylePresets={
@@ -1163,7 +1245,7 @@ function setClientTile(v){
  floorFinishes.tile.roughness=v==='marble'?.3:v==='microcement'?.92:.65;
  syncDesign();
 }
-function setClientWalls(v){clientWall=v;setInteriorPalette(v);syncDesign()}
+function setClientWalls(v){clientWall=v;setInteriorPalette(v);syncDesign();updateWallSwatch()}
 function syncDesign(){
  E('clientWalls').value=clientWall;E('clientFloor').value=clientFloor;E('clientTile').value=clientTile;
  const r=rooms.find(q=>q.id===roomID);
