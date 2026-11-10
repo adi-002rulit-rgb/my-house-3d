@@ -48,8 +48,8 @@ input[type=checkbox]{width:auto}
 @media(max-width:770px){body{overflow:auto;height:auto}header{height:auto;flex-wrap:wrap}.shell{height:auto;display:flex;flex-direction:column}.left,.rightPanel{width:100%;max-height:none}.center{height:70dvh;min-height:430px}.views{grid-template-columns:1fr 1fr}.left section{display:inline-block;vertical-align:top;width:48%;margin-right:1%}}
 @media(max-width:480px){.views{grid-template-columns:1fr}.pane{min-height:40dvh}.center{height:90dvh}.left section{width:100%}header .right button{font-size:11px;padding:6px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=54"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.2</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -148,7 +148,7 @@ return {version:1,title:'Мой дом',height:3.74,elevation:.6,walls,openings,
 }
 let state=original(),selected=null,tool='select',history=[],historyAt=-1,loading=false;
 let canvas=$('plan'),ctx=canvas.getContext('2d'),scale=30,pan={x:55,y:55},drag=null,wallFirst=null;
-const all=()=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms.map(r=>({...r,type:'room'}))];
+const all=()=>[...state.walls,...state.openings,...state.stairs,...state.furniture,...state.rooms.map(r=>{r.type='room';return r})];
 const find=id=>all().find(x=>x.id===id);
 const wallFor=o=>state.walls.find(w=>w.id===o.wall);
 const wallLength=w=>Math.hypot(w.x2-w.x1,w.z2-w.z1);
@@ -278,6 +278,8 @@ drag.moved=Math.hypot(dx,dz)>.001;
 if(o.type==='wall'){
 if(drag.part==='a'||drag.part==='wall'){o.x1=before.x1+dx;o.z1=before.z1+dz}
 if(drag.part==='b'||drag.part==='wall'){o.x2=before.x2+dx;o.z2=before.z2+dz}
+const minimum=Math.max(.2,...state.openings.filter(v=>v.wall===o.id).map(v=>v.offset+v.width/2+.03));
+if(wallLength(o)<minimum){Object.assign(o,before);status('Стена не может стать короче закреплённых проёмов')}
 }else if(o.type==='door'||o.type==='window'){
 const wall=wallFor(o),len=wallLength(wall),ux=(wall.x2-wall.x1)/len,uz=(wall.z2-wall.z1)/len;
 o.offset=clamp(snap(before.offset+dx*ux+dz*uz),o.width/2,len-o.width/2);
@@ -408,7 +410,7 @@ for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
 for(const o of state.furniture)buildFurniture(o);
 const active=threeRoots.get(selected);if(active){transform.attach(active);transform.enabled=true}else transform.enabled=false;
-if(selected&&active){const o=find(selected);if(o?.type==='window'||o?.type==='door')transform.setMode('translate')}
+if(selected&&active){const o=find(selected);if(!['stair','sofa','table','bed','cabinet','chair','island','plant','rug'].includes(o?.type))transform.setMode('translate')}
 resize3d();
 }
 function update3dObject(o){const m=threeRoots.get(o.id);if(!m)return;
