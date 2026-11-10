@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.4</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V4.5</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -377,7 +377,7 @@ mkOpen('livingW1','window','Зал · окно 1','front',3.2,2.3,.28,3.19),
 mkOpen('livingW2','window','Зал · окно 2','front',6.6,2.3,.28,3.19),
 mkOpen('kitchenW','window','Кухня · окно 3 м','front',16.2,3,.28,3.19),
 mkOpen('frontEntry','door','Главный вход','front',11.55,2.3,0,2.55,2),
-mkOpen('stairWindow','window','Окно лестницы','back',11.35,1.65,1.94,3.64),
+mkOpen('stairWindow','window','Окно лестницы','back',11.35,1.65,1.82,3.52),
 mkOpen('bedWindow','window','Спальня · слева','west',2.3,1.65,.83,2.4),
 mkOpen('livingD','door','Дверь зала 70+70','livingHall',2.9,1.4,0,2.2,2),
 mkOpen('kitchenD','door','Дверь кухни 70+70','kitchenHall',2.2,1.4,0,2.2,2),
@@ -807,9 +807,12 @@ function stairGeometry(o){
  const bridge=o.upper,left=right-2*w-bridge;
  const rear=o.back-w/2,front=o.back+w/2;
  const backRun=Number.isFinite(o.returnRun)&&o.returnRun>0?o.returnRun:o.lower;
- const total=Math.max(12,Math.round(state.height/.17)),turnN=3;
- const straight=total-turnN*2,firstN=Math.max(3,Math.round(straight*.42));
- const midN=Math.max(2,Math.round(straight*.25)),lastN=straight-firstN-midN;
+ // More uniform, lower rise throughout: 24 risers at 3.74m (15.58cm each).
+ // This keeps the start and second-floor landing unchanged and moves the
+ // flight in front of the window lower by allocating more risers to the return.
+ const total=Math.max(16,Math.round(state.height/.156)),turnN=3;
+ const straight=total-turnN*2,firstN=Math.max(3,Math.round(straight*.39));
+ const midN=Math.max(2,Math.round(straight*.17)),lastN=straight-firstN-midN;
  const cast=(cx,cz,a)=>{
   const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
   return [cx+dx*r,cz+dz*r]
@@ -1448,15 +1451,15 @@ try{
    validate(state);
    localStorage.setItem(STORAGE,JSON.stringify(state));
   }
-  // One-time, narrowly scoped migration for the original staircase window.
-  // Never overwrite any window already repositioned by the user.
+  // Restore the prior window height only when it still matches our exact
+  // V4.3 automatic +12 cm adjustment. Manually changed windows remain intact.
   const win=state.openings.find(o=>o.id==='stairWindow'&&o.wall==='back');
-  if(win&&Math.abs(win.sill-1.82)<.001&&Math.abs(win.head-3.52)<.001){
-   win.sill=1.94;win.head=3.64;
+  if(win&&Math.abs(win.sill-1.94)<.001&&Math.abs(win.head-3.64)<.001){
+   win.sill=1.82;win.head=3.52;
    validate(state);
    localStorage.setItem(STORAGE,JSON.stringify(state));
-   status('Окно лестницы поднято на 12 см; остальные изменения сохранены.');
-  }else status('Загружена сохранённая версия');
+   status('Окно возвращено на прежнюю высоту; лестница пересчитана.');
+  }else status('Лестница пересчитана; личные размеры окна сохранены.');
  }
 }catch(e){status('Ошибка загрузки сохранённого проекта: '+e.message)}
 history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();tick();
