@@ -18,13 +18,13 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурный 3D-тур</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурный 3D-тур V4</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="rooms"><button data-room="living">Зал · 54 м²</button><button data-room="kitchen">Кухня · 30,2 м²</button><button data-room="bedroom">Спальня · 21,84 м²</button><button data-room="bathroom">Ванная</button><button data-room="wardrobe">Гардеробная</button><button data-room="hallway">Коридор</button><button data-room="summer">Летняя кухня</button><button data-room="garage">Гараж</button><button data-room="courtyard">Двор</button></div>
 <div id="hint">Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу</div>
 <div id="nav"><span></span><button data-move="up">▲</button><span></span><button data-move="left">◀</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
 <div id="rot"><button data-move="turnleft">↶</button><button data-move="turnright">↷</button></div>
-<div id="source">Геометрия по чертежам · непроверенные размеры и интерьер — концепция</div>
+<div id="source">Размеры корпуса и основных комнат — по плану; отдельные проёмы, высота и интерьер уточняются</div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -38,7 +38,7 @@ renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;
 scene=new THREE.Scene();scene.background=new THREE.Color('#cbd9e0');scene.fog=new THREE.Fog('#cbd9e0',65,110);
 camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.08,180);
-camera.position.set(16,24,28);
+camera.position.set(15,29,34);
 orbit=new OrbitControls(camera,canvas);orbit.enableDamping=true;orbit.dampingFactor=.07;orbit.target.set(0,0,0);orbit.maxPolarAngle=Math.PI/2.04;orbit.minDistance=3;orbit.maxDistance=75;
 }catch(e){E('loading').style.display='none';E('error').style.display='flex';throw e}
 const M=(c,r=.83,m=0)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:m});
@@ -57,8 +57,8 @@ function cylinder(parent,x,y,z,r,h,m){let v=new THREE.Mesh(new THREE.CylinderGeo
 scene.add(new THREE.HemisphereLight('#ffffff','#a6a7a3',2.2));
 const sunlight=new THREE.DirectionalLight('#fff2da',2.6);sunlight.position.set(-15,28,19);sunlight.castShadow=true;sunlight.shadow.mapSize.set(2048,2048);sunlight.shadow.camera.left=-36;sunlight.shadow.camera.right=36;sunlight.shadow.camera.top=34;sunlight.shadow.camera.bottom=-34;sunlight.shadow.normalBias=.04;scene.add(sunlight);
 let grid=new THREE.GridHelper(80,80,'#e1e0db','#e5e6e1');grid.position.y=-.21;scene.add(grid);
-const ground=box(world,-9,-.27,1,63,.34,42,mat.yard,false);
-const site=box(back,-9,-.10,1,50,.09,28,mat.stone,false);
+const ground=box(world,-8,-.27,1,68,.34,44,mat.yard,false);
+const site=box(back,-7,-.10,1,55,.09,28,mat.stone,false);
 const garden=box(back,-11,-.038,-10.5,18,.05,5,mat.green,false);
 const garden2=box(back,19,-.038,1,6,.05,13,mat.green,false);
 const darkStrip=box(back,-9,-.035,13,50,.055,2,mat.road,false);
@@ -69,8 +69,8 @@ box(back,16,.65,-10,.22,1.3,6,mat.wall);
 box(back,16,.65,11,.22,1.3,5,mat.wall);
 for(let i=0;i<14;i++){let xx=-33+i*3.3;if(xx>-23&&xx<-14)continue;box(back,xx,.8,15,.42,1.6,.42,mat.edge);}
 // House model origin: x 0-16.13, z -5.7..5.7. Main front faces +z
-// Draft dimensions: 16.13 × 11.4 m from dimensional plans; exact room boundaries need verification.
-const HOUSE_X=16.13, HOUSE_Z=11.4, H=3.22;
+// Main корпус: 19.03 x 11.40 m, interior spans 9.00 x 6.00 living, 3.52 corridor, 4.91 x 6.15 kitchen. Heights remain provisional.
+const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.22; // overall wall-line dimensions of main house from IMG_6632
 function segmented(x1,z1,x2,z2,openings=[],material=mat.wall){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
 const bounds=[0,...openings.flatMap(o=>[o.at,o.at+o.width]),length].sort((a,b)=>a-b);
@@ -83,54 +83,86 @@ else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start
 }
 }
 const rooms=[
-{id:'living',name:'Зал',area:'54,00 м²',cx:3.2,cz:2.65,range:[.3,6.15,-.25,5.38],floor:mat.oak,eye:[3,1.65,2.4],yaw:Math.PI},
-{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.2,cz:-3.4,range:[.3,6.15,-5.35,-.45],floor:mat.wood,eye:[3.4,1.65,-3.2],yaw:0},
-{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.55,cz:-3.8,range:[6.6,9,-5.35,-1.7],floor:mat.tile,eye:[7.6,1.65,-3.45],yaw:0},
-{id:'stair',name:'Лестница',area:'',cx:10.2,cz:-3.65,range:[9.35,11,-5.35,-1.4],floor:mat.stone,eye:[10.25,1.65,-3.35],yaw:0},
-{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:13.4,cz:-3.5,range:[11.4,15.8,-5.35,-1.4],floor:mat.oak,eye:[13.3,1.65,-3.45],yaw:0},
-{id:'hallway',name:'Коридор',area:'44,75 м²',cx:9.15,cz:1.45,range:[6.55,11.15,-1.2,5.35],floor:mat.tile,eye:[8.8,1.65,2.35],yaw:Math.PI},
-{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:13.45,cz:2.4,range:[11.4,15.8,-1,5.35],floor:mat.tile,eye:[13.4,1.65,2.9],yaw:Math.PI},
+{id:'living',name:'Зал',area:'54,00 м²',cx:4.9,cz:2.25,range:[.4,9.4,-.75,5.25],floor:mat.oak,eye:[4.65,1.65,2.2],yaw:Math.PI},
+{id:'bedroom',name:'Спальня',area:'21,84 м²',cx:3.0,cz:-3.25,range:[.4,5.6,-5.35,-1.15],floor:mat.wood,eye:[3,1.65,-3.1],yaw:0},
+{id:'bathroom',name:'Ванная',area:'9,38 м²',cx:7.3,cz:-4.1,range:[6.0,8.5,-5.35,-2.35],floor:mat.tile,eye:[7.2,1.65,-4.0],yaw:0},
+{id:'stair',name:'Лестница',area:'',cx:11.45,cz:-3.45,range:[9.8,13.32,-5.35,-1.15],floor:mat.stone,eye:[11.25,1.65,-3.5],yaw:0},
+{id:'wardrobe',name:'Гардеробная',area:'21,25 м²',cx:16.1,cz:-3.25,range:[13.72,18.63,-5.35,-1.15],floor:mat.oak,eye:[16.1,1.65,-3.3],yaw:0},
+{id:'hallway',name:'Коридор',area:'44,75 м²',cx:11.55,cz:2.1,range:[9.8,13.32,-.75,5.25],floor:mat.tile,eye:[11.55,1.65,2.2],yaw:Math.PI},
+{id:'kitchen',name:'Кухня',area:'30,20 м²',cx:16.25,cz:2.175,range:[13.72,18.63,-.9,5.25],floor:mat.tile,eye:[16.25,1.65,2.1],yaw:Math.PI},
 {id:'summer',name:'Летняя кухня',area:'50,00 м²',cx:-15.1,cz:-.3,range:[-17.4,-12.6,-4.6,4],floor:mat.oak,eye:[-15.1,1.65,.2],yaw:Math.PI},
 {id:'garage',name:'Гараж',area:'40,00 м²',cx:-15.1,cz:7.1,range:[-17.4,-12.6,4.1,10.4],floor:mat.stone,eye:[-15.1,1.65,7],yaw:Math.PI},
 {id:'courtyard',name:'Двор',area:'',cx:-6,cz:3,range:[-11.5,-2,-4.5,10],floor:mat.stone,eye:[-8.5,1.65,4],yaw:0}
 ];
+
 for(const r of rooms){const [a,b,c,d]=r.range;slab((a+b)/2,(c+d)/2,b-a,d-c,r.floor);}
-// house exterior: wall openings and front entry. Opening locations schematic, not measured
-segmented(0,-5.7,16.13,-5.7,[{at:1.7,width:1.6,kind:'window'},{at:7,width:1.2,kind:'window'},{at:12,width:1.7,kind:'window'}]);
-segmented(0,5.7,16.13,5.7,[{at:2,width:2.2,kind:'window'},{at:6.9,width:1.85,kind:'door',glass:true},{at:12.1,width:2.1,kind:'window'}]);
-segmented(0,-5.7,0,5.7,[{at:4,width:1.5,kind:'window'}]);
-segmented(16.13,-5.7,16.13,5.7,[{at:3,width:1.6,kind:'window'}]);
-segmented(6.35,-5.7,6.35,5.7,[{at:5.9,width:1.35,kind:'door'},{at:9.0,width:1.35,kind:'door'}],mat.edge);
-segmented(11.25,-5.7,11.25,5.7,[{at:3.8,width:1.15,kind:'door'},{at:8.2,width:1.3,kind:'door'}],mat.edge);
-segmented(0,-.35,6.35,-.35,[{at:5.15,width:1.05,kind:'door'}],mat.edge);
-segmented(6.35,-1.55,16.13,-1.55,[{at:.9,width:1.0,kind:'door'},{at:5,width:1.0,kind:'door'},{at:8.0,width:1.0,kind:'door'}],mat.edge);
-segmented(9.2,-5.7,9.2,-1.55,[{at:1.7,width:.9,kind:'door'}],mat.edge);
-// boiler behind right house
-slab(14.6,-7.55,3.1,2.8,mat.tile);segmented(13.2,-8.9,16.13,-8.9);segmented(13.2,-8.9,13.2,-5.7);segmented(16.13,-8.9,16.13,-5.7);
-// entrance steps and columns
-for(let i=0;i<5;i++)box(model,8.05,.07+i*.13,6.15+i*.35,3.3-i*.11,.15,2.5-i*.47,mat.steps);
-for(let xx of [6.35,9.65]){box(model,xx,.8,6.23,.35,1.6,.35,mat.wall);box(model,xx,1.62,6.23,.48,.17,.48,mat.stone)}
+// WALLS AND OPENINGS: authoritative source IMG_6632 dimensional ground-floor plan.
+// 'at' distances measured from the first point of each segment. Approximate positions
+// of individual glazing segments should be checked against original CAD before construction.
+const collisionWalls=[];
+segmented(0,-5.7,19.03,-5.7,[
+{at:1.9,width:1.3,kind:'window'},
+{at:6.5,width:1.15,kind:'window'},
+{at:10.0,width:1.05,kind:'window'},
+{at:15.1,width:1.3,kind:'window'}]);
+segmented(0,5.7,19.03,5.7,[
+{at:2.2,width:1.6,kind:'window'},
+{at:6.0,width:1.6,kind:'window'},
+{at:10.65,width:1.75,kind:'door',glass:true},
+{at:15.7,width:1.55,kind:'window'}]);
+segmented(0,-5.7,0,5.7,[{at:2.9,width:1.25,kind:'window'}]);
+segmented(19.03,-5.7,19.03,5.7,[{at:5.8,width:1.20,kind:'window'}]);
+// 400mm walls on the original plan
+segmented(0,-.95,9.6,-.95,[{at:8.0,width:1.25,kind:'door'}],mat.wall);
+segmented(9.6,-5.7,9.6,5.7,[{at:6.65,width:1.55,kind:'door'}],mat.wall);
+segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
+segmented(9.6,-1.05,19.03,-1.05,[{at:1.3,width:1.20,kind:'door'},{at:6.4,width:1.1,kind:'door'}],mat.wall);
+segmented(5.8,-5.7,5.8,-1.05,[{at:2.4,width:.92,kind:'door'}],mat.wall);
+segmented(8.85,-5.7,8.85,-1.05,[{at:3.25,width:.92,kind:'door'}],mat.wall);
+// Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
+segmented(5.8,-2.15,9.6,-2.15,[{at:1.4,width:1.0,kind:'door'}],mat.wall);
+// Detached boiler room, behind the kitchen/wardrobe block
+slab(17.35,-7.55,3.1,2.8,mat.tile);
+segmented(15.7,-8.9,19.03,-8.9);
+segmented(15.7,-8.9,15.7,-5.7);
+segmented(19.03,-8.9,19.03,-5.7);
+// Exterior front entrance aligned with the main corridor and classical steps
+for(let i=0;i<6;i++)box(model,11.55,.09+i*.12,6.15+i*.28,3.65-i*.10,.17,2.25-i*.32,mat.steps);
+for(let xx of [9.63,13.46]){box(model,xx,.83,6.22,.35,1.66,.35,mat.wall);box(model,xx,1.69,6.22,.49,.16,.49,mat.stone)}
+
 // house furnishings
 function table(x,z,w,d,top=.75,m=mat.wood){box(model,x,top,z,w,.11,d,m);for(let sx of [-1,1])for(let sz of [-1,1])box(model,x+sx*(w/2-.13),top/2,z+sz*(d/2-.13),.12,top,.12,mat.black)}
 function seat(x,z,w,d,m=mat.cloth){box(model,x,.36,z,w,.42,d,m);box(model,x,.73,z-d/2+.12,w,.48,.22,m);for(let sx of [-1,1])box(model,x+sx*(w/2-.12),.57,z,.22,.25,d,m)}
 function plant(x,z){cylinder(model,x,.20,z,.24,.42,mat.wood);const crown=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),mat.darkgreen);crown.position.set(x,.75,z);crown.castShadow=true;model.add(crown)}
-// living
-seat(3.2,.85,2.8,.9,mat.cloth);seat(1.2,2.5,.85,.9,mat.cloth2);seat(5,2.5,.85,.9,mat.cloth2);table(3.2,2.75,1.5,.85,.5,mat.stone);
-box(model,.45,1.3,2.6,.1,1.0,2.15,mat.black);plant(5.4,4.9);plant(.7,4.9);
-box(model,3.2,.1,2.3,4.6,.03,3.2,mat.cloth);
-// kitchen countertops and table
-box(model,15.3,.48,1.1,.65,.85,3.8,mat.wood);box(model,13.55,.48,-.55,4.1,.85,.64,mat.wood);
-table(13.4,3.3,2.0,1.12);for(let j=0;j<3;j++){seat(12.0+j*1.3,4.1,.46,.45);seat(12+j*1.3,2.45,.46,.45)}
-// bedroom
-box(model,2.4,.26,-3.65,2.5,.42,2.25,mat.wood);box(model,2.4,.54,-3.65,2.36,.22,2.1,mat.cloth);box(model,2.4,.69,-4.52,2.32,.21,.42,mat.water);
-box(model,.76,.4,-4.3,.8,.7,.48,mat.oak);box(model,4.8,.4,-4.3,.8,.7,.48,mat.oak);box(model,5.8,1.15,-2.9,.40,2.25,2.5,mat.wood);
-// bathroom
-box(model,7.6,.35,-4.15,1.5,.67,.82,mat.water);box(model,7.6,.69,-4.15,1.25,.1,.62,mat.tile);box(model,8.55,.46,-2.1,.38,.9,.55,mat.water);
-// stairs: 18 steps L-shape, 2 runs and landing
-for(let i=0;i<10;i++)box(model,9.55+i*.12,.10+i*.15,-4.8+i*.17,1.55,.20,.28,mat.oak);
-for(let i=0;i<8;i++)box(model,10.4,.10+(10+i)*.15,-3.25+i*.18,1.6,.2,.29,mat.oak);
-// wardrobe
-for(let xx of [11.85,15.2]){box(model,xx,1.05,-3.6,.48,2.10,3.0,mat.wood);for(let i=0;i<4;i++)box(model,xx, .45+i*.48,-3.6,.51,.045,2.7,mat.oak)}
+// Living room: 9m x 6m, sofas face central coffee table and left wall media cabinet
+seat(4.9,.55,3.6,1.05,mat.cloth);seat(1.7,2.2,.95,1,mat.cloth2);seat(8.0,2.2,.95,1,mat.cloth2);
+table(4.9,2.35,1.85,.98,.52,mat.stone);
+box(model,.48,1.23,2.35,.11,1.0,2.5,mat.black);
+plant(8.65,4.55);plant(.8,4.5);box(model,4.9,.095,2.2,6.15,.035,3.9,mat.cloth);
+// Kitchen on right-hand side, separate entrance from central hallway
+box(model,18.30,.44,1.3,.55,.85,4.25,mat.wood);
+box(model,16.2,.44,-.45,3.7,.85,.62,mat.wood);
+table(16.1,3.05,2.35,1.13);
+for(let j=0;j<3;j++){seat(14.8+j*1.25,4.05,.50,.49);seat(14.8+j*1.25,2.15,.50,.49)}
+// Rear bedroom
+box(model,2.95,.25,-3.65,2.45,.43,2.32,mat.wood);
+box(model,2.95,.52,-3.65,2.30,.22,2.10,mat.cloth);
+box(model,2.95,.68,-4.52,2.30,.21,.40,mat.water);
+box(model,1.2,.39,-4.2,.64,.68,.48,mat.oak);
+box(model,4.8,.39,-4.2,.64,.68,.48,mat.oak);
+box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
+// Rear bathroom
+box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
+box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
+box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
+// Staircase: source 22 risers x 170 mm, treads 300 mm; simplified visual,
+ // position correct, exact rises need alignment to finished floor levels.
+for(let i=0;i<11;i++)box(model,10.25+i*.135,.10+i*.15,-4.83+i*.20,1.5,.19,.30,mat.oak);
+for(let i=0;i<11;i++)box(model,11.85,.10+(11+i)*.15,-2.65+i*.13,1.46,.19,.28,mat.oak);
+// Rear wardrobe, wall to wall shelving
+for(let xx of [14.20,18.16]){box(model,xx,1.02,-3.25,.45,2.05,3.2,mat.wood);
+for(let i=0;i<4;i++)box(model,xx,.40+i*.48,-3.25,.48,.05,3.00,mat.oak)}
+
 // detached utility wing x -18..-12: garage southern half and summer kitchen northern half
 slab(-15.05,.0,5.4,9.5,mat.oak);slab(-15.05,7.4,5.4,5.5,mat.stone);
 segmented(-17.75,-4.85,-12.35,-4.85,[{at:1.6,width:1.5,kind:'window'}]);
@@ -143,11 +175,14 @@ box(model,-15.1,.42,7.6,2.35,.73,4.35,mat.black);box(model,-15.1,.98,6.9,1.8,.34
 slab(-17.05,-6.7,1.4,1.3,mat.tile);segmented(-17.75,-7.35,-16.35,-7.35);segmented(-16.35,-7.35,-16.35,-4.85);
 // evening-styled landscaping
 for(let p of [[-11,-6.7],[-9,-6.7],[-7,-6.7],[-5,-6.7],[-3,-6.7],[-22,-7],[-24,-7],[17,-5],[18,3],[18,6]])plant(...p);
-// add roof panels, mostly for house overview; approximate exterior geometry
-function roofPanel(x,z,w,d,angle=0){const v=box(roofs,x,4.7,z,w,.23,d,mat.roof);v.rotation.z=angle;return v}
-roofPanel(8,-2.7,16.9,6.4,.28);roofPanel(8,2.7,16.9,6.4,-.28);
-roofPanel(-15,.0,6.1,10,.33);roofPanel(-15,7.35,6.1,6.1,-.33);
+// Roof is a mode for orientation, not an as-built structural model.
+function roofPanel(x,z,w,d,angle=0){const v=box(roofs,x,4.85,z,w,.23,d,mat.roof);v.rotation.z=angle;return v}
+roofPanel(9.52,-2.6,19.75,6.4,.27);
+roofPanel(9.52,2.6,19.75,6.4,-.27);
+roofPanel(-15,.0,6.1,10,.33);
+roofPanel(-15,7.35,6.1,6.1,-.33);
 const roofMode={on:false};
+
 // room floor invisible hit regions
 const picks=[];for(let r of rooms){let [a,b,c,d]=r.range;const mesh=new THREE.Mesh(new THREE.PlaneGeometry(b-a,d-c),new THREE.MeshBasicMaterial({visible:false,side:THREE.DoubleSide}));mesh.rotation.x=-Math.PI/2;mesh.position.set((a+b)/2,.12,(c+d)/2);mesh.userData.room=r.id;model.add(mesh);picks.push(mesh)}
 // Room name labels hover above floor
@@ -156,9 +191,9 @@ let texture=new THREE.CanvasTexture(cv);texture.colorSpace=THREE.SRGBColorSpace;
 rooms.filter(r=>!['stair','courtyard'].includes(r.id)).forEach(label);
 let current='overview',yaw=0,pitch=0,keys={},dragStart=null,last=0;
 function buttons(){E('overview').classList.toggle('active',current==='overview');E('inside').classList.toggle('active',current==='inside');E('roof').classList.toggle('active',roofMode.on);E('nav').style.display=current==='inside'?'grid':'none';E('rot').style.display=current==='inside'?'flex':'none';E('hint').textContent=current==='inside'?'Веди пальцем для поворота · стрелки для ходьбы · выбери комнату снизу':'Поверни модель пальцем · двумя пальцами приблизь · выбери помещение снизу'}
-function overview(){current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(15,25,28);orbit.target.set(-3,0,1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
+function overview(){model.children.forEach(o=>{if(o.isSprite)o.visible=true});current='overview';orbit.enabled=true;camera.up.set(0,1,0);camera.position.set(17,30,35);orbit.target.set(-1.3,0,1);orbit.update();E('status').textContent='Объёмный план первого этажа';buttons()}
 function look(x,y,z,a){current='inside';orbit.enabled=false;camera.position.set(x,y,z);yaw=a;pitch=0;camera.rotation.order='YXZ';camera.rotation.set(0,yaw,0);buttons()}
-function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;look(r.eye[0],r.eye[1],r.eye[2],r.yaw);E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · просмотр интерьера'}
+function enter(id){let r=rooms.find(a=>a.id===id);if(!r)return;look(r.eye[0],r.eye[1],r.eye[2],r.yaw);model.children.forEach(o=>{if(o.isSprite)o.visible=false});E('status').textContent=r.name+(r.area?' · '+r.area:'')+' · интерьер (концепция)'}
 E('overview').onclick=overview;
 E('inside').onclick=()=>enter('living');
 E('roof').onclick=()=>{roofMode.on=!roofMode.on;roofs.visible=roofMode.on;E('roof').classList.toggle('active',roofMode.on);if(roofMode.on)overview()};
@@ -177,8 +212,11 @@ if(current==='inside'){if(keys.turnleft||keys.KeyQ)yaw+=dt*1.45;if(keys.turnrigh
 let f=Number(!!(keys.up||keys.KeyW||keys.ArrowUp))-Number(!!(keys.down||keys.KeyS||keys.ArrowDown));
 let s=Number(!!(keys.right||keys.KeyD))-Number(!!(keys.left||keys.KeyA));
 let step=dt*2.45;
-camera.position.x+=(-Math.sin(yaw)*f+Math.cos(yaw)*s)*step;
-camera.position.z+=(-Math.cos(yaw)*f-Math.sin(yaw)*s)*step;
+// Prevent walking through solid partitions while viewing each room; use the room menu to switch.
+let nextX=camera.position.x+(-Math.sin(yaw)*f+Math.cos(yaw)*s)*step;
+let nextZ=camera.position.z+(-Math.cos(yaw)*f-Math.sin(yaw)*s)*step;
+const bounds=rooms.find(r=>nextX>r.range[0]&&nextX<r.range[1]&&nextZ>r.range[2]&&nextZ<r.range[3]);
+if(bounds&&nextX>bounds.range[0]+.17&&nextX<bounds.range[1]-.17&&nextZ>bounds.range[2]+.17&&nextZ<bounds.range[3]-.17){camera.position.x=nextX;camera.position.z=nextZ}
 camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
