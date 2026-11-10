@@ -34,6 +34,45 @@ try{
   assert.equal(model.openings.find(x=>x.id==='stairArch').type,'passage');
   assert.equal(model.stairs.length,1);
   assert.equal(model.rooms.length,7);
+
+  // Test semantic edits and browser persistence, not just static screenshots.
+  const state=()=>page.evaluate(()=>JSON.parse(
+   localStorage.getItem('adkh-house-parametric-editor-v1')));
+  await page.locator('#objectList button').filter({hasText:'Открытый проход в спальню'}).first().click();
+  await page.locator('#duplicate').click();
+  let updated=await state();
+  assert.equal(updated.openings.filter(o=>o.type==='passage').length,2,
+   'duplicate passage must stay in openings, not furniture');
+  assert.equal(updated.furniture.length,5,'no invalid passage furniture');
+  await page.locator('#undo').click();
+  updated=await state();
+  assert.equal(updated.openings.filter(o=>o.type==='passage').length,1,
+   'undo must restore single passage');
+  await page.locator('#redo').click();
+  assert.equal((await state()).openings.filter(o=>o.type==='passage').length,2);
+  await page.locator('#undo').click();
+
+  await page.locator('#room').selectOption('bed');
+  await page.locator('#floorPattern').selectOption('tile');
+  assert.equal(await page.locator('#room').inputValue(),'bed',
+   'room selection must persist after changing floor finish');
+  assert.equal((await state()).rooms.find(r=>r.id==='bed').floorPattern,'tile');
+  await page.locator('#snapshot').click();
+  await page.locator('#floorPattern').selectOption('plank');
+  await page.locator('#restoreSnapshot').click();
+  assert.equal((await state()).rooms.find(r=>r.id==='bed').floorPattern,'tile');
+
+  const corrupted=structuredClone(await state());
+  corrupted.rooms.find(r=>r.id==='living').w=-1;
+  await page.locator('#fileImport').setInputFiles({
+   name:'corrupted-house.json',mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(corrupted))
+  });
+  assert.notEqual((await state()).rooms.find(r=>r.id==='living').w,-1,
+   'invalid JSON must not replace working project');
+  await page.locator('#floor2').click();
+  await page.locator('#floor1').click();
+
   if(isMobile){
    await page.locator('#focusView').click();
    assert.ok(await page.evaluate(()=>document.body.classList.contains('focus3d')));
