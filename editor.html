@@ -57,8 +57,8 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.7</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V1.8</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -429,7 +429,7 @@ cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 function buildStair(o){
 const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
 const m=meshMat(o.color||'#ddd7cc'),under=meshMat('#e5e0d8');
-const lowN=7,highN=12,rise=.17;
+const lowN=7,highN=12,rise=state.height/(lowN+3+highN);
 for(let i=0;i<lowN;i++)cube(root,0,(i+1)*rise/2,-(i+.5)*o.lower/lowN,o.width,(i+1)*rise,o.lower/lowN+.015,m);
 const zTurn=-o.lower-.15;for(let i=0;i<3;i++)cube(root,-.10*i,(lowN+i+1)*rise/2,zTurn-.20*i,o.width-.06*i,(lowN+i+1)*rise,.24,m);
 // Model's upper wing extends LEFT along the rear wall; changes follow editor params.
@@ -526,6 +526,8 @@ function auditStair(o){
   const wardrobeWall=state.walls.find(w=>w.id==='stairRight');
   const wardrobeInner=wardrobeWall?wardrobeWall.x1-wardrobeWall.t/2:13.47;
   if(right>wardrobeInner-.02)errors.push('Нижний марш пересекает стену у гардеробной.');
+  else if(wardrobeInner-right>.20)
+   warnings.push('До правой стены от нижнего марша '+Math.round((wardrobeInner-right)*100)+' см. Сверь с расположением двери гардеробной.');
   // Check corner/upper landing connection based on modeled concrete boxes.
   const rearCorner=o.z-o.lower-.15-.20*2-.12;
   const frontUpper=o.back+o.width/2;
@@ -695,6 +697,12 @@ $('addDoor').onclick=()=>addOpening('door');$('addWindow').onclick=()=>addOpenin
 $('delete').onclick=removeSelected;$('duplicate').onclick=duplicateSelected;
 $('moveMode').onclick=()=>mode('translate');$('rotateMode').onclick=()=>mode('rotate');$('scaleMode').onclick=()=>mode('scale');
 $('undo').onclick=()=>applyHistory(historyAt-1);$('redo').onclick=()=>applyHistory(historyAt+1);$('save').onclick=saveState;
+$('restoreDefault').onclick=()=>{
+ if(!confirm('Сбросить редактор к исходному плану? Несохранённые правки будут потеряны. Сначала можно скачать JSON.'))return;
+ state=original();selected=null;
+ history=[JSON.stringify(state)];historyAt=0;
+ saveState();syncActions();refreshAll();fitPlan();status('Исходный план восстановлен');
+};
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='adkh-house-project.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)};
 $('import').onclick=()=>$('fileImport').click();
 $('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
