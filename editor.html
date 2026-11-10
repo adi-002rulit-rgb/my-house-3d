@@ -279,8 +279,8 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.8</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.0</small></div>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -354,6 +354,9 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 const $=id=>document.getElementById(id);
 const STORAGE='adkh-house-parametric-editor-v1';
+const CHECKPOINT=STORAGE+'-checkpoint-v1';
+const BEFORE_RESET=STORAGE+'-before-reset-v1';
+const BEFORE_IMPORT=STORAGE+'-before-import-v1';
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.round(n*100)/100};
@@ -434,7 +437,32 @@ for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width
 for(const o of s.openings){const w=s.walls.find(w=>w.id===o.wall);if(!w)throw Error('Проём без стены');if(o.width<=0.3||o.offset-o.width/2<-.03||o.offset+o.width/2>wallLength(w)+.03)throw Error('Проём за пределами стены')}
 return true;
 }
-function saveState(){try{localStorage.setItem(STORAGE,JSON.stringify(state));status('Сохранено в этом браузере')}catch(e){status('Ошибка сохранения: '+e.message)}}
+function saveState(){
+ try{
+  validate(state);
+  localStorage.setItem(STORAGE,JSON.stringify(state));
+  status('✓ Сохранено в браузере · экспорт JSON для внешней копии');
+  return true;
+ }catch(e){status('Ошибка сохранения: '+e.message);return false}
+}
+function makeCheckpoint(){
+ try{
+  validate(state);localStorage.setItem(CHECKPOINT,JSON.stringify(state));
+  status('📌 Контрольная копия создана в этом браузере');
+ }catch(e){status('Не удалось сохранить копию: '+e.message)}
+}
+function restoreCheckpoint(){
+ try{
+  const raw=localStorage.getItem(CHECKPOINT);
+  if(!raw){status('Нет контрольной копии · нажми «📌 Копия»');return}
+  const restored=JSON.parse(raw);validate(restored);
+  if(!confirm('Вернуть контрольную копию? Текущая модель будет заменена.'))return;
+  localStorage.setItem(BEFORE_RESET,JSON.stringify(state));
+  state=restored;selected=null;history=[JSON.stringify(state)];historyAt=0;
+  saveState();syncActions();refreshAll();fitPlan();
+  status('Контрольная копия восстановлена');
+ }catch(e){status('Не удалось вернуть копию: '+e.message)}
+}
 function push(){if(loading)return;
  processSceneValidation(true);
  const conflicts=refreshOpeningReport();
@@ -928,8 +956,8 @@ function stairGeometry(o){
  const firstN=Math.max(3,Math.round(straight*.28));
  const midN=Math.max(2,Math.round(straight*.17));
  const lastN=straight-firstN-midN;
- // Four end treads are visually replaced by the upper-storey floor slab.
- // Leave the original riser distribution available for future as-built calibration.
+ // Four tread positions are now occupied by the upper-storey slab.
+ // Remaining return treads are a visual approximation of the existing stairs.
  const visibleLastN=Math.max(1,lastN-4);
  const cast=(cx,cz,a)=>{
   const dx=Math.cos(a),dz=Math.sin(a),r=w/Math.max(Math.abs(dx),Math.abs(dz));
@@ -1554,8 +1582,11 @@ $('addDoor').onclick=()=>addOpening('door');$('addWindow').onclick=()=>addOpenin
 $('delete').onclick=removeSelected;$('duplicate').onclick=duplicateSelected;
 $('moveMode').onclick=()=>mode('translate');$('rotateMode').onclick=()=>mode('rotate');$('scaleMode').onclick=()=>mode('scale');
 $('undo').onclick=()=>applyHistory(historyAt-1);$('redo').onclick=()=>applyHistory(historyAt+1);$('save').onclick=saveState;
+$('snapshot').onclick=makeCheckpoint;
+$('restoreSnapshot').onclick=restoreCheckpoint;
 $('restoreDefault').onclick=()=>{
- if(!confirm('Сбросить редактор к исходному плану? Несохранённые правки будут потеряны. Сначала можно скачать JSON.'))return;
+ if(!confirm('Сбросить весь дом к исходной модели? Перед сбросом создаётся аварийная копия в браузере. Рекомендуем также скачать JSON.'))return;
+ try{localStorage.setItem(BEFORE_RESET,JSON.stringify(state))}catch(e){status('Не удалось создать аварийную копию: '+e.message);return}
  state=original();selected=null;
  history=[JSON.stringify(state)];historyAt=0;
  saveState();syncActions();refreshAll();fitPlan();status('Исходный план восстановлен');
@@ -1563,7 +1594,14 @@ $('restoreDefault').onclick=()=>{
 $('export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='adkh-house-project.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),500)};
 $('import').onclick=()=>$('fileImport').click();
 $('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
-try{if(file.size>2e6)throw Error('Файл слишком большой');const d=JSON.parse(await file.text());validate(d);state=d;selected=null;push();refreshAll();status('Проект загружен из JSON')}
+try{
+ if(file.size>2e6)throw Error('Файл слишком большой');
+ const d=JSON.parse(await file.text());validate(d);
+ localStorage.setItem(BEFORE_IMPORT,JSON.stringify(state));
+ state=d;selected=null;history=[JSON.stringify(state)];historyAt=0;
+ saveState();syncActions();refreshAll();fitPlan();
+ status('JSON загружен · предыдущий план сохранён в аварийной копии')
+}
 catch(err){status('Не удалось загрузить: '+err.message)}e.target.value=''};
 $('room').onchange=refreshRoomUI;
 $('wallColor').onchange=e=>{const r=state.rooms.find(x=>x.id===$('room').value);if(r){r.wall=e.target.value;push();refreshAll()}};
@@ -1623,7 +1661,7 @@ try{
  if(saved){
   validate(saved);state=saved;
   // Repair the known V4.8 door-placement regression on saved projects.
-  // The stair-hall opening is an unframed passage, with a 45cm lintel.
+  // The stair-hall opening is an unframed passage, with a 75cm lintel.
   // Only move the named default bedroom door when its location matches
   // the accidental left-wall placement of V4.8.
   const bedroomDoor=state.openings.find(o=>o.id==='bedD'&&o.type==='door');
