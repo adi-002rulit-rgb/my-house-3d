@@ -27,10 +27,18 @@
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · архитектурная презентация · V14</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · архитектурная презентация · V15</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 <div id="studio">
 <button id="daynight" aria-pressed="false">☀ День</button>
+<select id="wallColors" aria-label="Цвет внутренних стен">
+<option value="mix">Стены: пять цветов (микс)</option>
+<option value="linen">Linen Plaster · #F0E9DF</option>
+<option value="cashmere">Cashmere Greige · #D2C6B6</option>
+<option value="dove">Warm Dove · #B7AA9A</option>
+<option value="mushroom">Mushroom Stone · #8F8274</option>
+<option value="char">Soft Char · #6E655C</option>
+</select>
 <select id="palette"><option value="natural">Натуральная отделка</option><option value="light">Светлая отделка</option><option value="warm">Тёплая отделка</option><option value="contrast">Контрастная отделка</option></select>
 <button id="topMode">▦ Вид сверху</button>
 <button id="tour" aria-pressed="false">▶ Автообзор</button>
@@ -115,6 +123,32 @@ mat.bronze=M('#90714c',.37,.6);
 mat.cloth=M('#ded6c9',.91);
 mat.cloth2=M('#b5bcb2',.93);
 
+// Interior wall palette taken from the five owner-provided wall finish swatches.
+// These materials are assigned ONLY to interior partition surfaces, never outdoor facades.
+const interiorSwatches={
+ linen:{name:'Linen Plaster',hex:'#F0E9DF'},
+ cashmere:{name:'Cashmere Greige',hex:'#D2C6B6'},
+ dove:{name:'Warm Dove',hex:'#B7AA9A'},
+ mushroom:{name:'Mushroom Stone',hex:'#8F8274'},
+ char:{name:'Soft Char',hex:'#6E655C'}
+};
+const interiorMats={};
+for(const [k,v] of Object.entries(interiorSwatches))interiorMats[k]=finish('plaster',v.hex,2,.94);
+function setInteriorPalette(choice){
+ // Mixed composition by room and circulation: pale main walls, darker selected partitions.
+ const arrangement=choice==='mix'
+ ?{linen:'linen',cashmere:'cashmere',dove:'dove',mushroom:'mushroom',char:'char'}
+ :{linen:choice,cashmere:choice,dove:choice,mushroom:choice,char:choice};
+ for(const [role,material] of Object.entries(interiorMats)){
+   const color=interiorSwatches[arrangement[role]].hex;
+   if(material.map)material.map.dispose();
+   material.map=surfaceTexture('plaster',color,2);
+   material.color.set('#ffffff');
+   material.needsUpdate=true;
+ }
+}
+
+
 const world=new THREE.Group();scene.add(world);
 const model=new THREE.Group();world.add(model);
 const roofs=new THREE.Group();world.add(roofs);roofs.visible=false;
@@ -196,7 +230,7 @@ segmented(19.03,-5.7,19.03,5.7,[]);
 // 400mm walls on the original plan
 // Living room has only ONE entrance: from main corridor at x=9.6.
 // Rear wall toward bedroom is solid, without a door.
-segmented(0,-.95,9.6,-.95,[],mat.wall);
+segmented(0,-.95,9.6,-.95,[],interiorMats.dove);
 // The living room has precisely ONE doorway on its corridor-facing EAST wall.
 // Do not model a separate swing-door leaf here: it was being perceived as an extra door.
 // Hall-to-living-room door ONLY at z≈2.0. A SECOND aperture on the same line,
@@ -205,24 +239,28 @@ segmented(0,-.95,9.6,-.95,[],mat.wall);
 segmented(9.6,-5.7,9.6,5.7,[
  {at:3.68,width:1.15,kind:'door',leaf:false}, // from stair hall into left-side bedroom vestibule (z=-2.02..-0.87)
  {at:7.7,width:1.45,kind:'door',leaf:false}    // living room from main hall (z=2.00..3.45)
-],mat.wall);
-segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],mat.wall);
+],interiorMats.cashmere);
+segmented(13.52,-5.7,13.52,5.7,[{at:7.0,width:1.45,kind:'door'}],interiorMats.linen);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
 // Kitchen has ONE entrance only from the central corridor (west wall).
 // Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
-segmented(13.52,-1.05,19.03,-1.05,[],mat.wall);
+segmented(13.52,-1.05,19.03,-1.05,[],interiorMats.char);
 // Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
-segmented(5.8,-5.7,5.8,-1.05,[{at:3.63,width:.95,kind:'door',leaf:false}],mat.wall);
+segmented(5.8,-5.7,5.8,-1.05,[{at:3.63,width:.95,kind:'door',leaf:false}],interiorMats.cashmere);
 // REMOVED: this longitudinal wall crossed the bathroom and left vestibule on the 19.03 x 11.40 ground-floor plan.
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
 // Bath wall remains, but accessible passage and stair junction stay open.
  // The short dividing wall contains only the bathroom access door.
 // Bathroom is 3.55m wide by 2.50m deep. Its front wall separates the bathroom
 // from the open left-side distribution vestibule; enter via an unobstructed doorway.
-segmented(5.8,-2.67,9.6,-2.67,[{at:1.55,width:1.0,kind:'door',leaf:false}],mat.wall);
+segmented(5.8,-2.67,9.6,-2.67,[{at:1.55,width:1.0,kind:'door',leaf:false}],interiorMats.linen);
 // Floor for the small vestibule joining bedroom, bathroom and the stair hall.
 slab(7.62,-1.91,3.55,1.20,mat.tile,.068);
+// Low-profile plaster wall finish sample zones, on existing interior walls only.
+// Small, flush panels add depth without creating a new partition or blocking any entrance.
+box(model,2.85,1.65,-.825,3.45,2.80,.025,interiorMats.mushroom,false); // living accent wall
+box(model,16.1,1.65,-.93,2.45,2.65,.025,interiorMats.char,false); // kitchen accent on solid rear wall
 // Detached boiler room, behind the kitchen/wardrobe block
 slab(17.35,-7.55,3.1,2.8,mat.tile);
 segmented(15.7,-8.9,19.03,-8.9);
@@ -431,6 +469,7 @@ function topCamera(){if(current!=='overview')overview();orbit.target.set(7,0,1);
 function zoomCamera(k){if(current==='overview'){camera.position.sub(orbit.target).multiplyScalar(k).add(orbit.target);orbit.update()}else{camera.fov=Math.max(42,Math.min(75,camera.fov*k));camera.updateProjectionMatrix()}}
 function screenshot(){try{renderer.render(scene,camera);let a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download='3d-dom-'+roomID+'.png';a.click();toast('Снимок подготовлен')}catch(e){toast('Сохранение снимка недоступно')}}
 function stopAuto(){playing=false;E('tour').textContent='▶ Автообзор';E('tour').setAttribute('aria-pressed','false')}
+E('wallColors').onchange=e=>{setInteriorPalette(e.target.value);toast('Цвет внутренних стен: '+(e.target.value==='mix'?'комбинация':interiorSwatches[e.target.value].name))};
 E('daynight').onclick=()=>updateNight(!night);
 E('palette').onchange=e=>updateFinish(e.target.value);
 E('topMode').onclick=topCamera;
@@ -465,7 +504,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=14';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=15';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
