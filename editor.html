@@ -279,7 +279,7 @@ label {color:#d1d1d8}
  #quickInspector{animation:none}
 }
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.0</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V5.1</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -326,6 +326,15 @@ label {color:#d1d1d8}
 <section><h3>Комната и отделка</h3><label for="room">Помещение</label><select id="room"></select>
 <label for="wallColor">Цвет стен комнаты</label><input id="wallColor" type="color" value="#e9e2d8">
 <label for="floorColor">Цвет пола комнаты</label><input id="floorColor" type="color" value="#c1af93">
+<label for="floorPattern">Тип напольного покрытия</label>
+<select id="floorPattern">
+<option value="eng_herringbone">Паркет · английская ёлочка</option>
+<option value="fr_herringbone">Паркет · французская ёлочка</option>
+<option value="plank">Ламинат · палубная доска</option>
+<option value="tile">Керамогранит · плитка</option>
+<option value="solid">Сплошной цвет (старый вид)</option>
+</select>
+<p class="hint">Рисунок сохраняется отдельно для каждой комнаты и масштабируется в метрах.</p>
 <div class="actions" style="margin-top:10px"><button id="materialWarm">Тёплый стиль</button><button id="materialLight">Светлый стиль</button></div>
 </section>
 <section><h3>Проверка проёмов</h3>
@@ -527,9 +536,14 @@ $('focusObject').onclick=()=>{if(o.type==='room'){pan.x=30-o.x*scale;pan.y=25-(o
 $('removeObject').onclick=removeSelected;
 }
 function refreshAll(){refreshList();refreshInspector();refreshRoomUI();drawPlan();build3d();refreshOpeningReport()}
+const roomFloorDefaults={
+ living:'eng_herringbone',kitchen:'tile',bed:'plank',
+ hall:'fr_herringbone',stair:'tile',bath:'tile',ward:'plank'
+};
+function roomFloorPattern(r){return r.floorPattern||roomFloorDefaults[r.id]||'solid'}
 function refreshRoomUI(){
 $('room').innerHTML=state.rooms.map((r,i)=>'<option value="'+label(r.id)+'">'+label(r.name)+'</option>').join('');
-const room=state.rooms.find(r=>r.id===$('room').value)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor}
+const room=state.rooms.find(r=>r.id===$('room').value)||state.rooms[0];if(room){$('room').value=room.id;$('wallColor').value=room.wall;$('floorColor').value=room.floor;$('floorPattern').value=roomFloorPattern(room)}
 $('buildingHeight').value=state.height;$('baseElevation').value=state.elevation;
 }
 function planPoint(x,z){return{x:pan.x+x*scale,y:pan.y+(z+5.7)*scale}}
@@ -742,6 +756,96 @@ function createPBRMaterial(hex,roughness=.77,metalness=0){
  });
 }
 function meshMat(hex,rough=.77,metal=0){return createPBRMaterial(hex,rough,metal)}
+// Four room-specific procedural surface layouts; materials are built per-room
+// and disposed with the room mesh during rebuild. Texture tint is the room floor color.
+function createFloorTexture(type,roomW,roomD){
+ const canvas=document.createElement('canvas');
+ canvas.width=512;canvas.height=512;
+ const ctx=canvas.getContext('2d');
+ const S=512;
+ ctx.fillStyle='#eeeeee';ctx.fillRect(0,0,S,S);
+ const shades=['#f2f2f2','#e6e6e6','#e1e1e1','#ebebeb','#e8e8e8'];
+ const pick=(i,j)=>shades[Math.abs((i*13+j*7+(i*j)%3)%shades.length)];
+ // Draw each cell in pixel space, then repeat tiles with metre-scaled UVs.
+ if(type==='tile'){
+  const n=2,g=2;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+   const x=i*S/n,y=j*S/n,k=S/n;
+   ctx.fillStyle='#cccccc';ctx.fillRect(x,y,k,k);
+   ctx.fillStyle=pick(i,j);ctx.fillRect(x+g,y+g,k-2*g,k-2*g);
+   ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=2;
+   ctx.strokeRect(x+g+4,y+g+4,k-2*g-8,k-2*g-8);
+  }
+ }else if(type==='plank'){
+  const row=8,h=S/row;
+  ctx.strokeStyle='rgba(55,55,55,.33)';ctx.lineWidth=2;
+  for(let j=0;j<row;j++){
+   const offset=j%3*S/3;
+   for(let i=-2;i<5;i++){
+    const x=i*S/2-offset,y=j*h;
+    ctx.fillStyle=pick(i,j);ctx.fillRect(x+1,y+1,S/2-2,h-2);
+    ctx.strokeRect(x,y,S/2,h);
+    ctx.strokeStyle='rgba(85,85,85,.10)';
+    for(let a=1;a<5;a++){ctx.beginPath();ctx.moveTo(x+10,y+h*a/6);ctx.lineTo(x+S/2-10,y+h*a/6);ctx.stroke()}
+    ctx.strokeStyle='rgba(55,55,55,.33)';
+   }
+  }
+ }else if(type==='eng_herringbone'){
+  // Alternating orthogonal rectangular strips, rotated 45 degrees.
+  // Copy adjacent blocks beyond the canvas edges for seamless repeats.
+  const pitch=128;
+  ctx.save();ctx.translate(S/2,S/2);ctx.rotate(Math.PI/4);
+  for(let i=-7;i<7;i++)for(let j=-7;j<7;j++){
+   const x=i*pitch,y=j*pitch;
+   const parity=(i+j+1000)%2===0;
+   ctx.fillStyle=pick(i,j);
+   ctx.fillRect(x+1,y+1,parity?pitch-2:pitch/2-2,parity?pitch/2-2:pitch-2);
+   ctx.strokeStyle='rgba(55,55,55,.4)';ctx.lineWidth=2;
+   ctx.strokeRect(x,y,parity?pitch:pitch/2,parity?pitch/2:pitch);
+  }
+  ctx.restore();
+ }else if(type==='fr_herringbone'){
+  // Chevron meeting at a V, with 45-degree diagonal angled joints.
+  // Periodicity: 128 pixels across and 256 vertically.
+  const pitch=128,vertical=256;
+  ctx.lineWidth=2;ctx.strokeStyle='rgba(60,60,60,.4)';
+  for(let cy=-vertical;cy<S+vertical;cy+=vertical){
+   for(let x=-S;x<S*2;x+=pitch*2){
+    for(let t=0;t<2;t++){
+     const X=x+t*pitch*2,Y=cy;
+     // Symmetrical parallelogram boards meeting at a central axis.
+     const polys=[
+      [[X,Y+128],[X+64,Y+64],[X+64,Y+128],[X,Y+192]],
+      [[X+64,Y+64],[X+128,Y+128],[X+128,Y+192],[X+64,Y+128]],
+      [[X,Y+256],[X+64,Y+192],[X+64,Y+256],[X,Y+320]],
+      [[X+64,Y+192],[X+128,Y+256],[X+128,Y+320],[X+64,Y+256]]
+     ];
+     polys.forEach((poly,index)=>{
+      ctx.beginPath();poly.forEach(([px,py],k)=>k?ctx.lineTo(px,py):ctx.moveTo(px,py));
+      ctx.closePath();ctx.fillStyle=pick(t+index,cy/vertical);ctx.fill();ctx.stroke();
+     });
+    }
+   }
+  }
+ }
+ const texture=new THREE.CanvasTexture(canvas);
+ texture.colorSpace=THREE.SRGBColorSpace;
+ texture.wrapS=THREE.RepeatWrapping;
+ texture.wrapT=THREE.RepeatWrapping;
+ texture.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());
+ // 512px sample spans 1.6 metres; no room-dependent stretching.
+ texture.repeat.set(Math.max(.01,roomW/1.6),Math.max(.01,roomD/1.6));
+ return texture;
+}
+function createFloorMaterial(room){
+ const type=roomFloorPattern(room);
+ if(type==='solid')return meshMat(room.floor,.44,.015);
+ const tex=createFloorTexture(type,room.w,room.h);
+ return new THREE.MeshStandardMaterial({
+  color:room.floor,map:tex,roughness:type==='tile'?.38:.68,metalness:0
+ });
+}
+
 function buildWall(w){
 const len=wallLength(w);if(len<.15)return;
 const root=new THREE.Group();root.position.set(w.x1,0,w.z1);root.rotation.y=-Math.atan2(w.z2-w.z1,w.x2-w.x1);
@@ -1245,20 +1349,8 @@ function buildHallInterior(){
  const group=new THREE.Group();
  buildingGroup.add(group);
  floorMeshes.push(group); // 3D rebuild disposes these preview-only meshes.
- // Restrained light stone tiles with narrow, even grout lines.
- const tile=meshMat('#d8d1c7',.32,.025);
- const grout=meshMat('#bdb5a8',.84);
- const unit=.66,gap=.008;
- const x0=room.x,z0=room.z,x1=room.x+room.w,z1=room.z+room.h;
- // Existing floor top is Y=.08; tiles are superficial finishes.
- cube(group,(x0+x1)/2,.080,(z0+z1)/2,room.w,.009,room.h,grout);
- for(let x=x0;x<x1-.02;x+=unit){
-  for(let z=z0;z<z1-.02;z+=unit){
-   const tw=Math.min(unit,x1-x),td=Math.min(unit,z1-z);
-   cube(group,x+tw/2,.087,z+td/2,Math.max(.01,tw-gap),.008,
-    Math.max(.01,td-gap),tile);
-  }
- }
+ // Floor colour/pattern is applied by the same room surface system.
+ // Keep only the skirting here, so a second tile mesh cannot hide it.
  // Fine plaster skirting on the inner faces, stopping short of door openings.
  const skirting=meshMat('#ebe5dc',.88);
  const walls=state.walls.filter(w=>['stairLeft','stairRight'].includes(w.id));
@@ -1303,7 +1395,7 @@ threeRoots.clear();floorMeshes=[];upperFloorMeshes=[];
  if(yardMesh){scene.remove(yardMesh);yardMesh.geometry.dispose();yardMesh.material.dispose()}
  yardMesh=cube(scene,9.5,-.08,0,38,.12,26,meshMat('#c2c0b5',.78,.02));
  for(const r of state.rooms){
-const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor,.43,.035));floorMeshes.push(m);
+const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,createFloorMaterial(r));floorMeshes.push(m);
 }
 for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
@@ -1441,6 +1533,10 @@ catch(err){status('Не удалось загрузить: '+err.message)}e.targ
 $('room').onchange=refreshRoomUI;
 $('wallColor').onchange=e=>{const r=state.rooms.find(x=>x.id===$('room').value);if(r){r.wall=e.target.value;push();refreshAll()}};
 $('floorColor').onchange=e=>{const r=state.rooms.find(x=>x.id===$('room').value);if(r){r.floor=e.target.value;push();refreshAll()}};
+$('floorPattern').onchange=e=>{
+ const r=state.rooms.find(x=>x.id===$('room').value);
+ if(r){r.floorPattern=e.target.value;push();refreshAll();}
+};
 $('materialWarm').onclick=()=>{for(const r of state.rooms){r.wall='#e4d6c6';r.floor='#c7af90'}push();refreshAll()};
 $('materialLight').onclick=()=>{for(const r of state.rooms){r.wall='#f0ede5';r.floor='#dfd7c8'}push();refreshAll()};
 $('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push();refreshAll()};
