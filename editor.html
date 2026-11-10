@@ -290,6 +290,8 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();const p=coords(e);const c
 // Synchronized 3D preview
 let renderer,camera,scene,orbit,transform,threeRoots=new Map(),raycaster=new THREE.Raycaster(),mouse=new THREE.Vector2();
 const canvas3d=$('view3d');
+const buildingGroup=new THREE.Group();scene.add(buildingGroup);
+let yardMesh=null;
 renderer=new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.4));
 renderer.shadowMap.enabled=true;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.23;
@@ -324,7 +326,16 @@ function meshMat(hex,rough=.77){return new THREE.MeshStandardMaterial({color:hex
 function buildWall(w){
 const len=wallLength(w);if(len<.15)return;
 const root=new THREE.Group();root.position.set(w.x1,0,w.z1);root.rotation.y=-Math.atan2(w.z2-w.z1,w.x2-w.x1);
-const material=meshMat('#ede6dc');const openings=safeWallOpenings(w);
+// Independent inside finish on both faces of wall, derived from adjacent room.
+const midX=(w.x1+w.x2)/2,midZ=(w.z1+w.z2)/2;
+const nx=-(w.z2-w.z1)/len,nz=(w.x2-w.x1)/len;
+const roomSide=(sign)=>{
+ const x=midX+nx*sign*(w.t/2+.13),z=midZ+nz*sign*(w.t/2+.13);
+ return state.rooms.find(r=>x>=r.x&&x<=r.x+r.w&&z>=r.z&&z<=r.z+r.h)?.wall||'#ede6dc';
+};
+const sideP=meshMat(roomSide(1)),sideN=meshMat(roomSide(-1)),edge=meshMat('#ded7cd');
+const material=[edge,edge,edge,edge,sideN,sideP];
+const openings=safeWallOpenings(w);
 let cursor=0;const H=state.height;
 function span(a,b,from=0,to=H){if(b-a>.01&&to-from>.02)cube(root,(a+b)/2,(from+to)/2,0,b-a,to-from,w.t,material)}
 for(const o of openings){
@@ -334,8 +345,8 @@ span(o.start,o.end,o.head,H);
 cursor=Math.max(cursor,o.end);
 }
 span(cursor,len);
-root.userData.editorId=w.id;scene.add(root);threeRoots.set(w.id,root);
-for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;scene.add(oroot);threeRoots.set(o.id,oroot);
+root.userData.editorId=w.id;buildingGroup.add(root);threeRoots.set(w.id,root);
+for(const o of openings){const oroot=new THREE.Group();const pos=offsetPoint(w,o.offset);oroot.position.set(pos.x,0,pos.z);oroot.rotation.y=root.rotation.y;oroot.userData.editorId=o.id;buildingGroup.add(oroot);threeRoots.set(o.id,oroot);
 if(o.type==='window'){
 const m=meshMat('#394952',.36),glass=new THREE.MeshPhysicalMaterial({color:'#a9d4de',transparent:true,opacity:.24,roughness:.10,side:THREE.DoubleSide});
 const ht=o.head-o.sill;cube(oroot,0,(o.head+o.sill)/2,0,o.width-.10,ht-.08,.018,glass);
@@ -351,7 +362,7 @@ cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 }
 }}
 function buildStair(o){
-const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;scene.add(root);threeRoots.set(o.id,root);
+const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
 const m=meshMat(o.color||'#ddd7cc'),under=meshMat('#e5e0d8');
 const lowN=7,highN=12,rise=.17;
 for(let i=0;i<lowN;i++)cube(root,0,(i+1)*rise/2,-(i+.5)*o.lower/lowN,o.width,(i+1)*rise,o.lower/lowN+.015,m);
@@ -366,7 +377,7 @@ const solid=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:.10,bevelEnabl
 solid.position.z=highZ+o.width/2-.04;root.add(solid);
 }
 function buildFurniture(o){
-const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;scene.add(root);threeRoots.set(o.id,root);
+const root=new THREE.Group();root.position.set(o.x,0,o.z);root.rotation.y=o.rot||0;root.userData.editorId=o.id;buildingGroup.add(root);threeRoots.set(o.id,root);
 const color=meshMat(o.color||'#c1aa91');
 if(o.type==='rug'){cube(root,0,.045,0,o.w,.045,o.d,color);return}
 if(o.type==='plant'){cube(root,0,.25,0,.35,.5,.35,meshMat('#b4a18c'));const crown=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.25,o.w/2),10,10),meshMat('#617965'));crown.position.y=.95;root.add(crown);return}
@@ -380,10 +391,18 @@ for(const x of [-o.w/2+.13,o.w/2-.13])for(const z of [-o.d/2+.13,o.d/2-.13])cube
 let floorMeshes=[];
 function build3d(){
 transform.detach();
-for(const o of [...threeRoots.values(),...floorMeshes]){scene.remove(o);o.traverse(child=>{if(child.isMesh){child.geometry?.dispose();if(child.material){const mats=Array.isArray(child.material)?child.material:[child.material];for(const m of mats)m.dispose()}}})}
+for(const o of [...threeRoots.values(),...floorMeshes]){
+ o.parent?.remove(o);
+ o.traverse(child=>{if(child.isMesh){child.geometry?.dispose();if(child.material){
+ const mats=Array.isArray(child.material)?child.material:[child.material];for(const m of mats)m.dispose()
+ }}})
+}
 threeRoots.clear();floorMeshes=[];
-for(const r of state.rooms){
-const m=cube(scene,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor));floorMeshes.push(m);
+ buildingGroup.position.y=state.elevation;
+ if(yardMesh){scene.remove(yardMesh);yardMesh.geometry.dispose();yardMesh.material.dispose()}
+ yardMesh=cube(scene,9.5,-.08,0,38,.12,26,meshMat('#c2c0b5'));
+ for(const r of state.rooms){
+const m=cube(buildingGroup,r.x+r.w/2,.015,r.z+r.h/2,r.w,.13,r.h,meshMat(r.floor));floorMeshes.push(m);
 }
 for(const w of state.walls)buildWall(w);
 for(const o of state.stairs)buildStair(o);
