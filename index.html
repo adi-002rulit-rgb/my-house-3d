@@ -75,7 +75,7 @@ body:not(.technical) #studio button{min-width:110px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V24</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V25</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -453,8 +453,9 @@ const archDoorCenters=[];
 // Source: IMG_6632 + labelled first-floor plan: rear bedroom, bath,
 // staircase landing, wardrobe; front two living-room windows, entrance, kitchen.
 // Exact offset from column axes is still preliminary; no extra invented windows.
+// Revised architectural plan: the bedroom window now faces LEFT (west side),
+// not the rear of the main house. Retain other rear-facing openings unchanged.
 segmented(.2,-5.5,18.83,-5.5,[
-{at:2.15,width:1.65,kind:'window'},  // bedroom
 {at:6.55,width:1.05,kind:'window'}, // bathroom
 {at:10.7,width:1.05,kind:'window'}, // stairwell
 {at:15.5,width:1.65,kind:'window'}],exteriorInteriorFaces('back'),.4);
@@ -469,7 +470,12 @@ segmented(.2,5.5,18.83,5.5,[
 {at:10.21,width:2.30,kind:'door',glass:true}, // entrance x=10.41..12.71
 {at:14.475,width:3.00,kind:'window'} // ONLY kitchen window x=14.675..17.675
 ],exteriorInteriorFaces('front'),.4);
-segmented(.2,-5.5,.2,5.5,[],exteriorInteriorFaces('left'),.4); // west external 400mm
+// Bedroom's ONE window is moved to the west (left) exterior wall.
+// Provisional width 1.65m carried over from the earlier model; exact new-plan
+// dimensions and vertical elevation still require confirmation.
+segmented(.2,-5.5,.2,5.5,[
+{at:1.45,width:1.65,kind:'window'} // bedroom: z=-4.05 ... -2.40
+],exteriorInteriorFaces('left'),.4); // west external 400mm
 // Kitchen has exactly ONE courtyard-facing window (front facade x=15.7).
 // Right-hand exterior wall has no kitchen window.
 segmented(18.83,-5.5,18.83,5.5,[],exteriorInteriorFaces('right'),.4); // east external 400mm
@@ -811,7 +817,7 @@ living:'Зал 54 м². Одна дверь из коридора. Два окн
 kitchen:'Кухня 30,20 м². Одна дверь из коридора и одно окно во двор шириной 3,00 м (по чертежу). Высота окна уточняется.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
 stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
-bedroom:'Спальня 21,84 м². Отделка и мебель иллюстративны.',
+bedroom:'Спальня 21,84 м². По обновлённому проекту окно перенесено на левую (западную) наружную стену. Ширина 1,65 м пока предварительная; мебель — концепция.',
 bathroom:'Ванная: на размерном чертеже 3,55 × 2,50 м (8,88 м²); в экспликации указано 9,38 м². Требуется сверка исходного проекта.',
 wardrobe:'Гардеробная 21,25 м². Мебель концептуальная.',
 summer:'Летняя кухня 50 м². Архитектурная схема по проекту.',
@@ -867,6 +873,7 @@ const auditDims=[
  ['Коридор','ширина 3,52 м'],
  ['Окна зала','2 × 2,30 м'],
  ['Окно кухни','1 × 3,00 м'],
+ ['Окно спальни','слева, ширина уточняется'],
  ['Входная дверь','2,30 м по чертежу'],
  ['Стены','400 / 250 мм'],
 ];
@@ -910,7 +917,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=24';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=25';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
