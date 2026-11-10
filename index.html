@@ -590,7 +590,7 @@ E('prevRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(to
 E('nextRoom').onclick=()=>{stopAuto();const i=tourRooms.indexOf(roomID);enter(tourRooms[(i+1)%tourRooms.length])};
 E('presentation').onclick=()=>{
  cleanView=!cleanView;
- for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo']){
+ for(const id of ['title','rooms','hint','nav','rot','source','projectMark','roomInfo','inspectPanel','minimap','miniToggle','inspectionSpeed','measureText','auditPanel']){
    const el=E(id);if(el)el.style.display=cleanView?'none':'';
  }
  for(const id of ['controls']){E(id).style.display=cleanView?'none':''}
@@ -598,6 +598,7 @@ E('presentation').onclick=()=>{
  E('presentation').textContent=cleanView?'◩ Вернуть панели':'◫ Без панелей';
  E('studio').style.maxHeight=cleanView?'none':'';
  labelsVisibleSafe();
+ if(!cleanView){E('minimap').style.display=mapVisible?'block':'none';E('measureText').style.display=measureEnabled?'block':'none';E('auditPanel').hidden=true;}
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
