@@ -75,7 +75,7 @@ body:not(.technical) #studio button{min-width:110px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V23</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V24</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset">↺</button></div>
 
 
@@ -377,6 +377,17 @@ box(back,16,.65,11,.22,1.3,5,mat.wall);
 for(let i=0;i<14;i++){let xx=-33+i*3.3;if(xx>-23&&xx<-14)continue;box(back,xx,.8,15,.42,1.6,.42,mat.edge);}
 // House model origin: x 0-16.13, z -5.7..5.7. Main front faces +z
 // Main корпус: 19.03 x 11.40 m, interior spans 9.00 x 6.00 living, 3.52 corridor, 4.91 x 6.15 kitchen. Heights remain provisional.
+// Individual exterior/interior faces: changing the client wall color affects
+// EVERY inward-facing surface while exterior facade color is preserved.
+// BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z.
+function exteriorInteriorFaces(facing){
+ const sides=Array(6).fill(mat.wall);
+ const innerFace={left:0,right:1,back:4,front:5}[facing];
+ if(innerFace===undefined)throw Error('Unknown exterior wall facing');
+ sides[innerFace]=interiorMats.linen;
+ return sides;
+}
+
 const HOUSE_X=19.03, HOUSE_Z=11.4, H=3.74; // overall wall-line dimensions of main house from IMG_6632
 function segmented(x1,z1,x2,z2,openings=[],material=mat.wall,thickness=.25){
 const axis=Math.abs(x2-x1)>Math.abs(z2-z1)?'x':'z';const length=axis==='x'?Math.abs(x2-x1):Math.abs(z2-z1);const sign=axis==='x'?Math.sign(x2-x1):Math.sign(z2-z1);
@@ -394,7 +405,23 @@ let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,
 const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
 if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
-else{piece(start,end,0,.83,material);piece(start,end,2.4,H,material);piece(start,start+.065,.83,2.4,mat.oak);piece(end-.065,end,.83,2.4,mat.oak);piece(start+.07,end-.07,.85,2.37,mat.glass);piece(start,end,1.6,1.65,mat.oak)}
+else{
+ piece(start,end,0,.83,material);
+ piece(start,end,2.4,H,material);
+ piece(start,start+.065,.83,2.4,mat.black);
+ piece(end-.065,end,.83,2.4,mat.black);
+ piece(start+.07,end-.07,.85,2.37,mat.glass);
+ piece(start,end,1.6,1.65,mat.black);
+ // Mullions scale with the physical opening width: three panels for 2.3 m,
+ // and three generously sized ~1 m panels for the 3.0 m kitchen window.
+ const sections=Math.max(2,Math.round((end-start)/.98));
+ for(let p=1;p<sections;p++){
+  const at=start+(end-start)*p/sections;
+  const px=axis==='x'?x1+sign*at:x1;
+  const pz=axis==='z'?z1+sign*at:z1;
+  box(model,px,1.625,pz,axis==='x'?.042:thickness+.025,1.53,axis==='z'?.042:thickness+.025,mat.black,false);
+ }
+}
 }
 }
 // Independent floor materials: furniture must never change when selecting a floor.
@@ -430,16 +457,22 @@ segmented(.2,-5.5,18.83,-5.5,[
 {at:2.15,width:1.65,kind:'window'},  // bedroom
 {at:6.55,width:1.05,kind:'window'}, // bathroom
 {at:10.7,width:1.05,kind:'window'}, // stairwell
-{at:15.5,width:1.65,kind:'window'}],mat.wall,.4);
+{at:15.5,width:1.65,kind:'window'}],exteriorInteriorFaces('back'),.4);
+// Courtyard frontage confirmed on detailed plan IMG_6662:
+// living room 1650 + 2300 + 1100 + 2300 + 1650 = 9000 mm;
+// entrance corridor 610 + 2300 + 610 = 3520 mm;
+// kitchen 955 + 3000 + 955 = 4910 mm.
+// 'at' is measured relative to x=.20, the exterior wall segment start.
 segmented(.2,5.5,18.83,5.5,[
-{at:2.15,width:1.75,kind:'window'},  // living room first
-{at:6.1,width:1.75,kind:'window'},   // living room second
-{at:10.7,width:1.7,kind:'door',glass:true}, // front door
-{at:15.7,width:1.65,kind:'window'}],mat.wall,.4); // kitchen
-segmented(.2,-5.5,.2,5.5,[],mat.wall,.4); // west external 400mm
+{at:1.85,width:2.30,kind:'window'}, // living window 1 x=2.05..4.35
+{at:5.25,width:2.30,kind:'window'}, // living window 2 x=5.45..7.75
+{at:10.21,width:2.30,kind:'door',glass:true}, // entrance x=10.41..12.71
+{at:14.475,width:3.00,kind:'window'} // ONLY kitchen window x=14.675..17.675
+],exteriorInteriorFaces('front'),.4);
+segmented(.2,-5.5,.2,5.5,[],exteriorInteriorFaces('left'),.4); // west external 400mm
 // Kitchen has exactly ONE courtyard-facing window (front facade x=15.7).
 // Right-hand exterior wall has no kitchen window.
-segmented(18.83,-5.5,18.83,5.5,[],mat.wall,.4); // east external 400mm
+segmented(18.83,-5.5,18.83,5.5,[],exteriorInteriorFaces('right'),.4); // east external 400mm
 
 // 400mm walls on the original plan
 // Living room has only ONE entrance: from main corridor at x=9.6.
@@ -507,9 +540,9 @@ inspectGroup.add(metricGrid);
 
 // Detached boiler room, behind the kitchen/wardrobe block
 slab(17.35,-7.55,3.1,2.8,mat.tile);
-segmented(15.7,-8.9,19.03,-8.9);
-segmented(15.7,-8.9,15.7,-5.7);
-segmented(19.03,-8.9,19.03,-5.7);
+segmented(15.7,-8.9,19.03,-8.9,[],interiorMats.linen);
+segmented(15.7,-8.9,15.7,-5.7,[],interiorMats.linen);
+segmented(19.03,-8.9,19.03,-5.7,[],interiorMats.linen);
 // Exterior front entrance aligned with the main corridor and classical steps
 for(let i=0;i<6;i++)box(model,11.55,.09+i*.12,6.15+i*.28,3.65-i*.10,.17,2.25-i*.32,mat.steps);
 for(let xx of [9.63,13.46]){box(model,xx,.83,6.22,.35,1.66,.35,mat.wall);box(model,xx,1.69,6.22,.49,.16,.49,mat.stone)}
@@ -745,10 +778,10 @@ plant(10.1,4.55);plant(12.8,4.55);
 
 // detached utility wing x -18..-12: garage southern half and summer kitchen northern half
 slab(-15.05,.0,5.4,9.5,mat.oak);slab(-15.05,7.4,5.4,5.5,mat.stone);
-segmented(-17.75,-4.85,-12.35,-4.85,[{at:1.6,width:1.5,kind:'window'}]);
-segmented(-17.75,10.75,-12.35,10.75,[{at:.5,width:4.4,kind:'door'}]);
-segmented(-17.75,-4.85,-17.75,10.75,[{at:3,width:1.4,kind:'window'},{at:9,width:1.5,kind:'window'}]);
-segmented(-12.35,-4.85,-12.35,10.75,[{at:3.6,width:1.6,kind:'door',glass:true},{at:11,width:1.0,kind:'door'}]);
+segmented(-17.75,-4.85,-12.35,-4.85,[{at:1.6,width:1.5,kind:'window'}],interiorMats.linen);
+segmented(-17.75,10.75,-12.35,10.75,[{at:.5,width:4.4,kind:'door'}],interiorMats.linen);
+segmented(-17.75,-4.85,-17.75,10.75,[{at:3,width:1.4,kind:'window'},{at:9,width:1.5,kind:'window'}],interiorMats.linen);
+segmented(-12.35,-4.85,-12.35,10.75,[{at:3.6,width:1.6,kind:'door',glass:true},{at:11,width:1.0,kind:'door'}],interiorMats.linen);
 segmented(-17.75,4.6,-12.35,4.6,[{at:1.6,width:1.1,kind:'door'}],mat.edge);
 table(-15,.45,1.55,3);box(model,-17.0,.48,-1.0,.52,.87,3.2,mat.wood);
 box(model,-15.1,.42,7.6,2.35,.73,4.35,mat.black);box(model,-15.1,.98,6.9,1.8,.34,1.7,mat.glass);
@@ -774,8 +807,8 @@ rooms.filter(r=>!['courtyard'].includes(r.id)).forEach(label);
 let roomID='living',night=false,playing=false,playTime=0,playIndex=0,labelsOn=true,infoOn=false,qualityMode='auto',cleanView=false;
 const tourRooms=['living','kitchen','hallway','stair','bedroom','bathroom','wardrobe','summer','garage','courtyard'];
 const descriptions={
-living:'Зал 54 м². Одна дверь из коридора. Два окна на переднем фасаде.',
-kitchen:'Кухня 30,20 м². Только одна дверь из коридора и одно окно во двор.',
+living:'Зал 54 м². Одна дверь из коридора. Два окна во двор по 2,30 м каждое (по чертежу).',
+kitchen:'Кухня 30,20 м². Одна дверь из коридора и одно окно во двор шириной 3,00 м (по чертежу). Высота окна уточняется.',
 hallway:'Открытый коридор до лестницы; слева проход к спальне и ванной.',
 stair:'П-образная лестница со ступенями открытого типа. Подъём справа, слева открыт проход к спальне.',
 bedroom:'Спальня 21,84 м². Отделка и мебель иллюстративны.',
@@ -832,6 +865,9 @@ const auditDims=[
  ['Кухня','4,91 × 6,15 м'],
  ['Гардеробная','5,06 × 4,20 м'],
  ['Коридор','ширина 3,52 м'],
+ ['Окна зала','2 × 2,30 м'],
+ ['Окно кухни','1 × 3,00 м'],
+ ['Входная дверь','2,30 м по чертежу'],
  ['Стены','400 / 250 мм'],
 ];
 E('auditValues').innerHTML=auditDims.map(([name,value])=>'<div class="auditLine"><span>'+name+'</span><strong>'+value+'</strong></div>').join('')+
@@ -874,7 +910,7 @@ E('presentation').onclick=()=>{
 };
 function labelsVisibleSafe(){model.children.filter(o=>o.isSprite).forEach(o=>o.visible=!cleanView&&labelsOn&&current==='overview')}
 E('share').onclick=async()=>{
-const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=23';
+const url='https://adi-002rulit-rgb.github.io/my-house-3d/?v=24';
 try{if(navigator.share)await navigator.share({title:'3D-тур дома',url});
 else if(navigator.clipboard){await navigator.clipboard.writeText(url);toast('Ссылка скопирована')}
 else toast(url)}catch(e){toast('Не удалось поделиться ссылкой')}}
