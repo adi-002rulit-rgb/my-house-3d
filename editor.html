@@ -93,8 +93,13 @@ input[type=checkbox]{width:auto}
 #stairValidationReport .error{background:#7b332c66;border-color:#ff837a}
 #stairValidationReport .warning{background:#80642e66;border-color:#e7bd70}
 #stairValidationReport .ok{background:#325c4866;border-color:#82be9a}
+#cameraArrowPad{position:absolute;right:12px;bottom:14px;display:flex;align-items:center;flex-direction:column;gap:3px;z-index:15;user-select:none;touch-action:manipulation}
+#cameraArrowPad .cameraArrowRow{display:flex;gap:3px}
+#cameraArrowPad button{width:39px;height:39px;padding:0;border-radius:10px;border:1px solid #8aabb7;background:#192e3cda;color:#fff;font-size:20px;font-weight:700;box-shadow:0 2px 9px #0006}
+#cameraArrowPad button:hover,#cameraArrowPad button:active{background:#446d82}
+@media(max-width:700px){#cameraArrowPad button{width:43px;height:43px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.4</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V2.5</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -120,7 +125,13 @@ input[type=checkbox]{width:auto}
 <div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
-<div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · выбор объекта и стрелки для перемещения</div></div>
+<div class="pane" id="pane3d"><canvas id="view3d"></canvas><div class="paneTitle">3D · стрелки двигают камеру над домом</div>
+<div id="cameraArrowPad" aria-label="Двигать вид над домом">
+ <button type="button" id="cameraUp" aria-label="Камера вперёд">↑</button>
+ <div class="cameraArrowRow"><button type="button" id="cameraLeft" aria-label="Камера влево">←</button>
+ <button type="button" id="cameraDown" aria-label="Камера назад">↓</button>
+ <button type="button" id="cameraRight" aria-label="Камера вправо">→</button></div>
+</div></div>
 </div><div id="status" role="status">Готово. Нажми на объект на плане или в 3D.</div>
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 </main>
@@ -938,7 +949,34 @@ $('materialLight').onclick=()=>{for(const r of state.rooms){r.wall='#f0ede5';r.f
 $('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push();refreshAll()};
 $('baseElevation').onchange=e=>{state.elevation=clamp(+e.target.value,0,1.5);push();refreshAll()};
 for(const [id,mode] of [['planOnly','plan'],['split','split'],['only3d','3d']])$(id).onclick=()=>{const a=$('pane2d'),b=$('pane3d');a.style.display=mode==='3d'?'none':'';b.style.display=mode==='plan'?'none':'';$('views').style.gridTemplateColumns=mode==='split'?'1fr 1fr':'1fr';for(const btn of ['planOnly','split','only3d'])$(btn).classList.toggle('active',btn===id);resize3d();drawPlan()};
+// Screen-relative camera panning. Keeps camera and orbit target at the same distance.
+function panCamera(dx,dz,amount=.7){
+ if(transform.dragging)return;
+ const vx=camera.position.x-orbit.target.x,vz=camera.position.z-orbit.target.z;
+ const length=Math.hypot(vx,vz)||1;
+ const rightX=vz/length,rightZ=-vx/length;
+ const forwardX=-vx/length,forwardZ=-vz/length;
+ const mx=(rightX*dx+forwardX*dz)*amount;
+ const mz=(rightZ*dx+forwardZ*dz)*amount;
+ camera.position.x+=mx;camera.position.z+=mz;
+ orbit.target.x+=mx;orbit.target.z+=mz;
+ orbit.update();
+}
+const cameraArrows={cameraUp:[0,1],cameraDown:[0,-1],cameraLeft:[-1,0],cameraRight:[1,0]};
+for(const [id,dir] of Object.entries(cameraArrows)){
+ $(id).addEventListener('click',()=>panCamera(...dir));
+}
 window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName))return;
+const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+if(arrowDirections[e.key]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+ e.preventDefault();
+ if(e.shiftKey){
+  pan.x-=arrowDirections[e.key][0]*24;
+  pan.y+=arrowDirections[e.key][1]*24;
+  drawPlan();
+ }else panCamera(...arrowDirections[e.key]);
+ return;
+}
 if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click()}
 if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();$('redo').click()}
 if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();saveState()}
