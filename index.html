@@ -136,12 +136,13 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #stairAdjustStudio input[type=range]{display:block;width:100%;accent-color:#d3af74;cursor:ew-resize}
 #stairAdjustStudio .stairHelp{font-size:10px;color:#e0d6c9;line-height:1.5;margin:7px 0}
 #stairClearance{display:block;color:#d4dfd3;padding:8px 0;line-height:1.4}
+#showroom .designDivider{margin:14px 0 9px;padding-top:10px;border-top:1px solid #c6ad8755;color:#e6cc9e;font-weight:700;font-size:12px}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V50</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V51</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -241,6 +242,53 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </section>
 <section data-show-content="interior" role="tabpanel" hidden>
 <h3>Мебель, текстиль и освещение</h3>
+
+<div class="designDivider">Новые материалы · 2026</div>
+<label for="accentWall2026">Акцентная стена зала</label>
+<select id="accentWall2026">
+<option value="none">Без акцента · чистая стена</option>
+<option value="oak">Рифлёный натуральный дуб</option>
+<option value="walnut">Рифлёный орех</option>
+<option value="travertine">Тёплый травертин</option>
+<option value="microcement">Микроцемент · песочный</option>
+</select>
+<label for="kitchenCabinet2026">Современные фасады кухни</label>
+<select id="kitchenCabinet2026">
+<option value="cashmere">Матовый кашемир</option>
+<option value="oak">Натуральный дуб</option>
+<option value="walnut">Орех</option>
+<option value="olive">Приглушённый оливковый</option>
+<option value="espresso">Эспрессо</option>
+</select>
+<label for="kitchenBacksplash2026">Фартук кухни</label>
+<select id="kitchenBacksplash2026">
+<option value="limestone">Светлый известняк</option>
+<option value="travertine">Травертин</option>
+<option value="marble">Светлый мрамор</option>
+<option value="greige">Тёплый грейж</option>
+<option value="graphite">Тёмный камень</option>
+</select>
+<label for="metalAccent2026">Металлические акценты</label>
+<select id="metalAccent2026">
+<option value="black">Матовый чёрный</option>
+<option value="champagne">Шампань</option>
+<option value="bronze">Тёмная бронза</option>
+<option value="chrome">Сатинированный металл</option>
+</select>
+<label for="ceilingDesign2026">Свет в потолке</label>
+<select id="ceilingDesign2026">
+<option value="subtle">Тонкие линии · умеренно</option>
+<option value="linear">Линейные треки</option>
+<option value="indirect">Мягкая скрытая подсветка</option>
+<option value="off">Без дополнительного света</option>
+</select>
+<label for="decor2026">Дополнительный декор</label>
+<select id="decor2026">
+<option value="minimal">Минимальный</option>
+<option value="styled">Керамика, камень и консоль</option>
+<option value="off">Без декора</option>
+</select>
+
 <label for="clientUpholstery">Цвет мягкой мебели</label>
 <select id="clientUpholstery">
 <option value="linen">Светлый лён</option>
@@ -1171,6 +1219,60 @@ for(const pos of [[1.14,2.27,-.56],[8.66,2.27,-.56],[16.12,2.35,-.76]]){
  l.position.set(pos[0],pos[1]+.18,pos[2]+.27);scene.add(l);
 }
 
+
+// Decorative design concepts, inspired by current warm/tactile interiors.
+// They are separate overlays: wall boundaries, windows, doorways, and stairs are untouched.
+const decor2026Group=new THREE.Group();model.add(decor2026Group);
+const livingAccent2026=new THREE.Group();decor2026Group.add(livingAccent2026);
+const kitchenCabinets2026=new THREE.Group();decor2026Group.add(kitchenCabinets2026);
+const kitchenBacksplash2026=new THREE.Group();decor2026Group.add(kitchenBacksplash2026);
+const ceiling2026Group=new THREE.Group();decor2026Group.add(ceiling2026Group);
+const accessories2026Group=new THREE.Group();decor2026Group.add(accessories2026Group);
+const metallicDetails2026=new THREE.MeshStandardMaterial({color:'#292d30',metalness:.65,roughness:.28});
+const accent2026Mat=new THREE.MeshStandardMaterial({color:'#c6ac8a',roughness:.76});
+const cabinet2026Mat=new THREE.MeshStandardMaterial({color:'#d2c6b6',roughness:.55});
+const backsplash2026Mat=new THREE.MeshStandardMaterial({color:'#d8d0c3',roughness:.45});
+const ambient2026=new THREE.MeshStandardMaterial({color:'#ffe8c6',emissive:'#ffd9a7',emissiveIntensity:.45,roughness:.63});
+function makeDecor2026(){
+ // Living rear feature wall: x=2.1..7.6 on solid rear partition z=-.9.
+ // It deliberately stops before the side-wall doorway.
+ const panelX=4.85,panelW=5.38,panelZ=-.665;
+ box(livingAccent2026,panelX,1.80,panelZ,panelW,2.89,.055,accent2026Mat,false);
+ for(let i=0;i<35;i++){
+  const x=2.22+i*.153;
+  box(livingAccent2026,x,1.78,panelZ+.044,.026,2.72,.034,accent2026Mat,false);
+ }
+ // The new kitchen wall fronts have an independent material. Top and lower
+ // bands are schematic joinery, not custom cabinetry construction drawings.
+ for(let i=0;i<8;i++){
+  const x=14.22+i*.49;
+  box(kitchenCabinets2026,x,.62,-.635,.47,1.05,.068,cabinet2026Mat,false);
+  box(kitchenCabinets2026,x,2.70,-.635,.47,.94,.067,cabinet2026Mat,false);
+ }
+ // Worktop/backsplash, staying below the cabinetry and away from the
+ // courtyard-side 3 m kitchen window.
+ box(kitchenBacksplash2026,16.00,1.49,-.58,3.76,.64,.042,backsplash2026Mat,false);
+ box(kitchenBacksplash2026,16.00,1.15,-.54,3.83,.07,.33,backsplash2026Mat,false);
+ // Soft feature lights are luminous geometry rather than many point lights.
+ for(const x of [2.15,7.78]){
+  box(ceiling2026Group,x,3.31,1.90,.026,.022,3.05,ambient2026,false);
+ }
+ for(const x of [14.45,17.70]){
+  box(ceiling2026Group,x,3.31,1.9,.025,.022,2.70,ambient2026,false);
+ }
+ // Quiet curated accent composition on the living-room side:
+ // shallow console and sculptural objects, without circulation obstruction.
+ const ceramic=M('#d7c9b8',.70),stoneObj=M('#9d9183',.66);
+ box(accessories2026Group,3.1,.59,-.22,1.22,.075,.32,accent2026Mat,false);
+ for(const x of [2.62,3.58])
+  box(accessories2026Group,x,.30,-.23,.045,.53,.045,metallicDetails2026,false);
+ const vase=new THREE.Mesh(new THREE.CylinderGeometry(.075,.11,.30,12),ceramic);
+ vase.position.set(2.82,.80,-.20);accessories2026Group.add(vase);
+ const stone=new THREE.Mesh(new THREE.SphereGeometry(.115,12,9),stoneObj);
+ stone.scale.set(1,.67,1);stone.position.set(3.28,.74,-.23);accessories2026Group.add(stone);
+}
+makeDecor2026();
+
 // Keep the garage and summer-kitchen at courtyard level, independent of the elevated main house.
 const detachedStartIndex=model.children.length;
 // detached utility wing x -18..-12: garage southern half and summer kitchen northern half
@@ -1527,6 +1629,73 @@ function applyInteriorLighting(){
  sconceGlow.emissive.set(color);
  E('lightStrengthValue').textContent=Math.round(lightStrength*100)+'%';
 }
+
+/* New 2026 design choices: all configured as reversible material/visibility
+ controls, saved through A/B, undo history and share links. */
+const newDesignChoices2026={
+ accent:['none','oak','walnut','travertine','microcement'],
+ cabinet:['cashmere','oak','walnut','olive','espresso'],
+ splash:['limestone','travertine','marble','greige','graphite'],
+ metal:['black','champagne','bronze','chrome'],
+ ceiling:['subtle','linear','indirect','off'],
+ decor:['minimal','styled','off']
+};
+const accentColors2026={
+ oak:'#c4aa8a',walnut:'#7d604c',travertine:'#c8bba8',microcement:'#b9ae9f'
+};
+const cabinetColors2026={
+ cashmere:'#d2c6b6',oak:'#b7a084',walnut:'#78614f',olive:'#818575',espresso:'#554b44'
+};
+const splashColors2026={
+ limestone:'#ddd2be',travertine:'#cdb99b',marble:'#ece9e4',greige:'#b9ada0',graphite:'#62605e'
+};
+const metalColors2026={
+ black:'#292d30',champagne:'#b8a17e',bronze:'#665c51',chrome:'#afb8b9'
+};
+let interiorDesign2026={accent:'none',cabinet:'cashmere',splash:'limestone',metal:'black',ceiling:'subtle',decor:'minimal'};
+function validDesign2026(v){
+ return !!v&&typeof v==='object'&&Object.keys(newDesignChoices2026).every(
+ key=>newDesignChoices2026[key].includes(v[key]));
+}
+function applyDesign2026(save=true){
+ if(!validDesign2026(interiorDesign2026))interiorDesign2026={accent:'none',cabinet:'cashmere',splash:'limestone',metal:'black',ceiling:'subtle',decor:'minimal'};
+ for(const [id,key] of [
+ ['accentWall2026','accent'],['kitchenCabinet2026','cabinet'],
+ ['kitchenBacksplash2026','splash'],['metalAccent2026','metal'],
+ ['ceilingDesign2026','ceiling'],['decor2026','decor']]){
+ E(id).value=interiorDesign2026[key];
+ }
+ livingAccent2026.visible=interiorDesign2026.accent!=='none';
+ accent2026Mat.color.set(accentColors2026[interiorDesign2026.accent]||'#c4aa8a');
+ // Smooth plaster and stone selections should show no false wood fluting.
+ const ribbed=['oak','walnut'].includes(interiorDesign2026.accent);
+ livingAccent2026.children.slice(1).forEach(child=>child.visible=ribbed);
+ // When highlighting the rear living wall, hide pre-existing wall
+ // mouldings to prevent material z-fighting and visual clutter.
+ livingMoldings.minimal.visible=interiorDesign2026.accent==='none'&&clientMoldings==='minimal';
+ livingMoldings.classic.visible=interiorDesign2026.accent==='none'&&clientMoldings==='classic';
+ cabinet2026Mat.color.set(cabinetColors2026[interiorDesign2026.cabinet]);
+ backsplash2026Mat.color.set(splashColors2026[interiorDesign2026.splash]);
+ metallicDetails2026.color.set(metalColors2026[interiorDesign2026.metal]);
+ ceiling2026Group.visible=interiorDesign2026.ceiling!=='off';
+ ceiling2026Group.children.forEach((child,i)=>{
+  child.visible=interiorDesign2026.ceiling==='linear'?i<2:
+   interiorDesign2026.ceiling==='indirect'?i>=2:true;
+ });
+ ambient2026.emissiveIntensity=interiorDesign2026.ceiling==='indirect'?.80:.38;
+ accessories2026Group.visible=interiorDesign2026.decor==='styled';
+ if(save)saveCurrentDesign();
+}
+for(const [id,key] of [
+ ['accentWall2026','accent'],['kitchenCabinet2026','cabinet'],
+ ['kitchenBacksplash2026','splash'],['metalAccent2026','metal'],
+ ['ceilingDesign2026','ceiling'],['decor2026','decor']]){
+ E(id).onchange=e=>{
+  interiorDesign2026[key]=e.target.value;
+  applyDesign2026();
+ };
+}
+
 function applyInteriorOptions(save=true){
  if(!fabricOptions[clientFabric])clientFabric='linen';
  if(!curtainOptions[clientCurtains])clientCurtains='sheer';
@@ -1543,9 +1712,9 @@ function applyInteriorOptions(save=true){
  curtainGroup.visible=clientCurtains!=='off';
  const [curtainColor,opacity]=curtainOptions[clientCurtains];
  curtainFabric.color.set(curtainColor);curtainFabric.opacity=opacity;curtainFabric.needsUpdate=true;
- livingMoldings.minimal.visible=clientMoldings==='minimal';
- livingMoldings.classic.visible=clientMoldings==='classic';
- applyInteriorLighting();applySunDirection();
+ livingMoldings.minimal.visible=clientMoldings==='minimal'&&interiorDesign2026.accent==='none';
+ livingMoldings.classic.visible=clientMoldings==='classic'&&interiorDesign2026.accent==='none';
+ applyInteriorLighting();applySunDirection();applyDesign2026(false);
  if(save)saveCurrentDesign();
 }
 E('clientUpholstery').onchange=e=>{clientFabric=e.target.value;applyInteriorOptions()};
@@ -1754,7 +1923,8 @@ function loadCurrentDesign(){
 function validConcept(d){
  if(!d||typeof d!=='object')return false;
  const view=String(d.view||'');
- return (!d.stair||(validStairSettings(d.stair)&&stairGeometryCheck(d.stair).allowed))
+ return (!d.design2026||validDesign2026(d.design2026))
+ &&(!d.stair||(validStairSettings(d.stair)&&stairGeometryCheck(d.stair).allowed))
  &&(!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
  &&(!d.curtains||Object.prototype.hasOwnProperty.call(curtainOptions,d.curtains))
  &&(!d.moldings||['minimal','classic','none'].includes(d.moldings))
@@ -1781,7 +1951,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=50');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=51');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
@@ -1830,12 +2000,13 @@ E('stairRestore').onclick=()=>{
 };
 syncStairControls();
 
-function snapshotConcept(){return{stair:stairData(),style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
+function snapshotConcept(){return{design2026:{...interiorDesign2026},stair:stairData(),style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
  const previousSuspend=designHistorySuspend;designHistorySuspend=true;
  try{
  if(validStairSettings(d.stair)){stairSettings={...d.stair};rebuildStaircase();syncStairControls();}
+ if(validDesign2026(d.design2026))interiorDesign2026={...d.design2026};
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
  if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
@@ -2093,5 +2264,5 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
-overview();showInfo();updateWallSwatch();applyInteriorOptions(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();animate(0);E('loading').style.display='none';
+overview();showInfo();updateWallSwatch();applyInteriorOptions(false);applyDesign2026(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();animate(0);E('loading').style.display='none';
 </script></body></html>
