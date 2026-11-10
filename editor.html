@@ -202,7 +202,7 @@ label {color:#d1d1d8}
 #quickInspector .hint{margin:8px 0 0}
 @media(max-width:480px){#quickInspector{max-height:55vh;top:85px}}
 </style></head><body>
-<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.2</small></div>
+<header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V3.3</small></div>
 <div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="save" class="primary">💾 Сохранить</button><button id="export">↓ JSON</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
@@ -275,7 +275,7 @@ const uid=()=>String(Date.now().toString(36)+Math.random().toString(36).slice(2,
 const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:'wall',name,x1,z1,x2,z2,t});
 const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});
 function defaultStair(){
- // Concept only: 12 lower risers, 3 winders, 6 upper risers (21 total).
+ // Concept only: the riser count is calculated from state.height (17 cm target).
  // Grounded in the existing hallway walls and door; actual stair measurements not provided.
  return {id:'stair1',type:'stair',name:'Лестница · 90° · забежные ступени',
   x:11.95,z:-1.11,width:1.05,lower:3.12,upper:1.70,back:-4.755,rot:0,color:'#ded8cf'};
@@ -700,7 +700,7 @@ cube(oroot,0,o.head,0,o.width+.06,.06,.08,meshMat('#907c67'));
 }
 }}
 
-// Parametric 90-degree staircase with 12+3+6 risers and 3 winders.
+// Parametric 90-degree staircase with risers distributed from current floor height.
 // Geometric concept only: NOT engineering-ready and NOT verified as-built.
 function stairGeometry(o){
  const width=o.width,low=o.lower,up=o.upper;
@@ -711,8 +711,14 @@ function stairGeometry(o){
  const t30=width/Math.sqrt(3);
  const p1=[rightX,localFront],p2=[rightX,localFront-t30];
  const p3=[rightX,localBack],p4=[centerX+t30,localBack],p5=[centerX,localBack];
+ // Rise count follows the proposed 17 cm target, but uses the REAL project height.
+ // The model's local approach is -Z so it stays inside the existing stair hall.
+ const total=Math.max(8,Math.round(state.height/.17));
+ const winderN=3;
+ const lowerN=Math.min(total-winderN-1,Math.max(1,Math.round(total*.55)));
+ const upperN=total-lowerN-winderN;
  return {
-  lowerN:12,winderN:3,upperN:6,total:21,
+  lowerN,winderN,upperN,total,
   width,turnFront:localFront,turnBack:localBack,
   winders:[[pivot,p1,p2],[pivot,p2,p3,p4],[pivot,p4,p5]]
  };
@@ -912,6 +918,7 @@ function auditStair(o){
  const lowerTread=o.lower/g.lowerN,upperTread=o.upper/g.upperN;
  const scoreLower=2*rise+lowerTread,scoreUpper=2*rise+upperTread;
  const metrics={rise,lowerTread,upperTread,scoreLower,scoreUpper,total:g.total};
+ if(g.upperN<2)warnings.push('Недостаточно ступеней верхнего марша.');
  if(o.width<.9)warnings.push('Ширина марша меньше 90 см (ориентир, не универсальная норма).');
  for(const [name,tread,score] of [['Нижний марш',lowerTread,scoreLower],['Верхний марш',upperTread,scoreUpper]]){
   if(tread<.25)warnings.push(name+': проступь менее 25 см.');
