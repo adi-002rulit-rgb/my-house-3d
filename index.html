@@ -106,6 +106,8 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
  body:not(.technical) #studio button{font-size:9px;min-width:60px}
 }
 #showroom input[type="range"]{width:100%;accent-color:#c8ac7d;cursor:pointer;margin:5px 0 9px}
+#showroom #clientDayNight{background:#725a3e;color:#fff4e5;border:1px solid #d4b58b6b}
+#showroom #clientDayNight[aria-pressed="true"]{background:#29465f;border-color:#a8c1d6;color:#ecf6ff}
 #showroom .interiorFinePrint{font-size:10px;line-height:1.5;color:#c4c8c5;padding:9px;background:#ffffff0b;border-radius:8px;margin:8px 0}
 @media(max-width:900px){#showroom .showroomTabs button{font-size:8.5px;padding:6px 1px}}
 </style>
@@ -113,7 +115,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </head><body>
 <canvas id="scene"></canvas>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
-<div id="title"><strong>Дом · дизайн-презентация · V37</strong><small id="status">Первый этаж · объёмный обзор</small></div>
+<div id="title"><strong>Дом · дизайн-презентация · V38</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
 
 
@@ -216,6 +218,8 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <option value="classic">Двойные молдинги · неоклассика</option>
 <option value="none">Ровные стены без молдингов</option>
 </select>
+<label>Освещение комнаты</label>
+<button type="button" id="clientDayNight" aria-pressed="false">☀ День — естественный свет</button>
 <label for="clientLighting">Оттенок искусственного света</label>
 <select id="clientLighting">
 <option value="warm">Тёплый · около 2700 K</option>
@@ -1070,6 +1074,9 @@ applyInteriorLighting();
 scene.background.set(v?'#182738':'#cbd9e0');scene.fog.color.set(v?'#182738':'#cbd9e0');
 renderer.toneMappingExposure=v?.94:1.14;
 E('daynight').textContent=v?'☾ Вечер':'☀ День';E('daynight').setAttribute('aria-pressed',String(v));
+ E('clientDayNight').textContent=v?'☾ Вечер — светильники':'☀ День — естественный свет';
+ E('clientDayNight').setAttribute('aria-pressed',String(v));
+ if(typeof saveCurrentDesign==='function')saveCurrentDesign();
 }
 function showInfo(){
 const r=rooms.find(x=>x.id===roomID)||rooms[0];
@@ -1345,6 +1352,7 @@ E('clientUpholstery').onchange=e=>{clientFabric=e.target.value;applyInteriorOpti
 E('clientCurtains').onchange=e=>{clientCurtains=e.target.value;applyInteriorOptions()};
 E('clientMoldings').onchange=e=>{clientMoldings=e.target.value;applyInteriorOptions()};
 E('clientLighting').onchange=e=>{clientLighting=e.target.value;applyInteriorOptions()};
+E('clientDayNight').onclick=()=>updateNight(!night);
 E('clientLightStrength').oninput=e=>{
  lightStrength=Number(e.target.value);applyInteriorLighting();saveCurrentDesign()
 };
@@ -1517,7 +1525,7 @@ function loadPresetsFromDevice(){
  }catch(e){}
 }
 function shareableDesignLink(){
- const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=37');
+ const url=new URL('https://adi-002rulit-rgb.github.io/my-house-3d/?v=38');
  url.hash='design='+encodeURIComponent(JSON.stringify(snapshotConcept()));
  return url.toString();
 }
