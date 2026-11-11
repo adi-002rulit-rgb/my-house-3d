@@ -1087,6 +1087,134 @@ function changePresentationFurniture(id,values){
  savePresentationFurniture();
  return true;
 }
+// Moveable furniture controls. The stored JSON is deliberately independent
+// of architectural editor state and can be exported for another laptop.
+let selectedFurnitureId=presentationFurniture[0].id;
+let furnitureDrag=null;
+const furnitureOutline=new THREE.BoxHelper(furnitureRoots.get(selectedFurnitureId),0xe0ac58);
+furnitureOutline.visible=false;scene.add(furnitureOutline);
+const furnitureChoice=E('furnitureChoice');
+for(const item of presentationFurniture){
+ const option=document.createElement('option');
+ option.value=item.id;option.textContent=item.name;
+ furnitureChoice.appendChild(option);
+}
+function furnitureSelection(id){
+ if(!furnitureRoots.has(id))return;
+ selectedFurnitureId=id;
+ furnitureOutline.setFromObject(furnitureRoots.get(id));
+ furnitureOutline.visible=!E('furniturePanel').hidden;
+ refreshFurnitureControls();
+}
+function refreshFurnitureControls(){
+ const item=presentationFurniture.find(o=>o.id===selectedFurnitureId);
+ if(!item)return;
+ E('furnitureChoice').value=item.id;
+ const room=rooms.find(o=>o.id===item.room),bounds=room.range;
+ const angle=item.rot*Math.PI/180,c=Math.abs(Math.cos(angle)),v=Math.abs(Math.sin(angle));
+ const marginX=(item.w*c+item.d*v)/2,marginZ=(item.d*c+item.w*v)/2;
+ const limits=[Math.max(bounds[0],.58)+marginX,Math.min(bounds[1],18.54)-marginX,
+  Math.max(bounds[2],-5.1)+marginZ,Math.min(bounds[3],5.12)-marginZ];
+ for(const [id,value,min,max] of [
+  ['furnitureX',item.x,limits[0],limits[1]],
+  ['furnitureZ',item.z,limits[2],limits[3]],
+  ['furnitureRotation',item.rot,0,345]]){
+  const el=E(id);el.min=String(min);el.max=String(max);el.value=String(value);
+ }
+ E('furnitureXLabel').textContent=item.x.toFixed(2)+' м';
+ E('furnitureZLabel').textContent=item.z.toFixed(2)+' м';
+ E('furnitureRotationLabel').textContent=item.rot+'°';
+ E('furniturePosition').textContent=(room?.name||item.room)+
+  ' · перемещения сохраняются только в этом браузере';
+ furnitureOutline.setFromObject(furnitureRoots.get(item.id));
+}
+function openFurniturePanel(show){
+ E('furniturePanel').hidden=!show;
+ E('furnitureLaunch').setAttribute('aria-expanded',String(show));
+ furnitureOutline.visible=show;
+ if(show){topCamera();furnitureSelection(selectedFurnitureId)}
+ else{furnitureDrag=null;orbit.enabled=true}
+}
+E('furnitureLaunch').onclick=()=>openFurniturePanel(E('furniturePanel').hidden);
+E('furnitureClose').onclick=()=>openFurniturePanel(false);
+E('furnitureChoice').onchange=e=>furnitureSelection(e.target.value);
+for(const [id,key] of [['furnitureX','x'],['furnitureZ','z'],['furnitureRotation','rot']]){
+ E(id).oninput=e=>{
+  const candidate=Number(e.target.value);
+  if(!changePresentationFurniture(selectedFurnitureId,{[key]:candidate})){
+   toast('Нельзя: предмет выходит за пределы своей комнаты');
+  }
+  refreshFurnitureControls();
+ };
+}
+E('furnitureOverview').onclick=()=>topCamera();
+E('furnitureReset').onclick=()=>{
+ if(!confirm('Вернуть первоначальную расстановку мебели на этом устройстве?'))return;
+ presentationFurniture=freshFurnitureLayout();
+ for(const item of presentationFurniture)updatePresentationFurniture(item);
+ savePresentationFurniture();refreshFurnitureControls();
+ toast('Расстановка восстановлена');
+};
+E('furnitureExport').onclick=()=>{
+ const data={format:'adkh-presentation-furniture',version:1,
+  items:presentationFurniture.map(({id,room,type,x,z,rot})=>({id,room,type,x,z,rot}))};
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='adkh-house-furniture.json';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),2000);
+};
+E('furnitureImport').onclick=()=>E('furnitureImportFile').click();
+E('furnitureImportFile').onchange=async e=>{
+ const file=e.target.files?.[0];if(!file)return;
+ try{
+  if(file.size>100000)throw Error('Файл слишком большой');
+  const obj=JSON.parse(await file.text());
+  if(obj.format!=='adkh-presentation-furniture'||obj.version!==1||
+      !validateFurnitureLayout(obj.items))throw Error('Неподходящий файл расстановки');
+  presentationFurniture=normalizedFurnitureLayout(obj.items);
+  for(const item of presentationFurniture)updatePresentationFurniture(item);
+  savePresentationFurniture();refreshFurnitureControls();
+  toast('Расстановка мебели загружена');
+ }catch(err){toast('Импорт не выполнен: '+err.message)}
+ finally{e.target.value=''}
+};
+document.body.dataset.furnitureLayout='editable-v1';
+document.body.dataset.furnitureCount=String(presentationFurniture.length);
+function furniturePointerPoint(event){
+ const rect=canvas.getBoundingClientRect();
+ const p=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,
+  -((event.clientY-rect.top)/rect.height)*2+1);
+ raycaster.setFromCamera(p,camera);
+ const hit=new THREE.Vector3();
+ return raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0),hit)?hit:null;
+}
+function startFurnitureDrag(event){
+ if(E('furniturePanel').hidden||current!=='overview'||event.button!==0)return false;
+ raycaster.setFromCamera(pointerPos(event),camera);
+ const selected=raycaster.intersectObjects(furnitureRayTargets,false)[0];
+ if(!selected)return false;
+ const id=selected.object.userData.furnitureId,point=furniturePointerPoint(event);
+ if(!id||!point)return false;
+ furnitureSelection(id);
+ const root=furnitureRoots.get(id);
+ furnitureDrag={id,dx:root.position.x-point.x,dz:root.position.z-point.z};
+ orbit.enabled=false;canvas.setPointerCapture(event.pointerId);
+ return true;
+}
+function updateFurnitureDrag(event){
+ if(!furnitureDrag)return false;
+ const point=furniturePointerPoint(event);
+ if(point&&changePresentationFurniture(furnitureDrag.id,{
+  x:Math.round((point.x+furnitureDrag.dx)*20)/20,
+  z:Math.round((point.z+furnitureDrag.dz)*20)/20
+ }))refreshFurnitureControls();
+ return true;
+}
+function endFurnitureDrag(){
+ if(!furnitureDrag)return false;
+ furnitureDrag=null;orbit.enabled=true;
+ return true;
+}
 // Keep bathroom sanitary fixtures independent of furniture layout.
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
