@@ -372,6 +372,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {createSharedProject,SHARED_STORAGE_KEY} from './shared/project-contract.mjs';
+import {GridSnappingManager} from './shared/grid-snapping.mjs';
 const $=id=>document.getElementById(id);
 const STORAGE='adkh-house-parametric-editor-v1';
 const CHECKPOINT=STORAGE+'-checkpoint-v1';
@@ -381,7 +382,8 @@ const PROJECT_SCHEMA_VERSION=1;
 const MAX_IMPORT_BYTES=2_000_000;
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.round(n*100)/100};
+const snappingManager=new GridSnappingManager(Number($('snap').value));
+const snap=n=>snappingManager.enabled?snappingManager.snap(n):Math.round(n*100)/100;
 const uid=()=>String(Date.now().toString(36)+Math.random().toString(36).slice(2,7));
 const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:'wall',name,x1,z1,x2,z2,t});
 const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});
@@ -804,7 +806,7 @@ if(wallLength(o)<minimum){Object.assign(o,before);status('Стена не мож
 }else if(o.type==='door'||o.type==='window'){
 const wall=wallFor(o),len=wallLength(wall),ux=(wall.x2-wall.x1)/len,uz=(wall.z2-wall.z1)/len;
 o.offset=clamp(snap(before.offset+dx*ux+dz*uz),o.width/2,len-o.width/2);
-}else{o.x=before.x+dx;o.z=before.z+dz}
+}else{o.x=snap(before.x+(w.x-drag.start.x));o.z=snap(before.z+(w.z-drag.start.z))}
 drawPlan();update3dObject(o);
 });
 canvas.addEventListener('pointerup',()=>{
@@ -875,7 +877,13 @@ orbit.maxDistance=50;
 orbit.maxPolarAngle=Math.PI/2+.12;
 orbit.update();
 transform=new TransformControls(camera,canvas3d);
-transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
+transform.setTranslationSnap(snappingManager.enabled?snappingManager.gridStep:null);
+$('snap').addEventListener('change',()=>{
+ snappingManager.setStep(Number($('snap').value));
+ transform.setTranslationSnap(snappingManager.enabled?snappingManager.gridStep:null);
+ status(snappingManager.enabled?'Привязка: '+Math.round(snappingManager.gridStep*100)+' см':'Привязка отключена');
+});
+transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
 transform.showY=false; // Floor-plan editor: never allow vertical movement of a 2D-positioned object.
 // three@0.160.1: TransformControls extends Object3D; getHelper() only exists since r169.
 scene.add(transform);
