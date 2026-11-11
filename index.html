@@ -525,6 +525,7 @@ import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES}
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
+import {staircaseLayout} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -849,6 +850,20 @@ segmented(5.725,-5.5,5.725,-1.05,[approvedOpeningSpec('bedD',5.725,-5.5,5.725,-1
 segmented(5.85,-2.675,9.4,-2.675,[approvedOpeningSpec('bathD',5.85,-2.675,9.4,-2.675,{leaf:false})],interiorMats.linen,.25); // bathroom front 250mm
 // Floor for the small vestibule joining bedroom, bathroom and the stair hall.
 slab(7.62,-1.91,3.55,1.20,floorFinishes.tile,.068);
+// Inspection-only attributes: used for automated parity checks, never affect geometry.
+const approvedApertureAudit=approvedOpeningsAudit();
+const presentationOpenings=['livingD','kitchenD','wardrobeD','bedD','bathD','frontEntry'];
+document.body.dataset.approvedDoorCount=String(presentationOpenings.length);
+document.body.dataset.approvedPassageWidth=String(
+ approvedApertureAudit.find(o=>o.id==='stairArch').width);
+document.body.dataset.approvedPassageHead=String(
+ approvedApertureAudit.find(o=>o.id==='stairArch').head);
+document.body.dataset.showroomDoorError=Math.max(...presentationOpenings.map(id=>{
+ const expected=approvedApertureAudit.find(o=>o.id===id);
+ const observed=archDoorCenters.find(o=>Math.hypot(o.x-expected.x,o.z-expected.z)<.002);
+ return observed?Math.hypot(observed.x-expected.x,observed.z-expected.z):999;
+})).toFixed(4);
+
 // Low-profile plaster wall finish sample zones, on existing interior walls only.
 // Small, flush panels add depth without creating a new partition or blocking any entrance.
 box(model,2.85,1.65,-.825,3.45,2.80,.025,interiorMats.mushroom,false); // living accent wall
@@ -1134,6 +1149,15 @@ function addApprovedStair(){
    approvedStairConcrete,false);
   slab.userData.editorId=p.id;
  }
+ // The editor finishes its upper-storey slab at the return flight with a
+ // 20cm transition edge. Show only this detail, not the full upper floor
+ // (the latter would cover the entire staged cutaway interior from above).
+ const g=staircaseLayout(source,approvedStairSource.model.height);
+ const exitZ=g.front+Math.max(source.lower,g.backRun*g.visibleLastN/g.lastN);
+ const lip=box(approvedStairGroup,g.left+g.w/2,
+  approvedStairGeometry.elevation+approvedStairSource.model.height+.013,
+  exitZ+.10,Math.max(.15,g.w-.04),.022,.20,approvedStairConcrete,false);
+ lip.userData.editorId='upper-stair-transition';
  if(approvedStairGroup.children.length<25)throw Error('Incomplete approved staircase');
  stairsGroup.visible=false;
  document.body.dataset.presentationStair='editor-approved';
