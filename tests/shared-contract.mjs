@@ -38,5 +38,5 @@ const editor=fs.readFileSync(new URL('../editor.html',import.meta.url),'utf8');
 const showroom=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert.match(editor,/import \{createSharedProject,SHARED_STORAGE_KEY\} from '\.\/shared\/project-contract\.mjs'/);
 assert.match(showroom,/import \{parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES\} from '\.\/shared\/project-contract\.mjs'/);
-assert.match(showroom,/3D-презентация пока использует свою прежнюю геометрию/);
+assert.match(showroom,/По умолчанию презентация сохраняет прежнюю геометрию/);
 console.log('PASS: shared versioned format, unmodified source geometry, strict validation, both applications import contract');
