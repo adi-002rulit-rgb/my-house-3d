@@ -68,7 +68,7 @@ function storageHarness(failKey=null){
   ${storageTestCode}
   return {replaceProjectSafely,getState:()=>state, getHistory:()=>history};
  `);
- return {localStorage,items,...ctor(localStorage,validate,original())};
+ return {localStorage,items,...ctor(localStorage,validate,original)};
 }
 {
  const h=storageHarness();
