@@ -104,6 +104,30 @@ try{
   await page.evaluate(()=>document.getElementById('sharedProjectOpen').click());
   assert.match(await page.locator('#sharedProjectSummary').innerText(),/Помещений: 7/);
   assert.match(await page.locator('#sharedProjectPanel').innerText(),/прежнюю геометрию/);
+  // From the same editor snapshot, construct a separately rendered architecture.
+  await page.evaluate(()=>document.getElementById('syncedArchitecture').click());
+  await page.waitForFunction(()=>document.body.dataset.architectureMode==='synced',{timeout:15000}).catch(async err=>{throw Error(mode+' synced mode: '+await page.locator('#toast').innerText()+'; '+err.message)});
+  assert.equal(await page.locator('body').getAttribute('data-architecture-wall-count'),'13');
+  assert.equal(await page.locator('body').getAttribute('data-architecture-display-y-offset'),'-0.6');
+  assert.equal(await page.locator('body').getAttribute('data-architecture-openings'),'12');
+  assert.equal(await page.locator('#legacyArchitecture').isHidden(),false);
+  await page.screenshot({path:'artifacts/synced-house-'+mode+'.png'});
+  // A changed dimension must actually change the rendered source primitives.
+  const oldWall=await page.locator('body').getAttribute('data-architecture-first-wall');
+  await page.evaluate(()=>{
+   const key='adkh-house-shared-project-v1';
+   const p=JSON.parse(localStorage.getItem(key));
+   p.model.walls.find(w=>w.id==='front').x1=.2;
+   localStorage.setItem(key,JSON.stringify(p));
+   document.getElementById('sharedProjectOpen').click();
+   document.getElementById('syncedArchitecture').click();
+  });
+  const newWall=await page.locator('body').getAttribute('data-architecture-first-wall');
+  assert.notEqual(newWall,oldWall,'architectural coordinates must respond to editor JSON changes');
+  await page.evaluate(()=>document.getElementById('legacyArchitecture').click());
+  assert.equal(await page.locator('body').getAttribute('data-architecture-mode'),null);
+  assert.equal(await page.locator('#syncedArchitecture').isHidden(),false);
+
   assert.equal(pageErrors.length,0,mode+' page errors: '+pageErrors.join('; '));
   await context.close();
   console.log(mode+': browser smoke passed');

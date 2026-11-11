@@ -512,13 +512,16 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <div id="sharedProjectPanel" hidden style="position:fixed;z-index:9;left:12px;bottom:60px;max-width:min(370px,90vw);max-height:50dvh;overflow:auto;background:#142631f5;border:1px solid #b9a685;border-radius:12px;padding:13px;box-shadow:0 10px 30px #0007">
 <strong>Общие данные ADKH House</strong>
 <p id="sharedProjectSummary" style="line-height:1.6;font-size:12px;white-space:pre-line"></p>
-<p style="font-size:11px;line-height:1.5;color:#efca95">Режим сверки: 3D-презентация пока использует свою прежнюю геометрию. Импорт не перестраивает стены, окна или лестницу.</p>
+<p style="font-size:11px;line-height:1.5;color:#efca95">Режим сверки: По умолчанию презентация сохраняет прежнюю геометрию. Нажми «Показать синхронную 3D-архитектуру», чтобы построить отдельную сцену из JSON; старую можно вернуть.</p>
+<button id="syncedArchitecture" type="button">Показать синхронную 3D-архитектуру</button>
+<button id="legacyArchitecture" type="button" hidden>Вернуть интерьерную презентацию</button>
 <button id="sharedProjectClose" type="button">Закрыть</button>
 </div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
+import {architectureGeometry} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -2367,8 +2370,112 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
 overview();showInfo();updateWallSwatch();applyInteriorOptions(false);applyDesign2026(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();
+let selectedSharedProject=null,syncedArchitectureGroup=null,syncedGeometry=null,syncedArchitectureActive=false;
+function clearSyncedArchitecture(){
+ if(!syncedArchitectureGroup)return;
+ const geometries=new Set(),materials=new Set();
+ syncedArchitectureGroup.traverse(o=>{
+  if(!o.isMesh)return;
+  if(o.geometry)geometries.add(o.geometry);
+  for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m)materials.add(m);
+ });
+ for(const g of geometries)g.dispose();
+ for(const m of materials)m.dispose();
+ world.remove(syncedArchitectureGroup);syncedArchitectureGroup=null;syncedGeometry=null;
+}
+function restoreLegacyArchitecture(){
+ syncedArchitectureActive=false;
+ clearSyncedArchitecture();model.visible=true;roofs.visible=roofMode.on;
+ E('roof').disabled=false;delete document.body.dataset.architectureMode;
+ E('legacyArchitecture').hidden=true;
+ E('syncedArchitecture').hidden=false;
+ E('status').textContent='Исходная интерьерная презентация восстановлена';
+}
+function syncedBox(root,p,material){
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h,p.d),material);
+ mesh.position.set(p.x,p.y,p.z);
+ if(p.angle)mesh.rotation.y=p.angle;
+ mesh.userData.sourceId=p.id;mesh.receiveShadow=true;root.add(mesh);return mesh;
+}
+function buildSyncedArchitecture(input){
+ // Build off-scene. A validation error must never hide the original scene.
+ const geometry=architectureGeometry(input),group=new THREE.Group();
+ // Showroom floor origin is y=0 and yard is y=-0.60; editor uses yard=0.
+ // Shift only the render group: preserve all JSON height/elevation values.
+ group.position.y=-geometry.elevation;
+ const wallMat=M('#e8e1d8',.86),floorMat=M('#c8b8a7',.83);
+ const stairMat=M('#ded8cf',.8),frameMat=M('#394952',.36,.2);
+ const glassMat=new THREE.MeshPhysicalMaterial({color:'#a9d4de',transparent:true,
+  opacity:.32,roughness:.15,side:THREE.DoubleSide,depthWrite:false});
+ const doorMat=M('#ac9481',.74);
+ const cache={};
+ const colorMat=color=>cache[color]??(cache[color]=M(color,.81));
+ try{
+  for(const p of geometry.floors)syncedBox(group,p,colorMat(p.color));
+  for(const p of geometry.segments)syncedBox(group,p,wallMat);
+  for(const op of geometry.openings){
+   if(op.type==='passage')continue;
+   const root=new THREE.Group();
+   root.position.set(op.x,op.y,op.z);root.rotation.y=op.angle;
+   root.userData.sourceId=op.id;group.add(root);
+   const h=op.head-op.sill,mid=(op.sill+op.head)/2;
+   if(op.type==='window'){
+    syncedBox(root,{id:op.id,x:0,y:mid,z:0,w:Math.max(.04,op.width-.1),h:Math.max(.04,h-.08),d:.018},glassMat);
+    for(const x of [-op.width/2+.025,op.width/2-.025])
+     syncedBox(root,{id:op.id,x,y:mid,z:0,w:.05,h,d:.075},frameMat);
+    for(const y of [op.sill+.025,op.head-.025])
+     syncedBox(root,{id:op.id,x:0,y,z:0,w:op.width,h:.05,d:.075},frameMat);
+    syncedBox(root,{id:op.id,x:0,y:mid,z:0,w:.042,h,d:.075},frameMat);
+   }else{
+    const leaves=op.leaves===2?2:1,leafW=op.width/leaves;
+    for(let i=0;i<leaves;i++)
+     syncedBox(root,{id:op.id,x:-op.width/2+(i+.5)*leafW,y:mid,z:0,
+      w:Math.max(.02,leafW-.018),h:Math.max(.02,h-.08),d:.053},doorMat);
+   }
+  }
+  for(const p of geometry.treads){
+   if(p.kind==='winder'){
+    const shape=new THREE.Shape();
+    p.polygon.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));
+    shape.closePath();
+    const mesh=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,
+     {depth:p.thickness,bevelEnabled:false}),stairMat);
+    mesh.rotation.x=-Math.PI/2;mesh.position.y=p.y;
+    mesh.userData.sourceId=p.id;group.add(mesh);
+   }else syncedBox(group,p,stairMat);
+  }
+  for(const p of geometry.slabs)syncedBox(group,p,stairMat);
+ }catch(err){
+  group.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
+  for(const m of [wallMat,floorMat,stairMat,frameMat,glassMat,doorMat,...Object.values(cache)])m.dispose();
+  throw err;
+ }
+ // Source geometry is built and checked. Only now swap scene visibility.
+ clearSyncedArchitecture();
+ syncedArchitectureGroup=group;syncedGeometry=geometry;
+ world.add(group);model.visible=false;roofs.visible=false;
+ E('roof').disabled=true;
+ document.body.dataset.architectureMode='synced';
+ document.body.dataset.architectureWallCount=String(geometry.counts.walls);
+ document.body.dataset.architectureDisplayYOffset=String(-geometry.elevation);
+ document.body.dataset.architectureOpenings=String(geometry.counts.openings);
+ document.body.dataset.architectureFirstWall=geometry.segments[0]?.x.toFixed(4)||'';
+ syncedArchitectureActive=true;
+ E('legacyArchitecture').hidden=false;E('syncedArchitecture').hidden=true;
+ overview();
+ E('status').textContent='Синхронная архитектура · размеры из редактора · '+geometry.counts.walls+' стен';
+ return geometry;
+}
+E('syncedArchitecture').onclick=()=>{
+ try{
+  if(!selectedSharedProject)throw Error('Сначала открой общий проект или импортируй JSON');
+  buildSyncedArchitecture(selectedSharedProject);
+ }catch(err){toast('Не удалось построить архитектуру: '+err.message)}
+};
+E('legacyArchitecture').onclick=()=>{restoreLegacyArchitecture();overview()};
 function renderSharedProject(input){
  const summary=getSharedSummary(input);
+ selectedSharedProject=parseSharedProject(input);
  E('sharedProjectSummary').textContent=
   'Название: '+summary.title+'\\n'+
   'Высота этажа в модели: '+summary.height.toFixed(2)+' м\\n'+
@@ -2397,7 +2504,6 @@ E('sharedProjectInput').onchange=async event=>{
  try{
   if(file.size>MAX_SHARED_BYTES)throw Error('Слишком большой файл');
   const shared=parseSharedProject(JSON.parse(await file.text()));
-  const serialized=JSON.stringify(shared);
   // File imports are read-only previews: do not overwrite editor data on this device.
   renderSharedProject(shared);
   toast('JSON проверен. 3D-геометрия презентации не менялась.');
@@ -2407,7 +2513,17 @@ E('sharedProjectInput').onchange=async event=>{
  }finally{event.target.value=''}
 };
 window.addEventListener('storage',event=>{
- if(event.key===SHARED_STORAGE_KEY&&!E('sharedProjectPanel').hidden)showSharedProjectFromStorage();
+ if(event.key!==SHARED_STORAGE_KEY)return;
+ if(syncedArchitectureActive){
+  try{
+   if(!event.newValue)throw Error('Общий JSON удалён');
+   const updated=parseSharedProject(JSON.parse(event.newValue));
+   architectureGeometry(updated);
+   selectedSharedProject=updated;
+   buildSyncedArchitecture(updated);
+  }catch(err){toast('Синхронизация не применена: '+err.message)}
+ }
+ if(!E('sharedProjectPanel').hidden)showSharedProjectFromStorage();
 });
 animate(0);E('loading').style.display='none';
 </script></body></html>
