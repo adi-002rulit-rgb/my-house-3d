@@ -320,7 +320,7 @@ body.focus3d #focusView{background:#467a6c}
 </aside>
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
-<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="topView3d" type="button" aria-pressed="false" title="Ортографический вид сверху в 3D-окне">▣ Вид сверху</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
 <div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><button id="exitStairView" type="button" hidden>Вернуть весь дом</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
@@ -867,6 +867,11 @@ sun.shadow.camera.near=0.5;sun.shadow.camera.far=65;
 sun.shadow.bias=-0.00025;sun.shadow.normalBias=.025;
 scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
+const perspectiveCamera=camera;
+const orthographicCamera=new THREE.OrthographicCamera(-20,20,20,-20,.1,500);
+let orthographicTop=false;
+let savedPerspectiveTarget=null;
+const topViewHeight=40;
 orbit=new OrbitControls(camera,canvas3d);
 orbit.target.set(9.6,0,0);
 orbit.enableDamping=true;
@@ -1633,7 +1638,16 @@ function update3dObject(o){
  }
  // Walls and openings are reconstructed only when the pointer is released.
 }
-function resize3d(){const r=canvas3d.getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+function resize3d(){
+ const r=canvas3d.getBoundingClientRect();
+ if(r.width<1||r.height<1)return;
+ renderer.setSize(r.width,r.height,false);
+ perspectiveCamera.aspect=r.width/r.height;perspectiveCamera.updateProjectionMatrix();
+ const half=topViewHeight/2,aspect=r.width/r.height;
+ orthographicCamera.left=-half*aspect;orthographicCamera.right=half*aspect;
+ orthographicCamera.top=half;orthographicCamera.bottom=-half;
+ orthographicCamera.updateProjectionMatrix();
+}
 let pointer3DStart=null;
 canvas3d.addEventListener('pointerdown',e=>{
  pointer3DStart={x:e.clientX,y:e.clientY};
@@ -1807,6 +1821,34 @@ $('materialLight').onclick=()=>{for(const r of state.rooms){r.wall='#f0ede5';r.f
 $('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push();refreshAll()};
 $('baseElevation').onchange=e=>{state.elevation=clamp(+e.target.value,0,1.5);push();refreshAll()};
 for(const [id,mode] of [['planOnly','plan'],['split','split'],['only3d','3d']])$(id).onclick=()=>{const a=$('pane2d'),b=$('pane3d');a.style.display=mode==='3d'?'none':'';b.style.display=mode==='plan'?'none':'';$('views').style.gridTemplateColumns=mode==='split'?'1fr 1fr':'1fr';for(const btn of ['planOnly','split','only3d'])$(btn).classList.toggle('active',btn===id);resize3d();drawPlan()};
+// Orthographic top-down mode is confined to the 3D viewport.
+// The existing editable 2D architectural plan remains unchanged.
+function setOrthographicTop(enabled){
+ if(orthographicTop===enabled)return;
+ if(transform.dragging){status('Заверши перемещение объекта перед переключением камеры');return}
+ if(enabled){
+  savedPerspectiveTarget=orbit.target.clone();
+  const target=orbit.target.clone();
+  orthographicCamera.position.set(target.x,topViewHeight,target.z);
+  orthographicCamera.up.set(0,0,-1);
+  orthographicCamera.lookAt(target);
+  camera=orthographicCamera;
+ }else{
+  camera=perspectiveCamera;
+ }
+ orthographicTop=enabled;
+ orbit.object=camera;
+ orbit.enableRotate=!enabled;
+ orbit.enableDamping=!enabled;
+ transform.camera=camera;
+ if(!enabled&&savedPerspectiveTarget)orbit.target.copy(savedPerspectiveTarget);
+ orbit.update();resize3d();
+ $('topView3d').classList.toggle('active',enabled);
+ $('topView3d').setAttribute('aria-pressed',String(enabled));
+ $('topView3d').textContent=enabled?'◫ Вернуть 3D':'▣ Вид сверху';
+ status(enabled?'Ортографический вид сверху · без перспективных искажений':'Перспективная камера восстановлена');
+}
+$('topView3d').onclick=()=>setOrthographicTop(!orthographicTop);
 // Screen-relative camera panning. Keeps camera and orbit target at the same distance.
 $('focusView').onclick=()=>{
  const focus=document.body.classList.toggle('focus3d');
