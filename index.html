@@ -776,6 +776,10 @@ if(x1>=0&&x1<=19.03&&x2>=0&&x2<=19.03){
  const pc=(start+end)/2;
  archDoorCenters.push({x:axis==='x'?x1+sign*pc:x1,z:axis==='z'?z1+sign*pc:z1,width:end-start,axis});
 }
+// Architectural segment is already cut; approved interior doors have their
+// own correctly hinged frame/leaf group. Never draw a second wooden frame or
+// obsolete door panel behind them (especially the bedroom's rear-end wall).
+if(o.id&&['livingD','kitchenD','bedD','bathD','wardrobeD'].includes(o.id))continue;
 let mid=(start+end)/2;piece(start,start+.06,0,head,mat.oak);piece(end-.06,end,0,head,mat.oak);// Door jambs reach the approved opening head; never cross the lintel.
 const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
