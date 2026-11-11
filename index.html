@@ -2540,7 +2540,7 @@ const guidedRoutes=[
  {id:'bedroom',label:'Спальня',mode:'inside',view:'bedroom'},
  {id:'secondFloor',label:'Перекрытие сверху',mode:'outside',position:[11.8,14.5,-3.9],target:[11.4,3.3,-3.1]}
 ];
-let guidedMode=false,guidedIndex=1,guidedTour=false,guidedTransition=null,guidedHold=0;
+let guidedMode=false,guidedIndex=1,guidedTour=false,guidedTransition=null,guidedHoldStarted=0;
 const guidedEl=id=>E('guided'+id);
 const guidedSelect=guidedEl('Views');
 for(const item of guidedRoutes){
@@ -2561,7 +2561,7 @@ function guidedSync(){
  document.body.dataset.guidedTransition=String(Boolean(guidedTransition));
 }
 function guidedStop(cancelMotion=true){
- guidedTour=false;guidedHold=0;
+ guidedTour=false;guidedHoldStarted=0;
  if(cancelMotion){
   guidedTransition=null;
   // Re-enable regular inspection controls at their current position.
@@ -2577,7 +2577,7 @@ function guidedGo(index,smooth=true){
  const item=guidedRoutes[next];
  const fromPosition=camera.position.clone(),fromQuaternion=camera.quaternion.clone();
  const fromTarget=orbit.target.clone(),previousMode=current;
- guidedIndex=next;guidedHold=0;
+ guidedIndex=next;guidedHoldStarted=performance.now();
  guidedTransition=null;
  if(item.mode==='outside'){
   overview();
@@ -2610,10 +2610,10 @@ function guidedFrame(dt){
   if(t>=1){
    if(tr.mode==='inside'){yaw=tr.toYaw;pitch=tr.toPitch;camera.rotation.set(pitch,yaw,0,'YXZ')}
    guidedTransition=null;
+   guidedHoldStarted=performance.now();
   }
  }else if(guidedTour){
-  guidedHold+=dt;
-  if(guidedHold>=3.1){
+  if((performance.now()-guidedHoldStarted)>=3100){
    if(guidedIndex===guidedRoutes.length-1)guidedStop(false);
    else guidedGo(guidedIndex+1,true);
   }
