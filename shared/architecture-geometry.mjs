@@ -26,9 +26,27 @@ export function staircaseLayout(o,height){
   firstTurn:fan(right-w,front,0),secondTurn:fan(left+w,front,-Math.PI/2)};
 }
 export function architectureGeometry(input){
- const {model:m}=parseSharedProject(input),segments=[],openings=[],floors=[],treads=[],slabs=[];
+ const {model:m}=parseSharedProject(input),segments=[],openings=[],floors=[],treads=[],slabs=[],furniture=[];
+ const furnitureTypes=new Set(['sofa','table','bed','cabinet','chair','island','rug','plant']);
+ for(const o of m.furniture){
+  if(!furnitureTypes.has(o.type))throw Error('Неподдерживаемая мебель: '+o.type);
+  furniture.push({id:o.id,type:o.type,name:o.name,x:o.x,z:o.z,
+   y:m.elevation,w:o.w,d:o.d,h:o.h,rot:o.rot,color:o.color||'#c1aa91'});
+ }
  const eps=1e-9;
  for(const r of m.rooms)floors.push(rect(r.id,'floor',r.x+r.w/2,m.elevation+.015,r.z+r.h/2,r.w,.13,r.h,{color:r.floor}));
+ // Match the editor's room lookup on both sides of each wall.
+ function wallSideColors(w,a,b){
+  const len=Math.hypot(w.x2-w.x1,w.z2-w.z1);
+  const x=w.x1+(w.x2-w.x1)*(a+b)/(2*len);
+  const z=w.z1+(w.z2-w.z1)*(a+b)/(2*len);
+  const nx=-(w.z2-w.z1)/len,nz=(w.x2-w.x1)/len;
+  const findRoom=sign=>{
+   const px=x+nx*sign*(w.t/2+.13),pz=z+nz*sign*(w.t/2+.13);
+   return m.rooms.find(r=>px>=r.x&&px<=r.x+r.w&&pz>=r.z&&pz<=r.z+r.h)?.wall||'#ede6dc';
+  };
+  return {positive:findRoom(1),negative:findRoom(-1)};
+ }
  for(const wall of m.walls){
   const len=Math.hypot(wall.x2-wall.x1,wall.z2-wall.z1);
   const angle=-Math.atan2(wall.z2-wall.z1,wall.x2-wall.x1);
@@ -42,7 +60,8 @@ export function architectureGeometry(input){
     if(b-a<=.01||hi-lo<=.02)return;
     segments.push(rect(wall.id,'wall',wall.x1+Math.cos(-angle)*(a+b)/2,
      m.elevation+(lo+hi)/2,wall.z1-Math.sin(angle)*(a+b)/2,b-a,hi-lo,wall.t,
-     {angle,sourceWall:wall.id,start:a,end:b,from:lo,to:hi}));
+     {angle,sourceWall:wall.id,start:a,end:b,from:lo,to:hi,
+    sideColors:wallSideColors(wall,a,b)}));
    };
    piece(cursor,o.start,0,m.height);
    piece(o.start,o.end,0,o.sill);
@@ -57,7 +76,8 @@ export function architectureGeometry(input){
    const a=cursor,b=len;
    segments.push(rect(wall.id,'wall',wall.x1+(wall.x2-wall.x1)*(a+b)/(2*len),
     m.elevation+m.height/2,wall.z1+(wall.z2-wall.z1)*(a+b)/(2*len),
-    b-a,m.height,wall.t,{angle,sourceWall:wall.id,start:a,end:b,from:0,to:m.height}));
+    b-a,m.height,wall.t,{angle,sourceWall:wall.id,start:a,end:b,from:0,to:m.height,
+     sideColors:wallSideColors(wall,a,b)}));
   }
  }
  for(const s of m.stairs){
@@ -111,7 +131,7 @@ export function architectureGeometry(input){
     m.elevation+m.height-.09,(B+F)/2,R-L,.18,F-B));
  }
  return {schema:1,sourceHeight:m.height,elevation:m.elevation,
-  segments,openings,floors,treads,slabs,counts:{
-   walls:m.walls.length,openings:m.openings.length,rooms:m.rooms.length,stairs:m.stairs.length
+  segments,openings,floors,treads,slabs,furniture,counts:{
+   walls:m.walls.length,openings:m.openings.length,rooms:m.rooms.length,stairs:m.stairs.length,furniture:m.furniture.length
   }};
 }
