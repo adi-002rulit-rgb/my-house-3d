@@ -19,6 +19,17 @@ export const FURNITURE_DESIGNS=Object.freeze({
   cabinetry:'#636765',counter:'#c8c5c0',metal:'#171d20',glass:'#13191a',
   rug:'#8e8a82',roughness:.49,leg:'slim',handle:'black'}
 });
+// Explicit profiles ensure the four options differ in geometry, not only hue.
+export const FURNITURE_PROFILES=Object.freeze({
+ minimal:Object.freeze({seat:'low-modular',table:'four-straight',bed:'platform',cabinet:'flush'}),
+ warm:Object.freeze({seat:'rounded-cushions',table:'pedestal',bed:'upholstered',cabinet:'fine-wood'}),
+ classic:Object.freeze({seat:'framed-rolled',table:'apron',bed:'panelled',cabinet:'inset'}),
+ graphite:Object.freeze({seat:'floating-linear',table:'sled',bed:'floating',cabinet:'ribbon'})
+});
+export function furnitureProfile(id){
+ if(!isFurnitureDesign(id))throw Error('Invalid furniture profile');
+ return FURNITURE_PROFILES[id];
+}
 export const DEFAULT_FURNITURE_DESIGN='minimal';
 export const furnitureDesignIds=Object.keys(FURNITURE_DESIGNS);
 export function isFurnitureDesign(id){
