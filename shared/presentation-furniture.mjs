@@ -22,7 +22,7 @@ export const DEFAULT_PRESENTATION_FURNITURE=[
  {id:'bedroomBed',name:'Кровать спальни',room:'bedroom',type:'bed',x:2.95,z:-3.54,w:2.24,d:2.16,h:.65,rot:0,color:'#d4c9bd'},
  {id:'bedroomNightL',name:'Тумба слева',room:'bedroom',type:'cabinet',x:1.16,z:-4.19,w:.57,d:.47,h:.52,rot:0,color:'#a99882'},
  {id:'bedroomNightR',name:'Тумба справа',room:'bedroom',type:'cabinet',x:4.64,z:-4.19,w:.57,d:.47,h:.52,rot:0,color:'#a99882'},
- {id:'bedroomWardrobe',name:'Шкаф спальни',room:'bedroom',type:'cabinet',x:5.05,z:-3.15,w:.56,d:1.55,h:2.10,rot:0,color:'#c3ad98'}
+ {id:'bedroomWardrobe',name:'Шкаф спальни',room:'bedroom',type:'cabinet',x:5.05,z:-3.15,w:.56,d:1.50,h:2.10,rot:0,color:'#c3ad98'}
 ];
 const round=n=>Math.round(n*1000)/1000;
 // Rotation-aware bounding boxes for exact top-down room and furniture checks.
