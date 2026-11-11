@@ -1022,7 +1022,8 @@ presentationFurnitureRoot.name='presentation-furniture-editable';
 model.add(presentationFurnitureRoot);
 const furnitureRoots=new Map();
 const furnitureRayTargets=[];
-const furnitureHighlight=M('#d8b578',.62,.18);
+// Reused by the existing upholstery colour control, now attached to moving sofas.
+const pillowMat=M('#d4c6b6',.97);
 function drawPresentationFurniture(item){
  const g=new THREE.Group();
  g.name=item.name;g.userData.furnitureId=item.id;
@@ -1037,7 +1038,7 @@ function drawPresentationFurniture(item){
   cube(0,.34,0,w,.42,d);
   cube(0,.72,-d/2+.11,w,.42,.22);
   for(const side of [-1,1])cube(side*(w/2-.10),.54,0,.18,.36,d);
-  if(item.type==='sofa')for(const v of [-.27,.27])cube(v*w,.64,.04,.35,.13,d*.36,linen);
+  if(item.type==='sofa')for(const v of [-.27,.27])cube(v*w,.64,.04,.35,.13,d*.36,pillowMat);
  }else if(item.type==='table'){
   cube(0,h-.055,0,w,.11,d,top);
   for(const x of [-1,1])for(const z of [-1,1])
