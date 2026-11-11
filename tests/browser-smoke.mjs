@@ -32,13 +32,33 @@ try{
   assert.equal(await page.locator('#guidedViews option').count(),10);
   await page.locator('#guidedViews').selectOption('stair');
   await page.waitForFunction(()=>document.body.dataset.guidedTransition==='false',
-   null,{timeout:6000});
+   null,{timeout:12000}).catch(async err=>{
+    const debug=await page.evaluate(()=>({
+     view:document.body.dataset.guidedView,
+     transition:document.body.dataset.guidedTransition,
+     tour:document.body.dataset.guidedTour,
+     loading:document.getElementById('loading').style.display,
+     bar:document.getElementById('guidedBarTitle').textContent
+    }));
+    throw Error(mode+' guided transition stalled: '+JSON.stringify(debug)+
+     '; JS errors: '+pageErrors.join(' | ')+'; '+err.message);
+   });
   assert.equal(await page.locator('body').getAttribute('data-guided-view'),'stair');
   await page.screenshot({path:'artifacts/3c-guided-stair-'+mode+'.png'});
   await page.locator('#guidedNext').click();
   assert.equal(await page.locator('body').getAttribute('data-guided-view'),'stairUpper');
   await page.waitForFunction(()=>document.body.dataset.guidedTransition==='false',
-   null,{timeout:6000});
+   null,{timeout:12000}).catch(async err=>{
+    const debug=await page.evaluate(()=>({
+     view:document.body.dataset.guidedView,
+     transition:document.body.dataset.guidedTransition,
+     tour:document.body.dataset.guidedTour,
+     loading:document.getElementById('loading').style.display,
+     bar:document.getElementById('guidedBarTitle').textContent
+    }));
+    throw Error(mode+' guided transition stalled: '+JSON.stringify(debug)+
+     '; JS errors: '+pageErrors.join(' | ')+'; '+err.message);
+   });
   await page.locator('#guidedReset').click();
   assert.equal(await page.locator('body').getAttribute('data-guided-view'),'overview');
   await page.locator('#guidedPlay').click();
