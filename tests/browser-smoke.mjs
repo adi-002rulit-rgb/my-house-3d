@@ -110,6 +110,16 @@ try{
   assert.equal(await page.locator('body').getAttribute('data-architecture-wall-count'),'13');
   assert.equal(await page.locator('body').getAttribute('data-architecture-display-y-offset'),'-0.6');
   assert.equal(await page.locator('body').getAttribute('data-architecture-openings'),'12');
+  assert.equal(await page.locator('body').getAttribute('data-architecture-furniture'),'5');
+  assert.equal(await page.locator('body').getAttribute('data-architecture-finish-mode'),'editor');
+  const renderDetails=await page.evaluate(()=>{
+   const raw=JSON.parse(localStorage.getItem('adkh-house-shared-project-v1'));
+   return {furniture:raw.model.furniture.map(x=>({id:x.id,color:x.color,x:x.x,z:x.z})),
+    floor:raw.model.rooms.map(x=>({id:x.id,color:x.floor}))};
+  });
+  assert.equal(renderDetails.furniture[0].color,'#d6c9b9');
+  assert.equal(renderDetails.floor[0].color,'#c4b098');
+  await page.screenshot({path:'artifacts/synced-editor-finishes-'+mode+'.png'});
   assert.equal(await page.locator('#legacyArchitecture').isHidden(),false);
   await page.screenshot({path:'artifacts/synced-house-'+mode+'.png'});
   // A changed dimension must actually change the rendered source primitives.
