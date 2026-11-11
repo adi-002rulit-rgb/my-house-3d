@@ -39,11 +39,13 @@ try{
    el.value='bedroom';el.dispatchEvent(new Event('change',{bubbles:true}));
   });
   assert.equal(await page.locator('#clientDoorHinge').isDisabled(),false);
-  await page.locator('#clientDoorHinge').evaluate(el=>{
-   el.value='right';el.dispatchEvent(new Event('change',{bubbles:true}));
-  });
+  // Swing outward first; reversing the hinge while opening inward would
+  // intersect the wardrobe, and is correctly rejected by clearance checks.
   await page.locator('#clientDoorSwing').evaluate(el=>{
    el.value='hall';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.locator('#clientDoorHinge').evaluate(el=>{
+   el.value='right';el.dispatchEvent(new Event('change',{bubbles:true}));
   });
   await page.locator('#clientDoorAngle').evaluate(el=>{
    el.value='45';el.dispatchEvent(new Event('input',{bubbles:true}));
