@@ -39,11 +39,13 @@ try{
    el.value='bedroom';el.dispatchEvent(new Event('change',{bubbles:true}));
   });
   assert.equal(await page.locator('#clientDoorHinge').isDisabled(),false);
-  await page.locator('#clientDoorHinge').evaluate(el=>{
-   el.value='right';el.dispatchEvent(new Event('change',{bubbles:true}));
-  });
+  // Swing outward first; reversing the hinge while opening inward would
+  // intersect the wardrobe, and is correctly rejected by clearance checks.
   await page.locator('#clientDoorSwing').evaluate(el=>{
    el.value='hall';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.locator('#clientDoorHinge').evaluate(el=>{
+   el.value='right';el.dispatchEvent(new Event('change',{bubbles:true}));
   });
   await page.locator('#clientDoorAngle').evaluate(el=>{
    el.value='45';el.dispatchEvent(new Event('input',{bubbles:true}));
@@ -137,6 +139,57 @@ try{
    el.value='195';el.dispatchEvent(new Event('input',{bubbles:true}));
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
+  // Complete design snapshots must now contain furniture coordinates and theme.
+  const savedConcept=await page.evaluate(()=>
+   JSON.parse(localStorage.getItem('my-house-3d-current-design-v1')));
+  assert.equal(savedConcept.furnitureDesign,'minimal');
+  assert.equal(savedConcept.furnitureLayout.version,2);
+  assert.equal(savedConcept.furnitureLayout.items.find(x=>x.id==='livingSofa').x,4.82);
+  assert.equal(savedConcept.furnitureLayout.items.find(x=>x.id==='livingSofa').rot,195);
+  // The A/B design comparison must restore the whole room, not just paint.
+  await page.locator('#saveA').evaluate(el=>el.click());
+  await page.locator('#furnitureDesign').selectOption('warm');
+  await page.locator('#furnitureX').evaluate(el=>{
+   el.value='4.87';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.87);
+  await page.locator('#viewA').evaluate(el=>el.click());
+  const restoreDetails=await page.evaluate(async()=>{
+   const d=JSON.parse(localStorage.getItem('my-house-3d-presets-v1')||'{}')?.a;
+   const furniture=await import('/shared/presentation-furniture.mjs');
+   const doors=await import('/shared/furniture-door-clearance.mjs');
+   const migrated=d?.furnitureLayout?furniture.migrateFurnitureLayout(d.furnitureLayout.items):null;
+   return {
+    toast:document.getElementById('toast')?.textContent,
+    currentView:document.getElementById('clientView')?.value,
+    preset:d?{style:d.style,view:d.view,furnitureDesign:d.furnitureDesign,
+     bedDoor:d.doors?.bedroom,layoutCount:d.furnitureLayout?.items?.length,
+     stair:d.stair,design2026:d.design2026,wall:d.wall,floor:d.floor,tile:d.tile,
+     fabric:d.fabric,curtains:d.curtains,moldings:d.moldings,lighting:d.lighting}:null,
+    validation:furniture.validateFurnitureLayout(d?.furnitureLayout?.items),
+    kitchen:furniture.kitchenLayoutAudit(d?.furnitureLayout?.items),
+    collisions:furniture.furnitureCollisionAudit(d?.furnitureLayout?.items),
+    itemPositions:d?.furnitureLayout?.items?.map(x=>[x.id,x.x,x.z,x.rot]),
+    safety:migrated?furniture.layoutSafetyAudit(migrated):'migration failed',
+    doors:migrated?doors.doorFurnitureAudit(migrated,d.doors):null
+   };
+  });
+  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal',
+   JSON.stringify(restoreDetails));
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82);
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
+  // Collision with sofa must be rejected without modifying persisted state.
+  await page.locator('#furnitureChoice').selectOption('livingChairL');
+  await page.locator('#furnitureZ').evaluate(el=>{
+   el.value='3.6';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingChairL').z,3.6);
+  await page.locator('#furnitureX').evaluate(el=>{
+   el.value='4.6';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingChairL').x,1.62);
+  await page.locator('#furnitureChoice').selectOption('livingSofa');
+
   const layoutDownload=page.waitForEvent('download');
   await page.locator('#furnitureExport').click();
   const exportedFurniture=JSON.parse(fs.readFileSync(await (await layoutDownload).path(),'utf8'));
@@ -159,6 +212,16 @@ try{
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82,
    'invalid furniture JSON cannot corrupt working arrangement');
+  const blockedFurniture=structuredClone(exportedFurniture);
+  blockedFurniture.items.find(x=>x.id==='kitchenDining').z=2.1;
+  await page.locator('#furnitureImportFile').setInputFiles({
+   name:'blocked-kitchen.json',mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(blockedFurniture))
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='kitchenDining').z,3.87,
+   'invalid kitchen table cannot be restored from an old furniture export');
+  assert.equal(await page.locator('body').getAttribute('data-furniture-safety'),'safe');
+
   await page.screenshot({path:'artifacts/editable-furniture-'+mode+'.png'});
   await page.locator('#furnitureReset').click();
   await page.locator('#furnitureClose').click();
