@@ -2744,9 +2744,32 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>keys[e.code]=false);
 function pointerPos(ev){let rc=canvas.getBoundingClientRect();return new THREE.Vector2((ev.clientX-rc.left)/rc.width*2-1,-((ev.clientY-rc.top)/rc.height)*2+1)}
 let raycaster=new THREE.Raycaster();
-canvas.addEventListener('pointerdown',e=>{if(guidedMode)guidedStop();dragStart={x:e.clientX,y:e.clientY,moved:false};if(current==='inside')canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
-canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){if(measureEnabled)clickMeasure(pointerPos(e));else{raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}}dragStart=null});
+canvas.addEventListener('pointerdown',e=>{
+ if(guidedMode)guidedStop();
+ if(startFurnitureDrag(e)){dragStart=null;return}
+ dragStart={x:e.clientX,y:e.clientY,moved:false};
+ if(current==='inside')canvas.setPointerCapture(e.pointerId)
+});
+canvas.addEventListener('pointermove',e=>{
+ if(updateFurnitureDrag(e))return;
+ if(current==='inside'&&dragStart){
+  let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;
+  yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));
+  dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true
+ }
+});
+canvas.addEventListener('pointerup',e=>{
+ if(endFurnitureDrag())return;
+ if(!dragStart)return;
+ if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){
+  if(measureEnabled)clickMeasure(pointerPos(e));
+  else{raycaster.setFromCamera(pointerPos(e),camera);
+   const hit=raycaster.intersectObjects(picks,false)[0];
+   if(hit?.object?.userData?.room)enter(hit.object.userData.room)}
+ }
+ dragStart=null
+});
+canvas.addEventListener('pointercancel',()=>endFurnitureDrag());
 // Guided presentation: client-facing camera tour, never mutates architecture.
 const guidedRoutes=[
  {id:'facade',label:'Фасад',mode:'outside',position:[14,8,24],target:[10,1,4]},
