@@ -622,7 +622,7 @@ import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES}
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 import {presentationDoorSpecs,normalizedDoorSwing,doorLeafPose} from './shared/presentation-doors.mjs';
-import {freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,furnitureFitsRoom} from './shared/presentation-furniture.mjs';
+import {FURNITURE_LAYOUT_VERSION,freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,migrateFurnitureLayout,furnitureFitsRoom,kitchenLayoutAudit} from './shared/presentation-furniture.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
@@ -1063,6 +1063,47 @@ function drawPresentationFurniture(item){
   cube(0,.52,0,w-.13,.20,d-.17,linen);
   cube(0,.71,-d/2+.12,w,.48,.20,matBase);
   for(const x of [-.25,.25])cube(x*w,.69,-d*.30,.43,.12,.38,linen);
+ }else if(item.type==='kitchen-run'){
+  // An editable complete kitchen module: base carcass, inset toe-kick,
+  // stone worktop and front panels all move/rotate together.
+  const stone=M('#d9d2c6',.37,.08);
+  const accent=M('#6a655e',.48,.22);
+  cube(0,h*.49,0,w,h-.09,d,matBase);
+  cube(0,.055,0,w-.06,.11,d-.10,dark);
+  cube(0,h,0,w+.035,.055,d+.035,stone);
+  const sideways=item.id!=='kitchenRear';
+  const length=sideways?d:w;
+  const slots=Math.max(2,Math.floor(length/.51));
+  for(let i=0;i<slots;i++){
+   const t=(i+.5)/slots-.5;
+   if(!sideways){
+    cube(t*(w-.08),.48,d/2+.009,(w-.09)/slots-.014,.75,.018,matBase);
+    cube(t*(w-.08),.48,d/2+.023,.016,.45,.009,accent);
+   }else{
+    // Both runs expose their inner-facing side rather than the outer wall.
+    const facing=item.id==='kitchenLeft'?w/2:-w/2;
+    cube(facing,.48,t*(d-.08),.020,.75,(d-.09)/slots-.015,matBase);
+    cube(facing+(item.id==='kitchenLeft'?.014:-.014),.48,t*(d-.08),.009,.45,.014,accent);
+   }
+  }
+  if(item.id==='kitchenRear'){
+   // Sink basin and mixer sit on the rear run, away from the front glazing.
+   cube(.17,h+.033,0,.61,.011,.43,accent);
+   cube(.17,h+.038,-.01,.48,.009,.32,dark);
+   cube(.39,h+.16,-.13,.024,.26,.024,accent);
+   cube(.27,h+.28,-.13,.24,.018,.025,accent);
+  }else if(item.id==='kitchenRight'){
+   // Four-zone cooktop on right return, entirely within this run.
+   cube(0,h+.042,-.13,.46,.012,.60,dark);
+   for(const dz of [-.31,.03])for(const dx of [-.12,.12]){
+    const burner=new THREE.Mesh(new THREE.TorusGeometry(.063,.009,5,16),accent);
+    burner.position.set(dx,h+.055,dz);burner.rotation.x=-Math.PI/2;g.add(burner);
+   }
+  }else if(item.id==='kitchenLeft'){
+   // Fridge/penal as part of the independently movable left run.
+   cube(0,1.62,.64,w-.055,1.30,.66,matBase);
+   cube(w/2-.04,1.70,.64,.016,.58,.026,accent);
+  }
  }else if(item.type==='cabinet'){
   cube(0,h/2,0,w,h,d,matBase);
   for(let x=-w/2+.45;x<w/2-.05;x+=.5)
@@ -1075,8 +1116,10 @@ const furnitureStorageKey='adkh-house-presentation-furniture-v1';
 let presentationFurniture=freshFurnitureLayout();
 try{
  const saved=JSON.parse(localStorage.getItem(furnitureStorageKey)||'null');
- if(saved&&saved.version===1&&validateFurnitureLayout(saved.items))
-  presentationFurniture=normalizedFurnitureLayout(saved.items);
+ if(saved&&(saved.version===1||saved.version===FURNITURE_LAYOUT_VERSION)){
+  const migrated=migrateFurnitureLayout(saved.items);
+  if(migrated)presentationFurniture=migrated;
+ }
 }catch(e){}
 for(const piece of presentationFurniture)drawPresentationFurniture(piece);
 function updatePresentationFurniture(item){
@@ -1085,7 +1128,7 @@ function updatePresentationFurniture(item){
 }
 function savePresentationFurniture(){
  try{localStorage.setItem(furnitureStorageKey,JSON.stringify({
-  version:1,items:presentationFurniture.map(({id,x,z,rot})=>({id,x,z,rot,
+  version:FURNITURE_LAYOUT_VERSION,items:presentationFurniture.map(({id,x,z,rot})=>({id,x,z,rot,
    room:presentationFurniture.find(v=>v.id===id).room,type:presentationFurniture.find(v=>v.id===id).type}))
  }))}catch(e){toast('Память браузера недоступна: экспортируй расстановку JSON')}
 }
@@ -1094,6 +1137,10 @@ function changePresentationFurniture(id,values){
  if(pos<0)return false;
  const candidate={...presentationFurniture[pos],...values};
  if(!furnitureFitsRoom(candidate))return false;
+ // Preserve minimum opening/dining clearances for all U-shaped kitchen runs.
+ const proposed=presentationFurniture.map((it,i)=>i===pos?candidate:it);
+ if(['kitchenRear','kitchenLeft','kitchenRight','kitchenDining'].includes(id)
+     &&!kitchenLayoutAudit(proposed).ok)return false;
  presentationFurniture[pos]=candidate;
  updatePresentationFurniture(candidate);
  savePresentationFurniture();
@@ -1168,7 +1215,7 @@ E('furnitureReset').onclick=()=>{
  toast('Расстановка восстановлена');
 };
 E('furnitureExport').onclick=()=>{
- const data={format:'adkh-presentation-furniture',version:1,
+ const data={format:'adkh-presentation-furniture',version:FURNITURE_LAYOUT_VERSION,
   items:presentationFurniture.map(({id,room,type,x,z,rot})=>({id,room,type,x,z,rot}))};
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -1181,9 +1228,12 @@ E('furnitureImportFile').onchange=async e=>{
  try{
   if(file.size>100000)throw Error('Файл слишком большой');
   const obj=JSON.parse(await file.text());
-  if(obj.format!=='adkh-presentation-furniture'||obj.version!==1||
-      !validateFurnitureLayout(obj.items))throw Error('Неподходящий файл расстановки');
-  presentationFurniture=normalizedFurnitureLayout(obj.items);
+  if(obj.format!=='adkh-presentation-furniture'||
+     ![1,FURNITURE_LAYOUT_VERSION].includes(obj.version))
+    throw Error('Неподходящий файл расстановки');
+  const imported=migrateFurnitureLayout(obj.items);
+  if(!imported||!kitchenLayoutAudit(imported).ok)throw Error('Неподходящий или пересекающий проходы проект');
+  presentationFurniture=imported;
   for(const item of presentationFurniture)updatePresentationFurniture(item);
   savePresentationFurniture();refreshFurnitureControls();
   toast('Расстановка мебели загружена');
@@ -1192,6 +1242,7 @@ E('furnitureImportFile').onchange=async e=>{
 };
 document.body.dataset.furnitureLayout='editable-v1';
 document.body.dataset.furnitureCount=String(presentationFurniture.length);
+document.body.dataset.kitchenLayout=kitchenLayoutAudit(presentationFurniture).ok?'u-shaped-v2':'invalid';
 function furniturePointerPoint(event){
  const rect=canvas.getBoundingClientRect();
  const p=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,
@@ -1718,17 +1769,9 @@ function makeDecor2026(){
   const x=2.22+i*.153;
   box(livingAccent2026,x,1.78,panelZ+.044,.026,2.72,.034,accent2026Mat,false);
  }
- // The new kitchen wall fronts have an independent material. Top and lower
- // bands are schematic joinery, not custom cabinetry construction drawings.
- for(let i=0;i<8;i++){
-  const x=14.22+i*.49;
-  box(kitchenCabinets2026,x,.62,-.635,.47,1.05,.068,cabinet2026Mat,false);
-  box(kitchenCabinets2026,x,2.70,-.635,.47,.94,.067,cabinet2026Mat,false);
- }
- // Worktop/backsplash, staying below the cabinetry and away from the
- // courtyard-side 3 m kitchen window.
- box(kitchenBacksplash2026,16.00,1.49,-.58,3.76,.64,.042,backsplash2026Mat,false);
- box(kitchenBacksplash2026,16.00,1.15,-.54,3.83,.07,.33,backsplash2026Mat,false);
+ // Retire the old fixed straight kitchen backdrop. The three movable
+ // kitchen-run groups now include their own cabinets, countertops and fittings.
+ // Keep the old decor groups empty for legacy design preset compatibility.
  // Soft feature lights are luminous geometry rather than many point lights.
  for(const x of [2.15,7.78]){
   box(ceiling2026Group,x,3.31,1.90,.026,.022,3.05,ambient2026,false);
