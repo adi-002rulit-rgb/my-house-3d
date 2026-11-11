@@ -2508,6 +2508,7 @@ document.querySelectorAll('[data-move]').forEach(b=>{let k=b.dataset.move;b.addE
 window.addEventListener('keydown',e=>{
  if(e.target&&['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
  keys[e.code]=true;
+ if(e.code==='Escape'&&guidedMode){setGuidedMode(false);return}
  if(e.code==='Escape'){E('clientPlan').hidden=true;E('quickHelp').hidden=true;E('quickPlan').setAttribute('aria-expanded','false');E('quickGuide').setAttribute('aria-expanded','false');overview();E('inspectHelp').hidden=true}
  if(e.repeat)return;
  if(e.code==='Digit1')overview();
@@ -2523,11 +2524,139 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>keys[e.code]=false);
 function pointerPos(ev){let rc=canvas.getBoundingClientRect();return new THREE.Vector2((ev.clientX-rc.left)/rc.width*2-1,-((ev.clientY-rc.top)/rc.height)*2+1)}
 let raycaster=new THREE.Raycaster();
-canvas.addEventListener('pointerdown',e=>{dragStart={x:e.clientX,y:e.clientY,moved:false};if(current==='inside')canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointerdown',e=>{if(guidedMode)guidedStop();dragStart={x:e.clientX,y:e.clientY,moved:false};if(current==='inside')canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(current==='inside'&&dragStart){let dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;yaw-=dx*.0045*mouseScale;pitch=Math.max(-1.28,Math.min(1.28,pitch-dy*.0032*mouseScale));dragStart.x=e.clientX;dragStart.y=e.clientY;dragStart.moved=true}});
 canvas.addEventListener('pointerup',e=>{if(!dragStart)return;if(current==='overview'&&Math.hypot(e.clientX-dragStart.x,e.clientY-dragStart.y)<8){if(measureEnabled)clickMeasure(pointerPos(e));else{raycaster.setFromCamera(pointerPos(e),camera);let hit=raycaster.intersectObjects(picks,false)[0];if(hit?.object?.userData?.room)enter(hit.object.userData.room)}}dragStart=null});
+// Guided presentation: client-facing camera tour, never mutates architecture.
+const guidedRoutes=[
+ {id:'facade',label:'Фасад',mode:'outside',position:[14,8,24],target:[10,1,4]},
+ {id:'overview',label:'Общий вид',mode:'outside',position:[19,28,26],target:[1.5,0,-1]},
+ {id:'hallway',label:'Вход и коридор',mode:'inside',view:'hallway'},
+ {id:'living',label:'Зал',mode:'inside',view:'living'},
+ {id:'kitchen',label:'Кухня',mode:'inside',view:'kitchen'},
+ {id:'stair',label:'Лестница снизу',mode:'inside',view:'stair'},
+ {id:'stairUpper',label:'Лестница сверху',mode:'outside',position:[14.8,7.8,-.5],target:[11.5,2.45,-3.4]},
+ {id:'leftPassage',label:'Левый проход',mode:'inside',view:'leftPassage'},
+ {id:'bedroom',label:'Спальня',mode:'inside',view:'bedroom'},
+ {id:'secondFloor',label:'Перекрытие сверху',mode:'outside',position:[11.8,14.5,-3.9],target:[11.4,3.3,-3.1]}
+];
+let guidedMode=false,guidedIndex=1,guidedTour=false,guidedTransition=null,guidedHold=0;
+const guidedEl=id=>E('guided'+id);
+const guidedSelect=guidedEl('Views');
+for(const item of guidedRoutes){
+ const option=document.createElement('option');
+ option.value=item.id;option.textContent=item.label;guidedSelect.appendChild(option);
+}
+function guidedSync(){
+ const selected=guidedRoutes[guidedIndex];
+ guidedSelect.value=selected.id;
+ guidedEl('BarTitle').textContent=selected.label+
+  (selected.id==='secondFloor'?' · схематичный вид, не готовый второй этаж':'');
+ guidedEl('Play').textContent=guidedTour?'Ⅱ Пауза':'▶ Автообзор';
+ guidedEl('Play').setAttribute('aria-pressed',String(guidedTour));
+ guidedEl('Stop').disabled=!guidedTour&&!guidedTransition;
+ guidedEl('Day').textContent=night?'☀ День':'☾ Вечер';
+ document.body.dataset.guidedView=selected.id;
+ document.body.dataset.guidedTour=String(guidedTour);
+ document.body.dataset.guidedTransition=String(Boolean(guidedTransition));
+}
+function guidedStop(cancelMotion=true){
+ guidedTour=false;guidedHold=0;
+ if(cancelMotion){
+  guidedTransition=null;
+  // Re-enable regular inspection controls at their current position.
+  if(current==='inside'){
+   const e=new THREE.Euler().setFromQuaternion(camera.quaternion,'YXZ');
+   yaw=e.y;pitch=e.x;
+  }else orbit.update();
+ }
+ guidedSync();
+}
+function guidedGo(index,smooth=true){
+ const next=Math.max(0,Math.min(guidedRoutes.length-1,index));
+ const item=guidedRoutes[next];
+ const fromPosition=camera.position.clone(),fromQuaternion=camera.quaternion.clone();
+ const fromTarget=orbit.target.clone(),previousMode=current;
+ guidedIndex=next;guidedHold=0;
+ guidedTransition=null;
+ if(item.mode==='outside'){
+  overview();
+  camera.position.set(...item.position);
+  orbit.target.set(...item.target);
+  orbit.update();
+ }else clientCamera(item.view);
+ const toPosition=camera.position.clone(),toQuaternion=camera.quaternion.clone();
+ const toTarget=orbit.target.clone(),toYaw=yaw,toPitch=pitch;
+ if(smooth){
+  guidedTransition={elapsed:0,duration:1.15,fromPosition,toPosition,
+   fromQuaternion,toQuaternion,fromTarget,toTarget,toYaw,toPitch,
+   mode:current,previousMode};
+  camera.position.copy(fromPosition);
+  camera.quaternion.copy(fromQuaternion);
+  if(current==='overview')orbit.target.copy(fromTarget);
+ }
+ guidedSync();
+}
+function guidedFrame(dt){
+ if(guidedTransition){
+  const tr=guidedTransition;
+  tr.elapsed=Math.min(tr.duration,tr.elapsed+dt);
+  const t=tr.elapsed/tr.duration,p=t*t*(3-2*t);
+  camera.position.lerpVectors(tr.fromPosition,tr.toPosition,p);
+  if(tr.mode==='overview'){
+   orbit.target.lerpVectors(tr.fromTarget,tr.toTarget,p);
+   orbit.update();
+  }else camera.quaternion.slerpQuaternions(tr.fromQuaternion,tr.toQuaternion,p);
+  if(t>=1){
+   if(tr.mode==='inside'){yaw=tr.toYaw;pitch=tr.toPitch;camera.rotation.set(pitch,yaw,0,'YXZ')}
+   guidedTransition=null;
+  }
+ }else if(guidedTour){
+  guidedHold+=dt;
+  if(guidedHold>=3.1){
+   if(guidedIndex===guidedRoutes.length-1)guidedStop(false);
+   else guidedGo(guidedIndex+1,true);
+  }
+ }
+ if(guidedMode)guidedSync();
+}
+function setGuidedMode(value){
+ if(value===guidedMode)return;
+ if(value&&cleanView)E('presentation').click();
+ guidedMode=value;
+ document.body.classList.toggle('guided-mode',value);
+ guidedEl('Bar').hidden=!value;guidedEl('BarTitle').hidden=!value;
+ guidedEl('Launch').setAttribute('aria-pressed',String(value));
+ if(value){
+  stopAuto();E('clientPlan').hidden=true;E('quickHelp').hidden=true;
+  guidedGo(guidedIndex,false);
+ }else{
+  guidedStop();overview();
+  document.body.dataset.guidedView='';
+ }
+ guidedSync();
+}
+guidedEl('Launch').onclick=()=>setGuidedMode(true);
+guidedEl('Exit').onclick=()=>setGuidedMode(false);
+guidedEl('Views').onchange=e=>{guidedStop();guidedGo(guidedRoutes.findIndex(r=>r.id===e.target.value))};
+guidedEl('Prev').onclick=()=>{guidedStop();guidedGo(guidedIndex-1)};
+guidedEl('Next').onclick=()=>{guidedStop();guidedGo(guidedIndex+1)};
+guidedEl('Play').onclick=()=>{
+ if(guidedTour){guidedStop(false);return}
+ stopAuto();guidedTour=true;
+ if(guidedIndex===guidedRoutes.length-1)guidedIndex=0;
+ guidedGo(guidedIndex);
+};
+guidedEl('Stop').onclick=()=>guidedStop();
+guidedEl('Reset').onclick=()=>{guidedStop();guidedGo(1)};
+guidedEl('Day').onclick=()=>{updateNight(!night);guidedSync()};
+guidedEl('Full').onclick=()=>E('fullscreen').click();
+document.addEventListener('fullscreenchange',()=>{
+ guidedEl('Full').textContent=document.fullscreenElement?'⛶ Выйти':'⛶ Экран';
+});
+guidedSync();
 function animate(t){requestAnimationFrame(animate);let dt=Math.min(.06,(t-last)/1000||.016);last=t;
-if(document.hidden)return;if(t-minimapTick>120){minimapTick=t;renderMinimap()}
+if(document.hidden)return;guidedFrame(dt);if(t-minimapTick>120){minimapTick=t;renderMinimap()}
 if(playing){playTime+=dt;if(playTime>7.8){
  if(presentationStop<presentationStops.length-1)goTourStop(presentationStop+1);
  else stopAuto();
@@ -2548,8 +2677,8 @@ for(let i=0;i<segments;i++){
  if(valid(x,camera.position.z))camera.position.x=x;
  if(valid(camera.position.x,z))camera.position.z=z;
 }
-camera.rotation.set(pitch,yaw,0,'YXZ');
-}else orbit.update();
+if(!guidedTransition)camera.rotation.set(pitch,yaw,0,'YXZ');
+}else if(!guidedTransition)orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
 overview();showInfo();updateWallSwatch();applyInteriorOptions(false);applyDesign2026(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();
