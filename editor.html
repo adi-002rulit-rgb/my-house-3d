@@ -376,6 +376,8 @@ const STORAGE='adkh-house-parametric-editor-v1';
 const CHECKPOINT=STORAGE+'-checkpoint-v1';
 const BEFORE_RESET=STORAGE+'-before-reset-v1';
 const BEFORE_IMPORT=STORAGE+'-before-import-v1';
+const PROJECT_SCHEMA_VERSION=1;
+const MAX_IMPORT_BYTES=2_000_000;
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.round(n*100)/100};
@@ -443,12 +445,13 @@ const wallLength=w=>Math.hypot(w.x2-w.x1,w.z2-w.z1);
 const offsetPoint=(w,t)=>{const l=wallLength(w)||1;return{x:w.x1+(w.x2-w.x1)*t/l,z:w.z1+(w.z2-w.z1)*t/l}};
 const distance=(a,b,c,d)=>Math.hypot(a-c,b-d);
 function validate(s){
-if(!s||s.version!==1||!Array.isArray(s.walls)||!Array.isArray(s.openings)||!Array.isArray(s.rooms)||!Array.isArray(s.furniture)||!Array.isArray(s.stairs))throw Error('Неверный формат проекта');
+if(!s||s.version!==PROJECT_SCHEMA_VERSION||!Array.isArray(s.walls)||!Array.isArray(s.openings)||!Array.isArray(s.rooms)||!Array.isArray(s.furniture)||!Array.isArray(s.stairs))throw Error('Неверный формат проекта');
+if(typeof s.title!=='string'||s.title.length>150)throw Error('Некорректное название проекта');
 if(s.walls.length>150||s.openings.length>150||s.furniture.length>150||s.rooms.length>50||s.stairs.length>20)throw Error('Слишком много объектов');
 if(!Number.isFinite(s.height)||s.height<2.5||s.height>5||!Number.isFinite(s.elevation)||s.elevation<0||s.elevation>1.5)throw Error('Некорректные высоты');
 const keys=new Set();
 for(const o of [...s.walls,...s.openings,...s.furniture,...s.stairs,...s.rooms]){
-if(!o.id||keys.has(o.id)||typeof o.name!=='string')throw Error('Некорректные ID');
+if(typeof o.id!=='string'||!o.id||o.id.length>100||keys.has(o.id)||typeof o.name!=='string')throw Error('Некорректные ID');
 keys.add(o.id);
 if(o.name.length>100)throw Error('Слишком длинное название');
 for(const k of Object.keys(o))if(['x','z','x1','z1','x2','z2','w','h','d','width','lower','upper','returnRun','back','offset','sill','head','t','rot'].includes(k)&&(!Number.isFinite(o[k])||Math.abs(o[k])>200))throw Error('Некорректный размер');
@@ -498,17 +501,39 @@ for(const o of s.furniture){
 }
 return true;
 }
+function writeVerified(key,value){
+ localStorage.setItem(key,value);
+ if(localStorage.getItem(key)!==value)throw Error('Хранилище не подтвердило запись');
+}
+function replaceProjectSafely(next,backupKey){
+ // Persist before changing the live state. Never hide a failed backup.
+ validate(next);validate(state);
+ const previous=JSON.stringify(state),nextText=JSON.stringify(next);
+ const oldStored=localStorage.getItem(STORAGE);
+ if(backupKey)writeVerified(backupKey,previous);
+ try{writeVerified(STORAGE,nextText)}
+ catch(err){
+  // If verification failed after a write, attempt to restore existing storage.
+  try{
+   if(oldStored===null)localStorage.removeItem(STORAGE);
+   else writeVerified(STORAGE,oldStored);
+  }catch(_){}
+  throw Error('Замена отменена: '+err.message);
+ }
+ state=next;selected=null;history=[nextText];historyAt=0;
+ syncActions();refreshAll();fitPlan();
+}
 function saveState(){
  try{
   validate(state);
-  localStorage.setItem(STORAGE,JSON.stringify(state));
+  writeVerified(STORAGE,JSON.stringify(state));
   status('✓ Сохранено в браузере · экспорт JSON для внешней копии');
   return true;
- }catch(e){status('Ошибка сохранения: '+e.message);return false}
+ }catch(e){status('Ошибка сохранения: '+e.message+' · скачай JSON, чтобы не потерять изменения');return false}
 }
 function makeCheckpoint(){
  try{
-  validate(state);localStorage.setItem(CHECKPOINT,JSON.stringify(state));
+  validate(state);writeVerified(CHECKPOINT,JSON.stringify(state));
   status('📌 Контрольная копия создана в этом браузере');
  }catch(e){status('Не удалось сохранить копию: '+e.message)}
 }
@@ -518,9 +543,7 @@ function restoreCheckpoint(){
   if(!raw){status('Нет контрольной копии · нажми «📌 Копия»');return}
   const restored=JSON.parse(raw);validate(restored);
   if(!confirm('Вернуть контрольную копию? Текущая модель будет заменена.'))return;
-  localStorage.setItem(BEFORE_RESET,JSON.stringify(state));
-  state=restored;selected=null;history=[JSON.stringify(state)];historyAt=0;
-  saveState();syncActions();refreshAll();fitPlan();
+  replaceProjectSafely(restored,BEFORE_RESET);
   status('Контрольная копия восстановлена');
  }catch(e){status('Не удалось вернуть копию: '+e.message)}
 }
@@ -538,9 +561,7 @@ function restoreEmergency(){
   }
   const restored=JSON.parse(localStorage.getItem(chosen[1]));validate(restored);
   if(!confirm('Восстановить «'+chosen[0]+'»? Текущая версия перейдёт в контрольную копию.'))return;
-  localStorage.setItem(CHECKPOINT,JSON.stringify(state));
-  state=restored;selected=null;history=[JSON.stringify(state)];historyAt=0;
-  saveState();syncActions();refreshAll();fitPlan();
+  replaceProjectSafely(restored,CHECKPOINT);
   status('Восстановлена версия: '+chosen[0]);
  }catch(err){status('Ошибка аварийного восстановления: '+err.message)}
 }
@@ -1709,10 +1730,8 @@ $('restoreSnapshot').onclick=restoreCheckpoint;
 $('restoreEmergency').onclick=restoreEmergency;
 $('restoreDefault').onclick=()=>{
  if(!confirm('Сбросить весь дом к исходной модели? Перед сбросом создаётся аварийная копия в браузере. Рекомендуем также скачать JSON.'))return;
- try{localStorage.setItem(BEFORE_RESET,JSON.stringify(state))}catch(e){status('Не удалось создать аварийную копию: '+e.message);return}
- state=original();selected=null;
- history=[JSON.stringify(state)];historyAt=0;
- saveState();syncActions();refreshAll();fitPlan();status('Исходный план восстановлен');
+ try{replaceProjectSafely(original(),BEFORE_RESET);status('Исходный план восстановлен')}
+ catch(err){status('Сброс отменён: '+err.message)}
 };
 function projectFile(){
  validate(state);
@@ -1744,13 +1763,11 @@ $('shareProject').onclick=async()=>{
 $('import').onclick=()=>$('fileImport').click();
 $('fileImport').onchange=async e=>{const file=e.target.files[0];if(!file)return;
 try{
- if(file.size>2e6)throw Error('Файл слишком большой');
+ if(file.size>MAX_IMPORT_BYTES)throw Error('Файл слишком большой');
  const d=JSON.parse(await file.text());validate(d);
  const summary=d.rooms.length+' помещений, '+d.walls.length+' стен, '+d.openings.length+' проёмов, '+d.stairs.length+' лестниц.';
  if(!confirm('Загрузить проект «'+String(d.title||'Без названия').slice(0,80)+'»?\\n'+summary+'\\nТекущая модель сохранится в аварийной копии.'))return;
- localStorage.setItem(BEFORE_IMPORT,JSON.stringify(state));
- state=d;selected=null;history=[JSON.stringify(state)];historyAt=0;
- saveState();syncActions();refreshAll();fitPlan();
+ replaceProjectSafely(d,BEFORE_IMPORT);
  status('JSON загружен · предыдущий план сохранён в аварийной копии')
 }
 catch(err){status('Не удалось загрузить: '+err.message)}e.target.value=''};
