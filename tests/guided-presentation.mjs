@@ -23,7 +23,7 @@ for(const id of ['facade','overview','hallway','living','kitchen','stair','stair
  'leftPassage','bedroom','secondFloor'])assert.ok(routeBody.includes("id:'"+id+"'"),id);
 for(const functionName of ['guidedGo','guidedFrame','guidedStop','setGuidedMode','guidedSync'])
  assert.ok(showroom.includes('function '+functionName+'('),functionName);
-assert.match(showroom,/if\(guidedMode\)guidedStop\(\);dragStart=/,'manual input must stop tour');
+assert.match(showroom,/if\(guidedMode\)guidedStop\(\);[\s\S]*?if\(startFurnitureDrag\(e\)\)/,'manual input must stop tour before furniture dragging');
 assert.match(showroom,/if\(!guidedTransition\)camera.rotation.set/,'smooth transition must not be overwritten');
 assert.match(showroom,/document\.addEventListener\('fullscreenchange'/);
 assert.match(showroom,/document\.body\.dataset\.guidedView=/);

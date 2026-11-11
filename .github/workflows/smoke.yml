@@ -25,3 +25,4 @@ jobs:
           node tests/presentation-stair.mjs
           node tests/presentation-audit-3a.mjs
           node tests/guided-presentation.mjs
+          node tests/presentation-furniture.mjs
