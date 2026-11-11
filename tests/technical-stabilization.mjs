@@ -6,6 +6,10 @@ import {DEFAULT_PRESENTATION_FURNITURE,layoutSafetyAudit,validateFurnitureLayout
 import {APPROVED_HOUSE_V1} from '../shared/approved-house-v1.mjs';
 const copy=()=>DEFAULT_PRESENTATION_FURNITURE.map(x=>({...x}));
 assert.ok(layoutSafetyAudit(copy()).ok,'approved staging remains safe');
+const compact=copy().map(({id,type,room,x,z,rot})=>({id,type,room,x,z,rot}));
+const restored=migrateFurnitureLayout(compact);
+assert.ok(restored&&layoutSafetyAudit(restored).ok,
+ 'compact JSON snapshots must regain dimensions before safety checks');
 const dining=copy();dining.find(x=>x.id==='kitchenDining').z=2.1;
 assert.ok(validateFurnitureLayout(dining),'existing room-only validator missed crossing');
 assert.equal(layoutSafetyAudit(dining).ok,false,'clearance now protected');
