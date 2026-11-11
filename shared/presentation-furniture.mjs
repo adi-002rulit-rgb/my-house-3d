@@ -25,6 +25,40 @@ export const DEFAULT_PRESENTATION_FURNITURE=[
  {id:'bedroomWardrobe',name:'Шкаф спальни',room:'bedroom',type:'cabinet',x:5.05,z:-3.15,w:.56,d:1.55,h:2.10,rot:0,color:'#c3ad98'}
 ];
 const round=n=>Math.round(n*1000)/1000;
+// Rotation-aware bounding boxes for exact top-down room and furniture checks.
+export function furnitureBounds(item){
+ const a=(item.rot||0)*Math.PI/180,c=Math.abs(Math.cos(a)),v=Math.abs(Math.sin(a));
+ const hw=(item.w*c+item.d*v)/2,hz=(item.d*c+item.w*v)/2;
+ return {x1:item.x-hw,x2:item.x+hw,z1:item.z-hz,z2:item.z+hz};
+}
+const uJoint=(a,b)=>{
+ const pair=[a.id,b.id].sort().join('|');
+ return pair==='kitchenLeft|kitchenRear'||pair==='kitchenRear|kitchenRight';
+};
+export function furnitureCollisionAudit(items){
+ const issues=[];
+ if(!Array.isArray(items))return {ok:false,issues:[{type:'invalid'}]};
+ for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
+  const a=items[i],b=items[j];if(a.room!==b.room)continue;
+  const A=furnitureBounds(a),B=furnitureBounds(b);
+  const dx=Math.min(A.x2,B.x2)-Math.max(A.x1,B.x1);
+  const dz=Math.min(A.z2,B.z2)-Math.max(A.z1,B.z1);
+  // Two 5cm rear/side corner joins are deliberate: continuous U-shaped joinery.
+  if(dx<=.002||dz<=.002)continue;
+  if(uJoint(a,b)&&dx<=.35&&dz<=.085)continue;
+  issues.push({type:'furniture-overlap',a:a.id,b:b.id,
+   overlapX:round(dx),overlapZ:round(dz)});
+ }
+ return {ok:issues.length===0,issues};
+}
+export function layoutSafetyAudit(items){
+ if(!validateFurnitureLayout(items))return {ok:false,reason:'invalid-furniture'};
+ const kitchen=kitchenLayoutAudit(items);
+ if(!kitchen.ok)return {ok:false,reason:'kitchen-clearances',kitchen};
+ const collisions=furnitureCollisionAudit(items);
+ if(!collisions.ok)return {ok:false,reason:'furniture-overlap',collisions};
+ return {ok:true,kitchen,collisions};
+}
 export function validateFurnitureLayout(items){
  if(!Array.isArray(items)||items.length!==DEFAULT_PRESENTATION_FURNITURE.length)return false;
  const ids=new Set();
@@ -43,10 +77,9 @@ export function validateFurnitureLayout(items){
 export function furnitureFitsRoom(item){
  const room=FURNITURE_ROOM_BOUNDS[item.room];
  if(!room)return false;
- const radians=(item.rot||0)*Math.PI/180,c=Math.abs(Math.cos(radians)),s=Math.abs(Math.sin(radians));
- const halfX=(item.w*c+item.d*s)/2,halfZ=(item.d*c+item.w*s)/2;
- return item.x-halfX>=room[0]-1e-5&&item.x+halfX<=room[1]+1e-5&&
-  item.z-halfZ>=room[2]-1e-5&&item.z+halfZ<=room[3]+1e-5;
+ const b=furnitureBounds(item);
+ return b.x1>=room[0]-1e-5&&b.x2<=room[1]+1e-5&&
+  b.z1>=room[2]-1e-5&&b.z2<=room[3]+1e-5;
 }
 export function normalizedFurnitureLayout(items){
  if(!validateFurnitureLayout(items))throw Error('Invalid or out-of-bounds furniture layout');
@@ -81,19 +114,18 @@ export function kitchenLayoutAudit(items=DEFAULT_PRESENTATION_FURNITURE){
  const get=id=>items.find(x=>x.id===id);
  const rear=get('kitchenRear'),left=get('kitchenLeft'),right=get('kitchenRight'),dining=get('kitchenDining');
  if(!rear||!left||!right||!dining)return {ok:false,reason:'missing section'};
- const bounds=item=>({
-  x1:item.x-item.w/2,x2:item.x+item.w/2,
-  z1:item.z-item.d/2,z2:item.z+item.d/2
- });
- const B=bounds(rear),L=bounds(left),R=bounds(right),D=bounds(dining);
+ const B=furnitureBounds(rear),L=furnitureBounds(left),R=furnitureBounds(right),D=furnitureBounds(dining);
+ // Kitchen units have fixed appliance/facing directions. Reorienting an entire
+ // side run would place the hob, sink or fronts on the wrong wall.
+ const orientation=[rear,left,right].every(v=>v.rot===0);
  const aisle=R.x1-L.x2;
  const diningGap=D.z1-Math.max(L.z2,R.z2);
  const doorClear=L.x1-13.52;
  const windowClear=5.5-D.z2;
- return {ok:aisle>=1.1&&diningGap>=.9&&doorClear>=.8&&windowClear>=.75&&
+ return {ok:orientation&&aisle>=1.1&&diningGap>=.9&&doorClear>=.8&&windowClear>=.75&&
   Math.abs(B.x1-left.x)<.08&&Math.abs(B.x2-right.x)<.08&&
   L.z1<=B.z2&&R.z1<=B.z2&&
   [rear,left,right,dining].every(furnitureFitsRoom),
-  aisle,diningGap,doorClear,windowClear};
+  orientation,aisle,diningGap,doorClear,windowClear};
 }
 export const freshFurnitureLayout=()=>DEFAULT_PRESENTATION_FURNITURE.map(item=>({...item}));
