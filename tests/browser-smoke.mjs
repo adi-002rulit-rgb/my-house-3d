@@ -24,6 +24,50 @@ try{
   assert.equal(cold.status(),200,mode+' standalone showroom');
   await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
    null,{timeout:60000});
+  // Editable showroom furniture must work without opening the technical editor.
+  assert.equal(await page.locator('body').getAttribute('data-furniture-layout'),'editable-v1');
+  assert.equal(await page.locator('body').getAttribute('data-furniture-count'),'11');
+  await page.locator('#furnitureLaunch').click();
+  assert.equal(await page.locator('#furniturePanel').isHidden(),false);
+  assert.equal(await page.locator('#furnitureChoice option').count(),11);
+  await page.locator('#furnitureChoice').selectOption('livingSofa');
+  assert.equal(await page.locator('#furnitureXLabel').innerText(),'4.72 м');
+  await page.locator('#furnitureX').evaluate(el=>{
+   el.value='4.82';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  const storage=()=>page.evaluate(()=>JSON.parse(
+    localStorage.getItem('adkh-house-presentation-furniture-v1')));
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82);
+  await page.locator('#furnitureRotation').evaluate(el=>{
+   el.value='195';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
+  const layoutDownload=page.waitForEvent('download');
+  await page.locator('#furnitureExport').click();
+  const exportedFurniture=JSON.parse(fs.readFileSync(await (await layoutDownload).path(),'utf8'));
+  assert.equal(exportedFurniture.format,'adkh-presentation-furniture');
+  assert.equal(exportedFurniture.items.length,11);
+  await page.locator('#furnitureReset').click();
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.72);
+  await page.locator('#furnitureImportFile').setInputFiles({
+   name:'my-furniture.json',mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(exportedFurniture))
+  });
+  await page.waitForFunction(()=>
+   JSON.parse(localStorage.getItem('adkh-house-presentation-furniture-v1'))
+    ?.items.find(x=>x.id==='livingSofa')?.x===4.82);
+  const invalidFurniture=structuredClone(exportedFurniture);
+  invalidFurniture.items.find(x=>x.id==='livingSofa').x=40;
+  await page.locator('#furnitureImportFile').setInputFiles({
+   name:'invalid-furniture.json',mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(invalidFurniture))
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82,
+   'invalid furniture JSON cannot corrupt working arrangement');
+  await page.screenshot({path:'artifacts/editable-furniture-'+mode+'.png'});
+  await page.locator('#furnitureReset').click();
+  await page.locator('#furnitureClose').click();
+  assert.equal(await page.locator('#furniturePanel').isHidden(),true);
   // Stage 3C: a visitor can start a clean, guided presentation immediately.
   await page.locator('#guidedLaunch').click();
   assert.equal(await page.locator('body').getAttribute('data-guided-view'),'overview');
