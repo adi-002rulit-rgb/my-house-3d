@@ -2015,8 +2015,8 @@ function clientCamera(v){
    enter('stair');
    // Source passage centre is x=9.525, z=-2.07, width .95m.
    // Face it from the open hall, without standing inside the wall.
-   camera.position.set(11.30,1.65,-1.42);
-   yaw=1.25;pitch=0;camera.rotation.set(pitch,yaw,0,'YXZ');
+   camera.position.set(11.10,1.65,-2.07);
+   yaw=Math.PI/2;pitch=0;camera.rotation.set(pitch,yaw,0,'YXZ');
    E('status').textContent='Лестница · открытый левый проход в спальню · 95 см';
  }
  else if(v==='bedroomWindowInside'){
