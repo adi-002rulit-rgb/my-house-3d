@@ -2588,7 +2588,7 @@ function guidedGo(index,smooth=true){
  const toPosition=camera.position.clone(),toQuaternion=camera.quaternion.clone();
  const toTarget=orbit.target.clone(),toYaw=yaw,toPitch=pitch;
  if(smooth){
-  guidedTransition={elapsed:0,duration:1.15,fromPosition,toPosition,
+  guidedTransition={startedAt:performance.now(),elapsed:0,duration:1.15,fromPosition,toPosition,
    fromQuaternion,toQuaternion,fromTarget,toTarget,toYaw,toPitch,
    mode:current,previousMode};
   camera.position.copy(fromPosition);
@@ -2600,7 +2600,7 @@ function guidedGo(index,smooth=true){
 function guidedFrame(dt){
  if(guidedTransition){
   const tr=guidedTransition;
-  tr.elapsed=Math.min(tr.duration,tr.elapsed+dt);
+  tr.elapsed=Math.min(tr.duration,(performance.now()-tr.startedAt)/1000);
   const t=tr.elapsed/tr.duration,p=t*t*(3-2*t);
   camera.position.lerpVectors(tr.fromPosition,tr.toPosition,p);
   if(tr.mode==='overview'){
