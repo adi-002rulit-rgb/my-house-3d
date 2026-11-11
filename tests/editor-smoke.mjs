@@ -72,7 +72,7 @@ function storageHarness(failKey=null){
 }
 {
  const h=storageHarness();
- const next=structuredClone(original());next.title='Новая версия';
+ const next=structuredClone(original);next.title='Новая версия';
  h.replaceProjectSafely(next,'house-before-import');
  assert.equal(h.getState().title,'Новая версия');
  assert.equal(JSON.parse(h.items.get('house-before-import')).title,'Мой дом');
@@ -80,7 +80,7 @@ function storageHarness(failKey=null){
 }
 for(const failKey of ['house-before-import','house-test']){
  const h=storageHarness(failKey);
- const next=structuredClone(original());next.title='Не должно примениться';
+ const next=structuredClone(original);next.title='Не должно примениться';
  assert.throws(()=>h.replaceProjectSafely(next,'house-before-import'),/QuotaExceededError/);
  assert.equal(h.getState().title,'Мой дом','failed storage must not change live state');
  assert.equal(h.getHistory().length,1,'failed storage must not reset undo history');
