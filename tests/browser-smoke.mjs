@@ -63,6 +63,16 @@ try{
   assert.equal(await page.locator('body').getAttribute('data-guided-view'),'overview');
   await page.locator('#guidedPlay').click();
   assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'true');
+  await page.waitForFunction(()=>document.body.dataset.guidedView==='hallway',
+   null,{timeout:14000});
+  assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'true',
+   'autotour should advance to the entrance and continue');
+  if(isMobile)await page.touchscreen.tap(340,240);
+  else await page.mouse.click(700,250);
+  assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'false',
+   'manual interaction should interrupt guided autoplay');
+  await page.locator('#guidedPlay').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'true');
   await page.locator('#guidedStop').click();
   assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'false');
   await page.locator('#guidedDay').click();
