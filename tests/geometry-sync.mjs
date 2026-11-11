@@ -34,7 +34,8 @@ assert.equal(g.visibleLastN,6);
 assert.equal(g.lastN,10);
 assert.equal(geometry.treads.filter(t=>t.flight===3).length,6);
 assert.equal(geometry.treads.filter(t=>t.kind==='winder').length,6);
-assert.equal(geometry.slabs.filter(t=>t.kind==='upper-slab').length,7);
+assert.equal(geometry.slabs.filter(t=>t.kind==='upper-slab').length,5);
+assert.ok(geometry.slabs.filter(t=>t.kind==='upper-slab').every(p=>p.w>.03&&p.d>.03));
 assert.ok(geometry.slabs.some(t=>t.kind==='stair-slab'));
 assert.ok(Math.abs(g.upperStart+g.visibleLastN*g.upperRise-original.height)<1e-10);
 // All missing and rotated staircase geometries should fail closed.
