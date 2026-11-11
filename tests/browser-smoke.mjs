@@ -84,9 +84,14 @@ try{
   assert.equal(shared.format,'adkh-house-project');
   assert.equal(shared.model.stairs.length,1);
   assert.equal(shared.model.rooms.length,7);
-  const sharedDownload=page.waitForEvent('download');
+  const sharedDownload=page.waitForEvent('download',{timeout:10000});
   await page.locator('#sharedExport').click();
-  const downloadedShared=JSON.parse(fs.readFileSync(await (await sharedDownload).path(),'utf8'));
+  let downloadedShared;
+  try{
+   downloadedShared=JSON.parse(fs.readFileSync(await (await sharedDownload).path(),'utf8'));
+  }catch(err){
+   throw Error(mode+' shared export failed: '+await page.locator('#status').innerText()+'; '+err.message);
+  }
   assert.equal(downloadedShared.formatVersion,1);
   assert.deepEqual(downloadedShared.model,await state());
   // Showroom reads shared data but must not silently apply its geometry.
