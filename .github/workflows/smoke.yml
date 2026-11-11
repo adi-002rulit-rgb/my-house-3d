@@ -22,3 +22,4 @@ jobs:
           node tests/editor-smoke.mjs
           node tests/shared-contract.mjs
           node tests/geometry-sync.mjs
+          node tests/presentation-stair.mjs

@@ -18,6 +18,18 @@ try{
   const page=await context.newPage(),pageErrors=[];
   page.on('pageerror',e=>pageErrors.push(e.message));
   page.on('dialog',d=>d.accept());
+  // Cold open directly on the public presentation, without visiting editor.
+  // This is exactly the visitor flow on a different laptop/device.
+  const cold=await page.goto(host+'/',{waitUntil:'domcontentloaded',timeout:60000});
+  assert.equal(cold.status(),200,mode+' standalone showroom');
+  await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
+   null,{timeout:60000});
+  assert.equal(await page.locator('body').getAttribute('data-presentation-stair'),'editor-approved');
+  assert.equal(await page.locator('body').getAttribute('data-presentation-stair-source'),'stair1');
+  assert.equal(await page.locator('body').getAttribute('data-presentation-stair-treads'),'20');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('adkh-house-shared-project-v1')),null,
+   'new visitors must see the updated stair without importing any JSON');
+  await page.screenshot({path:'artifacts/default-presentation-stair-'+mode+'.png'});
   const response=await page.goto(host+'/editor.html',{waitUntil:'domcontentloaded',timeout:60000});
   assert.equal(response.status(),200,mode+' HTML load');
   await page.waitForFunction(()=>document.querySelectorAll('#objectList button').length>=15,

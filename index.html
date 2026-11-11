@@ -397,7 +397,8 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 </section>
 <section data-show-content="views" role="tabpanel" hidden>
 <h3>Ракурсы и варианты проекта</h3>
-<section id="stairAdjustStudio">
+<p id="approvedStairNotice" class="stairHelp">Лестница в презентации теперь берётся из согласованной модели редактора. Для изменения её конструкции открой <a href="./editor.html">3D-редактор</a>. Размеры ступеней пока требуют проверки на объекте.</p>
+<section id="stairAdjustStudio" hidden>
 <h3>Редактор лестницы</h3>
 <p class="stairHelp">Растягивай верхний марш вдоль стены, меняй его положение и ширину. Изменения сразу появятся в 3D. Размеры пока визуальные.</p>
 <label for="stairStretch">Длина верхнего марша: <output id="stairStretchValue">2,62 м</output></label>
@@ -522,6 +523,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
+import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -927,6 +929,8 @@ box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
 // 90° stair from the VIEW tab without editing source code.
 // IMPORTANT: these are conceptual dimensions, not certified stair calculations.
 const stairsGroup=new THREE.Group();model.add(stairsGroup);
+// This legacy concept remains in the source for saved design backwards compatibility,
+// but is never shown to viewers once the approved editor stair is installed.
 const stairMaterial=M('#ddd8cf',.81),stairFace=M('#e8e2d9',.88);
 const stairHandrail=M('#998c7d',.44,.23);
 const stairLED=new THREE.MeshStandardMaterial({color:'#fff2df',emissive:'#ffd2a0',emissiveIntensity:.45,roughness:.4});
@@ -1075,6 +1079,64 @@ E('stairWallLock').onchange=e=>{
 const stairLight=new THREE.PointLight('#ffe2be',.52,4.8,2);
 stairLight.position.set(11.38,2.45,-3.77);scene.add(stairLight);
 rebuildStaircase();
+
+// Default showroom staircase from the approved editor model, not localStorage.
+// Preserve the existing staged interior while replacing only the obsolete stair.
+const approvedStairSource=APPROVED_HOUSE_V1;
+const approvedStairGeometry=architectureGeometry(approvedStairSource);
+const approvedStairGroup=new THREE.Group();
+approvedStairGroup.name='ADKH-approved-editor-stair';
+approvedStairGroup.userData.source='editor-approved';
+model.add(approvedStairGroup);
+const approvedStairFinish=M('#e8e2d9',.69),approvedStairConcrete=M('#d6c8b6',.85);
+function addApprovedStair(){
+ if(approvedStairGeometry.counts.stairs!==1)throw Error('Expected one approved stair');
+ const source=approvedStairSource.model.stairs[0];
+ if(source.id!=='stair1')throw Error('Unexpected approved stair identity');
+ // The common project stores courtyard-relative heights; the presentation
+ // uses first-floor level y=0. The source geometry is never modified.
+ approvedStairGroup.position.y=-approvedStairGeometry.elevation;
+ for(const t of approvedStairGeometry.treads){
+  if(t.id!==source.id)continue;
+  if(t.kind==='winder'){
+   const shape=new THREE.Shape();
+   t.polygon.forEach(([x,z],i)=>i?shape.lineTo(x,-z):shape.moveTo(x,-z));
+   shape.closePath();
+   const top=t.y+t.thickness;
+   const base=approvedStairGeometry.elevation;
+   const solid=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{
+    depth:Math.max(.03,top-base),bevelEnabled:false}),approvedStairConcrete);
+   solid.rotation.x=-Math.PI/2;
+   solid.position.y=base;solid.castShadow=false;solid.receiveShadow=true;
+   solid.userData.editorId=t.id;approvedStairGroup.add(solid);
+   const cap=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{
+    depth:.032,bevelEnabled:false}),approvedStairFinish);
+   cap.rotation.x=-Math.PI/2;cap.position.y=top-.032;
+   cap.userData.editorId=t.id;approvedStairGroup.add(cap);
+  }else{
+   const top=t.y+t.h/2,base=approvedStairGeometry.elevation;
+   const h=Math.max(.03,top-base);
+   const block=box(approvedStairGroup,t.x,base+h/2,t.z,t.w,h,t.d,
+    approvedStairConcrete,false);
+   block.userData.editorId=t.id;
+   const surface=box(approvedStairGroup,t.x,top-.012,t.z,t.w,.024,t.d,
+    approvedStairFinish,false);
+   surface.userData.editorId=t.id;
+  }
+ }
+ // The editor's landing/infill slab is retained to reach the upper floor.
+ for(const p of approvedStairGeometry.slabs.filter(v=>v.kind==='stair-slab')){
+  const slab=box(approvedStairGroup,p.x,p.y,p.z,p.w,p.h,p.d,
+   approvedStairConcrete,false);
+  slab.userData.editorId=p.id;
+ }
+ if(approvedStairGroup.children.length<25)throw Error('Incomplete approved staircase');
+ stairsGroup.visible=false;
+ document.body.dataset.presentationStair='editor-approved';
+ document.body.dataset.presentationStairSource=source.id;
+ document.body.dataset.presentationStairTreads=String(approvedStairGeometry.treads.length);
+}
+addApprovedStair();
 
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
 // Architectural opening count/size and wall collisions are unchanged.
