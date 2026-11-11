@@ -1823,22 +1823,59 @@ const cameraArrows={cameraUp:[0,1],cameraDown:[0,-1],cameraLeft:[-1,0],cameraRig
 for(const [id,dir] of Object.entries(cameraArrows)){
  $(id).addEventListener('click',()=>panCamera(...dir));
 }
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName))return;
-const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
-if(arrowDirections[e.key]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
- e.preventDefault();
- if(e.shiftKey){
-  pan.x-=arrowDirections[e.key][0]*24;
-  pan.y+=arrowDirections[e.key][1]*24;
-  drawPlan();
- }else panCamera(...arrowDirections[e.key]);
- return;
+// Hotkeys reuse the editor's validated commands/history; rotations are radians here.
+function rotateSelectedQuarterTurn(){
+ const o=find(selected);
+ if(!o||!state.furniture.some(f=>f.id===o.id)){
+  status('Поворот R доступен только для выбранной мебели');return;
+ }
+ const previous=o.rot||0;
+ o.rot=((previous+Math.PI/2)%(2*Math.PI));
+ try{validate(state);push();refreshAll();status('Предмет повёрнут на 90°')}
+ catch(err){o.rot=previous;refreshAll();status('Поворот отклонён: '+err.message)}
 }
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click()}
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();$('redo').click()}
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();saveState()}
-if(e.code==='Delete'||e.code==='Backspace')removeSelected();
-if(e.code==='Escape'){wallFirst=null;select(null)}});
+function safelyDeleteSelected(){
+ const o=find(selected);if(!o)return;
+ if(!state.furniture.some(f=>f.id===o.id)&&
+    !confirm('Удалить архитектурный объект «'+o.name+'»? Это может изменить планировку.'))return;
+ removeSelected();
+}
+window.addEventListener('keydown',e=>{
+ const target=e.target;
+ if(e.defaultPrevented||e.isComposing||e.repeat||
+  target?.isContentEditable||
+  ['INPUT','SELECT','TEXTAREA'].includes(target?.tagName))return;
+ const command=e.ctrlKey||e.metaKey;
+ if(command&&e.code==='KeyZ'){
+  e.preventDefault();
+  (e.shiftKey?$('redo'):$('undo')).click();return;
+ }
+ if(command&&e.code==='KeyY'){e.preventDefault();$('redo').click();return}
+ if(command&&e.code==='KeyS'){e.preventDefault();saveState();return}
+ if(command&&e.code==='KeyD'){
+  if(!selected)return;
+  e.preventDefault();
+  if(!state.furniture.some(f=>f.id===selected)){
+   status('Ctrl+D: копирование доступно только для мебели');return;
+  }
+  duplicateSelected();return;
+ }
+ if(!command&&!e.altKey&&!e.shiftKey&&e.code==='KeyR'){
+  e.preventDefault();rotateSelectedQuarterTurn();return;
+ }
+ if(!command&&!e.altKey&&(e.code==='Delete'||e.code==='Backspace')){
+  e.preventDefault();safelyDeleteSelected();return;
+ }
+ if(e.code==='Escape'){wallFirst=null;select(null);return}
+ const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+ if(arrowDirections[e.key]&&!command&&!e.altKey){
+  e.preventDefault();
+  if(e.shiftKey){
+   pan.x-=arrowDirections[e.key][0]*24;
+   pan.y+=arrowDirections[e.key][1]*24;drawPlan();
+  }else panCamera(...arrowDirections[e.key]);
+ }
+});
 let lastPlanSize='';
 const ro=new ResizeObserver(()=>{
  resize3d();
