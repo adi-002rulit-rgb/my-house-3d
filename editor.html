@@ -320,7 +320,7 @@ body.focus3d #focusView{background:#467a6c}
 </aside>
 <main class="center">
 <div class="viewHeader"><div class="viewMode"><button id="planOnly">План</button><button id="split" class="active">2D + 3D</button><button id="only3d">3D</button></div>
-<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
+<div class="viewMode"><button id="fitPlan">Вписать план</button><button id="topView3d" type="button" aria-pressed="false" title="Ортографический вид сверху в 3D-окне">▣ Вид сверху</button><button id="toggleGrid" class="active" title="Показать или скрыть сетку вокруг дома" aria-pressed="true">Сетка 3D</button><button id="moveMode" class="active">Переместить</button><button id="rotateMode">Повернуть</button><button id="scaleMode">Размер</button></div></div>
 <div class="actions" style="margin:8px 0 12px"><button id="floor1" class="active">1 этаж</button><button id="floor2">2 этаж · выход лестницы</button><button id="exitStairView" type="button" hidden>Вернуть весь дом</button><span class="hint" id="floorCaption">Редактирование первого этажа</span></div>
 <div class="views" id="views">
 <div class="pane" id="pane2d"><canvas id="plan"></canvas><div class="paneTitle">ПЛАН · нажми и перетащи</div></div>
@@ -372,6 +372,7 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
 import {createSharedProject,SHARED_STORAGE_KEY} from './shared/project-contract.mjs';
+import {GridSnappingManager} from './shared/grid-snapping.mjs';
 const $=id=>document.getElementById(id);
 const STORAGE='adkh-house-parametric-editor-v1';
 const CHECKPOINT=STORAGE+'-checkpoint-v1';
@@ -381,7 +382,8 @@ const PROJECT_SCHEMA_VERSION=1;
 const MAX_IMPORT_BYTES=2_000_000;
 const clone=o=>JSON.parse(JSON.stringify(o));
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-const snap=n=>{const q=Number($('snap').value);return q?Math.round(n/q)*q:Math.round(n*100)/100};
+const snappingManager=new GridSnappingManager(Number($('snap').value));
+const snap=n=>snappingManager.enabled?snappingManager.snap(n):Math.round(n*100)/100;
 const uid=()=>String(Date.now().toString(36)+Math.random().toString(36).slice(2,7));
 const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:'wall',name,x1,z1,x2,z2,t});
 const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});
@@ -804,7 +806,7 @@ if(wallLength(o)<minimum){Object.assign(o,before);status('Стена не мож
 }else if(o.type==='door'||o.type==='window'){
 const wall=wallFor(o),len=wallLength(wall),ux=(wall.x2-wall.x1)/len,uz=(wall.z2-wall.z1)/len;
 o.offset=clamp(snap(before.offset+dx*ux+dz*uz),o.width/2,len-o.width/2);
-}else{o.x=before.x+dx;o.z=before.z+dz}
+}else{o.x=snap(before.x+(w.x-drag.start.x));o.z=snap(before.z+(w.z-drag.start.z))}
 drawPlan();update3dObject(o);
 });
 canvas.addEventListener('pointerup',()=>{
@@ -865,6 +867,11 @@ sun.shadow.camera.near=0.5;sun.shadow.camera.far=65;
 sun.shadow.bias=-0.00025;sun.shadow.normalBias=.025;
 scene.add(sun);
 camera=new THREE.PerspectiveCamera(47,1,.1,500);camera.position.set(25,23,25);
+const perspectiveCamera=camera;
+const orthographicCamera=new THREE.OrthographicCamera(-20,20,20,-20,.1,500);
+let orthographicTop=false;
+let savedPerspectiveTarget=null;
+const topViewHeight=40;
 orbit=new OrbitControls(camera,canvas3d);
 orbit.target.set(9.6,0,0);
 orbit.enableDamping=true;
@@ -875,7 +882,13 @@ orbit.maxDistance=50;
 orbit.maxPolarAngle=Math.PI/2+.12;
 orbit.update();
 transform=new TransformControls(camera,canvas3d);
-transform.setTranslationSnap(.1);transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
+transform.setTranslationSnap(snappingManager.enabled?snappingManager.gridStep:null);
+$('snap').addEventListener('change',()=>{
+ snappingManager.setStep(Number($('snap').value));
+ transform.setTranslationSnap(snappingManager.enabled?snappingManager.gridStep:null);
+ status(snappingManager.enabled?'Привязка: '+Math.round(snappingManager.gridStep*100)+' см':'Привязка отключена');
+});
+transform.setRotationSnap(Math.PI/12);transform.setSize(.85);
 transform.showY=false; // Floor-plan editor: never allow vertical movement of a 2D-positioned object.
 // three@0.160.1: TransformControls extends Object3D; getHelper() only exists since r169.
 scene.add(transform);
@@ -1625,7 +1638,16 @@ function update3dObject(o){
  }
  // Walls and openings are reconstructed only when the pointer is released.
 }
-function resize3d(){const r=canvas3d.getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix()}
+function resize3d(){
+ const r=canvas3d.getBoundingClientRect();
+ if(r.width<1||r.height<1)return;
+ renderer.setSize(r.width,r.height,false);
+ perspectiveCamera.aspect=r.width/r.height;perspectiveCamera.updateProjectionMatrix();
+ const half=topViewHeight/2,aspect=r.width/r.height;
+ orthographicCamera.left=-half*aspect;orthographicCamera.right=half*aspect;
+ orthographicCamera.top=half;orthographicCamera.bottom=-half;
+ orthographicCamera.updateProjectionMatrix();
+}
 let pointer3DStart=null;
 canvas3d.addEventListener('pointerdown',e=>{
  pointer3DStart={x:e.clientX,y:e.clientY};
@@ -1799,6 +1821,34 @@ $('materialLight').onclick=()=>{for(const r of state.rooms){r.wall='#f0ede5';r.f
 $('buildingHeight').onchange=e=>{state.height=clamp(+e.target.value,2.5,5);push();refreshAll()};
 $('baseElevation').onchange=e=>{state.elevation=clamp(+e.target.value,0,1.5);push();refreshAll()};
 for(const [id,mode] of [['planOnly','plan'],['split','split'],['only3d','3d']])$(id).onclick=()=>{const a=$('pane2d'),b=$('pane3d');a.style.display=mode==='3d'?'none':'';b.style.display=mode==='plan'?'none':'';$('views').style.gridTemplateColumns=mode==='split'?'1fr 1fr':'1fr';for(const btn of ['planOnly','split','only3d'])$(btn).classList.toggle('active',btn===id);resize3d();drawPlan()};
+// Orthographic top-down mode is confined to the 3D viewport.
+// The existing editable 2D architectural plan remains unchanged.
+function setOrthographicTop(enabled){
+ if(orthographicTop===enabled)return;
+ if(transform.dragging){status('Заверши перемещение объекта перед переключением камеры');return}
+ if(enabled){
+  savedPerspectiveTarget=orbit.target.clone();
+  const target=orbit.target.clone();
+  orthographicCamera.position.set(target.x,topViewHeight,target.z);
+  orthographicCamera.up.set(0,0,-1);
+  orthographicCamera.lookAt(target);
+  camera=orthographicCamera;
+ }else{
+  camera=perspectiveCamera;
+ }
+ orthographicTop=enabled;
+ orbit.object=camera;
+ orbit.enableRotate=!enabled;
+ orbit.enableDamping=!enabled;
+ transform.camera=camera;
+ if(!enabled&&savedPerspectiveTarget)orbit.target.copy(savedPerspectiveTarget);
+ orbit.update();resize3d();
+ $('topView3d').classList.toggle('active',enabled);
+ $('topView3d').setAttribute('aria-pressed',String(enabled));
+ $('topView3d').textContent=enabled?'◫ Вернуть 3D':'▣ Вид сверху';
+ status(enabled?'Ортографический вид сверху · без перспективных искажений':'Перспективная камера восстановлена');
+}
+$('topView3d').onclick=()=>setOrthographicTop(!orthographicTop);
 // Screen-relative camera panning. Keeps camera and orbit target at the same distance.
 $('focusView').onclick=()=>{
  const focus=document.body.classList.toggle('focus3d');
@@ -1823,22 +1873,59 @@ const cameraArrows={cameraUp:[0,1],cameraDown:[0,-1],cameraLeft:[-1,0],cameraRig
 for(const [id,dir] of Object.entries(cameraArrows)){
  $(id).addEventListener('click',()=>panCamera(...dir));
 }
-window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target?.tagName))return;
-const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
-if(arrowDirections[e.key]&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
- e.preventDefault();
- if(e.shiftKey){
-  pan.x-=arrowDirections[e.key][0]*24;
-  pan.y+=arrowDirections[e.key][1]*24;
-  drawPlan();
- }else panCamera(...arrowDirections[e.key]);
- return;
+// Hotkeys reuse the editor's validated commands/history; rotations are radians here.
+function rotateSelectedQuarterTurn(){
+ const o=find(selected);
+ if(!o||!state.furniture.some(f=>f.id===o.id)){
+  status('Поворот R доступен только для выбранной мебели');return;
+ }
+ const previous=o.rot||0;
+ o.rot=((previous+Math.PI/2)%(2*Math.PI));
+ try{validate(state);push();refreshAll();status('Предмет повёрнут на 90°')}
+ catch(err){o.rot=previous;refreshAll();status('Поворот отклонён: '+err.message)}
 }
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyZ'){e.preventDefault();$('undo').click()}
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyY'){e.preventDefault();$('redo').click()}
-if((e.ctrlKey||e.metaKey)&&e.code==='KeyS'){e.preventDefault();saveState()}
-if(e.code==='Delete'||e.code==='Backspace')removeSelected();
-if(e.code==='Escape'){wallFirst=null;select(null)}});
+function safelyDeleteSelected(){
+ const o=find(selected);if(!o)return;
+ if(!state.furniture.some(f=>f.id===o.id)&&
+    !confirm('Удалить архитектурный объект «'+o.name+'»? Это может изменить планировку.'))return;
+ removeSelected();
+}
+window.addEventListener('keydown',e=>{
+ const target=e.target;
+ if(e.defaultPrevented||e.isComposing||e.repeat||
+  target?.isContentEditable||
+  ['INPUT','SELECT','TEXTAREA'].includes(target?.tagName))return;
+ const command=e.ctrlKey||e.metaKey;
+ if(command&&e.code==='KeyZ'){
+  e.preventDefault();
+  (e.shiftKey?$('redo'):$('undo')).click();return;
+ }
+ if(command&&e.code==='KeyY'){e.preventDefault();$('redo').click();return}
+ if(command&&e.code==='KeyS'){e.preventDefault();saveState();return}
+ if(command&&e.code==='KeyD'){
+  if(!selected)return;
+  e.preventDefault();
+  if(!state.furniture.some(f=>f.id===selected)){
+   status('Ctrl+D: копирование доступно только для мебели');return;
+  }
+  duplicateSelected();return;
+ }
+ if(!command&&!e.altKey&&!e.shiftKey&&e.code==='KeyR'){
+  e.preventDefault();rotateSelectedQuarterTurn();return;
+ }
+ if(!command&&!e.altKey&&(e.code==='Delete'||e.code==='Backspace')){
+  e.preventDefault();safelyDeleteSelected();return;
+ }
+ if(e.code==='Escape'){wallFirst=null;select(null);return}
+ const arrowDirections={ArrowUp:[0,1],ArrowDown:[0,-1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+ if(arrowDirections[e.key]&&!command&&!e.altKey){
+  e.preventDefault();
+  if(e.shiftKey){
+   pan.x-=arrowDirections[e.key][0]*24;
+   pan.y+=arrowDirections[e.key][1]*24;drawPlan();
+  }else panCamera(...arrowDirections[e.key]);
+ }
+});
 let lastPlanSize='';
 const ro=new ResizeObserver(()=>{
  resize3d();
