@@ -74,6 +74,26 @@ try{
     await page.screenshot({path:'artifacts/door-'+room+'-'+opening+'-'+mode+'.png'});
    }
   }
+  // Global four-style room furnishing variants: switch all rooms without
+  // moving any approved furniture or architectural elements.
+  const styles=['minimal','warm','classic','graphite'];
+  assert.equal(await page.locator('#furnitureDesign option').count(),4);
+  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal');
+  for(const style of styles){
+   await page.locator('#furnitureDesign').selectOption(style);
+   assert.equal(await page.locator('body').getAttribute('data-furniture-design'),style);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('adkh-house-furniture-design-v1')),style);
+   await page.screenshot({path:'artifacts/furniture-design-'+style+'-'+mode+'.png'});
+  }
+  // Switching styles must not disrupt furniture position, reset the 3D tour,
+  // or change the editable layout version.
+  await page.locator('#furnitureDesign').selectOption('warm');
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
+   null,{timeout:60000});
+  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'warm',
+   'chosen style must persist across page reloads');
+  await page.locator('#furnitureDesign').selectOption('minimal');
   // Editable showroom furniture must work without opening the technical editor.
   assert.equal(await page.locator('body').getAttribute('data-furniture-layout'),'editable-v1');
   assert.equal(await page.locator('body').getAttribute('data-furniture-count'),'13');
