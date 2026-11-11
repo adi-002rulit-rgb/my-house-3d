@@ -2561,6 +2561,10 @@ function validConcept(d){
  if(!d||typeof d!=='object')return false;
  const view=String(d.view||'');
  return (!d.design2026||validDesign2026(d.design2026))
+ &&(d.furnitureDesign===undefined||isFurnitureDesign(d.furnitureDesign))
+ &&(d.furnitureLayout===undefined||(
+  [1,FURNITURE_LAYOUT_VERSION].includes(d.furnitureLayout?.version)&&
+  !!migrateFurnitureLayout(d.furnitureLayout?.items)))
  &&(!d.stair||(validStairSettings(d.stair)&&stairGeometryCheck(d.stair).allowed))
  &&(!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
  &&(!d.curtains||Object.prototype.hasOwnProperty.call(curtainOptions,d.curtains))
@@ -2671,11 +2675,28 @@ E('styleModernWarm').onclick=()=>setCuratedStyle2026('warm');
 E('styleModernNatural').onclick=()=>setCuratedStyle2026('natural');
 E('styleModernContrast').onclick=()=>setCuratedStyle2026('contrast');
 
-function snapshotConcept(){return{design2026:{...interiorDesign2026},stair:stairData(),style:clientStyle,wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,pattern:floorPattern,view:clientView,night,fabric:clientFabric,curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments))}}
+function snapshotConcept(){return{
+ design2026:{...interiorDesign2026},stair:stairData(),style:clientStyle,
+ wall:clientWall,floor:clientFloor,tile:clientTile,cover:floorCover,
+ pattern:floorPattern,view:clientView,night,fabric:clientFabric,
+ curtains:clientCurtains,moldings:clientMoldings,lighting:clientLighting,
+ lightStrength,sunAngle,doors:JSON.parse(JSON.stringify(doorAssignments)),
+ furnitureDesign:activeFurnitureDesign,furnitureLayout:furnitureSnapshot()
+}}
 function applyConcept(d){
  if(!d){toast('Сначала сохрани этот вариант');return}
+ if(!validConcept(d)){toast('Сохранённый дизайн повреждён или перекрывает проход');return}
  const previousSuspend=designHistorySuspend;designHistorySuspend=true;
  try{
+ if(d.furnitureLayout){
+  const incoming=migrateFurnitureLayout(d.furnitureLayout.items);
+  if(incoming&&layoutSafetyAudit(incoming).ok){
+   presentationFurniture=incoming;
+   for(const item of presentationFurniture)updatePresentationFurniture(item);
+   try{localStorage.setItem(furnitureStorageKey,JSON.stringify(furnitureSnapshot()))}catch(e){}
+  }
+ }
+ if(d.furnitureDesign!==undefined)applyFurnitureDesign(d.furnitureDesign,false);
  if(validStairSettings(d.stair)){stairSettings={...d.stair};rebuildStaircase();syncStairControls();}
  if(validDesign2026(d.design2026))interiorDesign2026={...d.design2026};
  clientStyle=d.style;E('clientStyle').value=d.style;
