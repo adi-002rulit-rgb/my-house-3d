@@ -57,6 +57,23 @@ try{
   assert.equal(await page.locator('#clientDoorHinge').isDisabled(),true,
    'double doors have fixed outer hinges');
   await page.screenshot({path:'artifacts/approved-door-presentation-'+mode+'.png'});
+  // Check both double doors in closed and open configurations. Capture
+  // screenshots from the same showroom overview for side-by-side review.
+  for(const room of ['living','kitchen']){
+   await page.locator('#clientDoorTarget').evaluate((el,room)=>{
+    el.value=room;el.dispatchEvent(new Event('change',{bubbles:true}));
+   },room);
+   for(const opening of ['closed','open']){
+    await page.locator('#clientDoorOpen').evaluate((el,opening)=>{
+     el.value=opening;el.dispatchEvent(new Event('change',{bubbles:true}));
+    },opening);
+    assert.equal(await page.locator('#clientDoorOpen').inputValue(),opening,
+     room+' door must accept '+opening+' position');
+    assert.equal(await page.locator('#clientDoorHinge').isDisabled(),true,
+     room+' twin-door external hinges are fixed');
+    await page.screenshot({path:'artifacts/door-'+room+'-'+opening+'-'+mode+'.png'});
+   }
+  }
   // Editable showroom furniture must work without opening the technical editor.
   assert.equal(await page.locator('body').getAttribute('data-furniture-layout'),'editable-v1');
   assert.equal(await page.locator('body').getAttribute('data-furniture-count'),'11');
