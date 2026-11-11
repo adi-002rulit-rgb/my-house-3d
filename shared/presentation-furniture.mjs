@@ -92,9 +92,13 @@ export function normalizedFurnitureLayout(items){
 // when upgrading from the 11-piece presentation layout. Old kitchen counter
 // is replaced by the new three runs; dining moves out of their circulation.
 export function migrateFurnitureLayout(items){
- if(validateFurnitureLayout(items))
-  return kitchenLayoutAudit(items).ok&&furnitureCollisionAudit(items).ok?
-   normalizedFurnitureLayout(items):null;
+ if(validateFurnitureLayout(items)){
+  // Saved JSON contains only IDs, positions and angles. Reattach the immutable
+  // catalogue dimensions BEFORE any width/depth dependent safety checks.
+  const normalized=normalizedFurnitureLayout(items);
+  return kitchenLayoutAudit(normalized).ok&&furnitureCollisionAudit(normalized).ok?
+   normalized:null;
+ }
  if(!Array.isArray(items)||items.length!==11)return null;
  const oldIds=new Set(['livingSofa','livingCoffee','livingChairL','livingChairR','livingTV',
   'kitchenCounter','kitchenDining','bedroomBed','bedroomNightL','bedroomNightR','bedroomWardrobe']);
