@@ -137,6 +137,32 @@ try{
    el.value='195';el.dispatchEvent(new Event('input',{bubbles:true}));
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
+  // Complete design snapshots must now contain furniture coordinates and theme.
+  const savedConcept=await page.evaluate(()=>
+   JSON.parse(localStorage.getItem('my-house-3d-current-design-v1')));
+  assert.equal(savedConcept.furnitureDesign,'minimal');
+  assert.equal(savedConcept.furnitureLayout.version,2);
+  assert.equal(savedConcept.furnitureLayout.items.find(x=>x.id==='livingSofa').x,4.82);
+  assert.equal(savedConcept.furnitureLayout.items.find(x=>x.id==='livingSofa').rot,195);
+  // The A/B design comparison must restore the whole room, not just paint.
+  await page.locator('#saveA').evaluate(el=>el.click());
+  await page.locator('#furnitureDesign').selectOption('warm');
+  await page.locator('#furnitureX').evaluate(el=>{
+   el.value='4.87';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.87);
+  await page.locator('#viewA').evaluate(el=>el.click());
+  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal');
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82);
+  assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
+  // Collision with sofa must be rejected without modifying persisted state.
+  await page.locator('#furnitureChoice').selectOption('livingChairL');
+  await page.locator('#furnitureX').evaluate(el=>{
+   el.value='4.6';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingChairL').x,1.62);
+  await page.locator('#furnitureChoice').selectOption('livingSofa');
+
   const layoutDownload=page.waitForEvent('download');
   await page.locator('#furnitureExport').click();
   const exportedFurniture=JSON.parse(fs.readFileSync(await (await layoutDownload).path(),'utf8'));
@@ -159,6 +185,16 @@ try{
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82,
    'invalid furniture JSON cannot corrupt working arrangement');
+  const blockedFurniture=structuredClone(exportedFurniture);
+  blockedFurniture.items.find(x=>x.id==='kitchenDining').z=2.1;
+  await page.locator('#furnitureImportFile').setInputFiles({
+   name:'blocked-kitchen.json',mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(blockedFurniture))
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='kitchenDining').z,3.87,
+   'invalid kitchen table cannot be restored from an old furniture export');
+  assert.equal(await page.locator('body').getAttribute('data-furniture-safety'),'safe');
+
   await page.screenshot({path:'artifacts/editable-furniture-'+mode+'.png'});
   await page.locator('#furnitureReset').click();
   await page.locator('#furnitureClose').click();
