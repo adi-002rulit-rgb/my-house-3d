@@ -33,7 +33,7 @@ assert.match(html,/furnitureDesign:activeFurnitureDesign,furnitureLayout:furnitu
 assert.match(html,/if\(d.furnitureLayout\)/);
 assert.match(html,/if\(d.furnitureDesign!==undefined\)applyFurnitureDesign\(d.furnitureDesign,false\)/);
 assert.match(html,/if\(!layoutSafetyAudit\(proposed\)\.ok\|\|!doorFurnitureAudit\(proposed,doorAssignments\)\.ok\)return false/);
-assert.match(html,/if\(!imported\|\|!layoutSafetyAudit\(imported\)\.ok\)/);
+assert.match(html,/if\(!imported\|\|!layoutSafetyAudit\(imported\)\.ok\|\|!doorFurnitureAudit\(imported,doorAssignments\)\.ok\)/);
 assert.match(html,/document\.body\.dataset\.furnitureSafety=/);
 assert.equal(APPROVED_HOUSE_V1.model.walls.length,13);
 assert.equal(APPROVED_HOUSE_V1.model.openings.length,12);
