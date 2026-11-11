@@ -638,7 +638,7 @@ import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES}
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 import {presentationDoorSpecs,normalizedDoorSwing,doorLeafPose} from './shared/presentation-doors.mjs';
-import {FURNITURE_LAYOUT_VERSION,freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,migrateFurnitureLayout,furnitureFitsRoom,kitchenLayoutAudit} from './shared/presentation-furniture.mjs';
+import {FURNITURE_LAYOUT_VERSION,freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,migrateFurnitureLayout,furnitureFitsRoom,kitchenLayoutAudit,layoutSafetyAudit} from './shared/presentation-furniture.mjs';
 import {FURNITURE_DESIGNS,DEFAULT_FURNITURE_DESIGN,furnitureDesignIds,isFurnitureDesign,furnitureFinish} from './shared/furniture-designs.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
@@ -1175,7 +1175,7 @@ try{
  const saved=JSON.parse(localStorage.getItem(furnitureStorageKey)||'null');
  if(saved&&(saved.version===1||saved.version===FURNITURE_LAYOUT_VERSION)){
   const migrated=migrateFurnitureLayout(saved.items);
-  if(migrated)presentationFurniture=migrated;
+  if(migrated&&layoutSafetyAudit(migrated).ok)presentationFurniture=migrated;
  }
 }catch(e){}
 for(const piece of presentationFurniture)drawPresentationFurniture(piece);
@@ -1203,7 +1203,10 @@ function applyFurnitureDesign(id,save=true){
  E('furnitureDesignInfo').textContent=FURNITURE_DESIGNS[id].description+
   ' · Перемещения и углы предметов не меняются.';
  document.body.dataset.furnitureDesign=id;
- if(save)try{localStorage.setItem(furnitureDesignStorageKey,id)}catch(e){}
+ if(save){
+  try{localStorage.setItem(furnitureDesignStorageKey,id)}catch(e){}
+  if(typeof saveCurrentDesign==='function')saveCurrentDesign();
+ }
  return true;
 }
 
@@ -1211,21 +1214,22 @@ function updatePresentationFurniture(item){
  const root=furnitureRoots.get(item.id);
  if(root){root.position.set(item.x,0,item.z);root.rotation.y=item.rot*Math.PI/180}
 }
+function furnitureSnapshot(){
+ return {version:FURNITURE_LAYOUT_VERSION,
+  items:presentationFurniture.map(({id,room,type,x,z,rot})=>({id,room,type,x,z,rot}))};
+}
 function savePresentationFurniture(){
- try{localStorage.setItem(furnitureStorageKey,JSON.stringify({
-  version:FURNITURE_LAYOUT_VERSION,items:presentationFurniture.map(({id,x,z,rot})=>({id,x,z,rot,
-   room:presentationFurniture.find(v=>v.id===id).room,type:presentationFurniture.find(v=>v.id===id).type}))
- }))}catch(e){toast('Память браузера недоступна: экспортируй расстановку JSON')}
+ try{localStorage.setItem(furnitureStorageKey,JSON.stringify(furnitureSnapshot()))}
+ catch(e){toast('Память браузера недоступна: экспортируй расстановку JSON')}
+ if(typeof saveCurrentDesign==='function')saveCurrentDesign();
 }
 function changePresentationFurniture(id,values){
  const pos=presentationFurniture.findIndex(v=>v.id===id);
  if(pos<0)return false;
  const candidate={...presentationFurniture[pos],...values};
  if(!furnitureFitsRoom(candidate))return false;
- // Preserve minimum opening/dining clearances for all U-shaped kitchen runs.
  const proposed=presentationFurniture.map((it,i)=>i===pos?candidate:it);
- if(['kitchenRear','kitchenLeft','kitchenRight','kitchenDining'].includes(id)
-     &&!kitchenLayoutAudit(proposed).ok)return false;
+ if(!layoutSafetyAudit(proposed).ok)return false;
  presentationFurniture[pos]=candidate;
  updatePresentationFurniture(candidate);
  savePresentationFurniture();
@@ -1292,7 +1296,7 @@ for(const [id,key] of [['furnitureX','x'],['furnitureZ','z'],['furnitureRotation
  E(id).oninput=e=>{
   const candidate=Number(e.target.value);
   if(!changePresentationFurniture(selectedFurnitureId,{[key]:candidate})){
-   toast('Нельзя: предмет выходит за пределы своей комнаты');
+   toast('Нельзя: предмет выходит за границы, пересекает мебель или перекрывает проход');
   }
   refreshFurnitureControls();
  };
@@ -1306,8 +1310,7 @@ E('furnitureReset').onclick=()=>{
  toast('Расстановка восстановлена');
 };
 E('furnitureExport').onclick=()=>{
- const data={format:'adkh-presentation-furniture',version:FURNITURE_LAYOUT_VERSION,
-  items:presentationFurniture.map(({id,room,type,x,z,rot})=>({id,room,type,x,z,rot}))};
+ const data={format:'adkh-presentation-furniture',...furnitureSnapshot()};
  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download='adkh-house-furniture.json';a.click();
@@ -1323,7 +1326,7 @@ E('furnitureImportFile').onchange=async e=>{
      ![1,FURNITURE_LAYOUT_VERSION].includes(obj.version))
     throw Error('Неподходящий файл расстановки');
   const imported=migrateFurnitureLayout(obj.items);
-  if(!imported||!kitchenLayoutAudit(imported).ok)throw Error('Неподходящий или пересекающий проходы проект');
+  if(!imported||!layoutSafetyAudit(imported).ok)throw Error('Неверные размеры или пересечение мебели и проходов');
   presentationFurniture=imported;
   for(const item of presentationFurniture)updatePresentationFurniture(item);
   savePresentationFurniture();refreshFurnitureControls();
@@ -1334,6 +1337,7 @@ E('furnitureImportFile').onchange=async e=>{
 document.body.dataset.furnitureLayout='editable-v1';
 document.body.dataset.furnitureCount=String(presentationFurniture.length);
 document.body.dataset.kitchenLayout=kitchenLayoutAudit(presentationFurniture).ok?'u-shaped-v2':'invalid';
+document.body.dataset.furnitureSafety=layoutSafetyAudit(presentationFurniture).ok?'safe':'invalid';
 function furniturePointerPoint(event){
  const rect=canvas.getBoundingClientRect();
  const p=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,
