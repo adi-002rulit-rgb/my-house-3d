@@ -79,6 +79,24 @@ try{
    assert.equal(await page.locator('#pane2d').evaluate(x=>getComputedStyle(x).display),'none');
    await page.screenshot({path:'artifacts/mobile-focus-3d.png'});
   }
+  // Editor publishes an actual shared contract snapshot without changing geometry.
+  const shared=await page.evaluate(()=>JSON.parse(localStorage.getItem('adkh-house-shared-project-v1')));
+  assert.equal(shared.format,'adkh-house-project');
+  assert.equal(shared.model.stairs.length,1);
+  assert.equal(shared.model.rooms.length,7);
+  const sharedDownload=page.waitForEvent('download');
+  await page.locator('#sharedExport').click();
+  const downloadedShared=JSON.parse(fs.readFileSync(await (await sharedDownload).path(),'utf8'));
+  assert.equal(downloadedShared.formatVersion,1);
+  assert.deepEqual(downloadedShared.model,await state());
+  // Showroom reads shared data but must not silently apply its geometry.
+  const presentation=await page.goto(host+'/',{waitUntil:'domcontentloaded',timeout:60000});
+  assert.equal(presentation.status(),200,mode+' showroom HTML load');
+  await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
+   null,{timeout:60000});
+  await page.evaluate(()=>document.getElementById('sharedProjectOpen').click());
+  assert.match(await page.locator('#sharedProjectSummary').innerText(),/Помещений: 7/);
+  assert.match(await page.locator('#sharedProjectPanel').innerText(),/прежнюю геометрию/);
   assert.equal(pageErrors.length,0,mode+' page errors: '+pageErrors.join('; '));
   await context.close();
   console.log(mode+': browser smoke passed');
