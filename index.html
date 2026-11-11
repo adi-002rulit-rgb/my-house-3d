@@ -1108,7 +1108,40 @@ const approvedStairGroup=new THREE.Group();
 approvedStairGroup.name='ADKH-approved-editor-stair';
 approvedStairGroup.userData.source='editor-approved';
 model.add(approvedStairGroup);
-const approvedStairFinish=M('#e8e2d9',.69),approvedStairConcrete=M('#d6c8b6',.85);
+// The architectural vertices remain authoritative; these materials affect
+// presentation appearance only (subtle stone grain and satin finish).
+const approvedStairFinish=finish('stone','#e4ded5',1.35,.54);
+const approvedStairConcrete=finish('stone','#d3ccc2',1.05,.86);
+const approvedStairRiser=M('#c7beb2',.88);
+const approvedStairNosing=M('#b4a797',.58,.07);
+const approvedStairDetailIds=[];
+function addApprovedStairRiser(t,top,base){
+ // Surface veneer on the front face, entirely within the approved footprint.
+ // It does not extend tread width, depth, position or the actual step level.
+ const face=t.flight===2?{
+  x:t.x-t.w/2+.007,y:(base+top)/2,z:t.z,
+  w:.012,h:Math.max(.02,top-base-.018),d:t.d-.025
+ }: {
+  x:t.x,y:(base+top)/2,z:t.flight===1?t.z-t.d/2+.007:t.z+t.d/2-.007,
+  w:t.w-.025,h:Math.max(.02,top-base-.018),d:.012
+ };
+ const m=box(approvedStairGroup,face.x,face.y,face.z,
+  face.w,face.h,face.d,approvedStairRiser,false);
+ m.userData.editorId=t.id;m.userData.presentationDetail='riser';
+ approvedStairDetailIds.push(t.id);
+ // A narrow satin nosing set *inside* the existing top, avoiding an
+ // artificial extra step or a change in approved tread length.
+ const edge=t.flight===2?{
+  x:t.x-t.w/2+.010,z:t.z,w:.014,d:Math.max(.02,t.d-.03)
+ }:{
+  x:t.x,z:t.flight===1?t.z-t.d/2+.010:t.z+t.d/2-.010,
+  w:Math.max(.02,t.w-.03),d:.014
+ };
+ const line=box(approvedStairGroup,edge.x,top-.006,edge.z,
+  edge.w,.009,edge.d,approvedStairNosing,false);
+ line.userData.editorId=t.id;line.userData.presentationDetail='nosing';
+}
+
 function addApprovedStair(){
  if(approvedStairGeometry.counts.stairs!==1)throw Error('Expected one approved stair');
  const source=approvedStairSource.model.stairs[0];
@@ -1127,18 +1160,19 @@ function addApprovedStair(){
    const solid=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{
     depth:Math.max(.03,top-base),bevelEnabled:false}),approvedStairConcrete);
    solid.rotation.x=-Math.PI/2;
-   solid.position.y=base;solid.castShadow=false;solid.receiveShadow=true;
+   solid.position.y=base;solid.castShadow=true;solid.receiveShadow=true;
    solid.userData.editorId=t.id;approvedStairGroup.add(solid);
    const cap=new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{
     depth:.032,bevelEnabled:false}),approvedStairFinish);
    cap.rotation.x=-Math.PI/2;cap.position.y=top-.032;
-   cap.userData.editorId=t.id;approvedStairGroup.add(cap);
+   cap.userData.editorId=t.id;cap.castShadow=false;cap.receiveShadow=true;approvedStairGroup.add(cap);
   }else{
    const top=t.y+t.h/2,base=approvedStairGeometry.elevation;
    const h=Math.max(.03,top-base);
    const block=box(approvedStairGroup,t.x,base+h/2,t.z,t.w,h,t.d,
     approvedStairConcrete,false);
-   block.userData.editorId=t.id;
+   block.userData.editorId=t.id;block.castShadow=true;
+   addApprovedStairRiser(t,top,base);
    const surface=box(approvedStairGroup,t.x,top-.012,t.z,t.w,.024,t.d,
     approvedStairFinish,false);
    surface.userData.editorId=t.id;
@@ -1164,6 +1198,8 @@ function addApprovedStair(){
  document.body.dataset.presentationStair='editor-approved';
  document.body.dataset.presentationStairSource=source.id;
  document.body.dataset.presentationStairTreads=String(approvedStairGeometry.treads.length);
+ document.body.dataset.presentationStairFinish='stone-satin-v1';
+ document.body.dataset.presentationStairDetails=String(approvedStairDetailIds.length);
 }
 addApprovedStair();
 
