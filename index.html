@@ -471,6 +471,12 @@ body.guided-mode #furnitureLaunch,body.guided-mode #furniturePanel{display:none!
 </select>
 <label for="clientDoorOpen">Положение двери</label>
 <select id="clientDoorOpen"><option value="open">Приоткрыта · видно проход</option><option value="closed">Закрыта · видно дизайн</option><option value="hide">Скрыть полотно</option></select>
+<label for="clientDoorHinge">Петли (для одностворчатых дверей)</label>
+<select id="clientDoorHinge"><option value="left">Слева</option><option value="right">Справа</option></select>
+<label for="clientDoorSwing">Куда открывается</label>
+<select id="clientDoorSwing"><option value="room">В комнату</option><option value="hall">В коридор / наружу</option></select>
+<label for="clientDoorAngle">Угол открывания <output id="clientDoorAngleLabel">65°</output></label>
+<input id="clientDoorAngle" type="range" min="0" max="105" step="5" value="65" style="width:100%;accent-color:#c8ad7a">
 <div id="doorSample"><span id="doorSampleSquare"></span><span id="doorSampleCaption">Дверь: гладкая · цвет Linen</span></div>
 <small>Визуальные аналоги современных конструкций, не точные копии фабричных моделей.</small>
 <details id="catalogDetails"><summary>Каталоги производителей и салонов</summary>
@@ -2019,13 +2025,24 @@ function syncDoorControls(){
  const d=activeDoorSetting();
  E('clientDoorModel').value=d.design;E('clientDoorColor').value=d.color;
  E('clientDoorHardware').value=d.metal;E('clientDoorOpen').value=d.opening;
+ const swing=normalizedDoorSwing(chosenDoorRoom==='all'?'living':chosenDoorRoom,d);
+ E('clientDoorHinge').value=swing.hinge;
+ E('clientDoorSwing').value=swing.swing;
+ E('clientDoorAngle').value=String(swing.angle);
+ E('clientDoorAngleLabel').textContent=swing.angle+'°';
+ E('clientDoorHinge').disabled=chosenDoorRoom==='all'||roomDoorSpecs.find(r=>r.room===chosenDoorRoom)?.leafCount===2;
  E('doorSampleSquare').style.background=doorColorHex[d.color];
  E('doorSampleCaption').textContent=E('clientDoorModel').selectedOptions[0].textContent+
  ' · '+E('clientDoorColor').selectedOptions[0].textContent;
 }
 function setDoorDetail(property,value){
  for(const spec of roomDoorSpecs){
-  if(chosenDoorRoom==='all'||chosenDoorRoom===spec.room)doorAssignments[spec.room][property]=value;
+  if(chosenDoorRoom==='all'||chosenDoorRoom===spec.room){
+   const cfg=doorAssignments[spec.room];
+   if(['hinge','swing','angle'].includes(property))Object.assign(cfg,
+    normalizedDoorSwing(spec.room,{...cfg,[property]:value}));
+   else cfg[property]=value;
+  }
  }
  rebuildClientDoors();syncDoorControls();saveCurrentDesign();
 }
@@ -2034,6 +2051,9 @@ E('clientDoorModel').onchange=e=>setDoorDetail('design',e.target.value);
 E('clientDoorColor').onchange=e=>setDoorDetail('color',e.target.value);
 E('clientDoorHardware').onchange=e=>setDoorDetail('metal',e.target.value);
 E('clientDoorOpen').onchange=e=>setDoorDetail('opening',e.target.value);
+E('clientDoorHinge').onchange=e=>setDoorDetail('hinge',e.target.value);
+E('clientDoorSwing').onchange=e=>setDoorDetail('swing',e.target.value);
+E('clientDoorAngle').oninput=e=>setDoorDetail('angle',Number(e.target.value));
 syncDoorControls();
 
 
@@ -2518,7 +2538,10 @@ function applyConcept(d){
  if(validDesign2026(d.design2026))interiorDesign2026={...d.design2026};
  clientStyle=d.style;E('clientStyle').value=d.style;
  floorCover=d.cover||'engineered';floorPattern=d.pattern||'wide';E('floorCovering').value=floorCover;E('floorPattern').value=floorPattern;setClientWalls(d.wall);setClientFloor(d.floor);setClientTile(d.tile);
- if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room])Object.assign(doorAssignments[room],d.doors[room]);rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
+ if(d.doors){for(const room of Object.keys(doorAssignments))if(d.doors[room]){
+ const config=d.doors[room];Object.assign(doorAssignments[room],config,
+ normalizedDoorSwing(room,config));}
+ rebuildClientDoors();syncDoorControls()}clientFabric=d.fabric||'linen';clientCurtains=d.curtains||'sheer';
  clientMoldings=d.moldings||'minimal';clientLighting=d.lighting||'warm';lightStrength=d.lightStrength??1;sunAngle=d.sunAngle??130;
  applyInteriorOptions(false);updateNight(d.night);clientCamera(d.view);
  }finally{designHistorySuspend=previousSuspend;}
