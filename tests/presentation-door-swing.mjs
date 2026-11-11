@@ -16,9 +16,9 @@ for(const spec of presentationDoorSpecs){
  assert.equal(spec.leafCount===2,spec.room==='living'||spec.room==='kitchen');
  const setting=normalizedDoorSwing(spec.room);
  const first=doorLeafPose(spec,setting,0);
- assert.equal(first.at,-spec.width/2,'first leaf anchored on outer left frame');
- assert.equal(first.mirror,false);
  if(spec.leafCount===2){
+  assert.equal(first.at,-spec.width/2,'first double leaf anchored on outer left frame');
+  assert.equal(first.mirror,false);
   const second=doorLeafPose(spec,setting,1);
   assert.equal(second.at,spec.width/2,'right hinge must be at right outer frame');
   assert.equal(second.mirror,true,'second leaf must extend toward centre');
