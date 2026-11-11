@@ -34,7 +34,7 @@ try{
    'Legacy presentation openings must align with the approved door centers');
   // Named camera poses capture architectural issues at useful scale.
   // No internal scene edits: public UI camera routes only.
-  for(const cameraView of ['stair','stairDoor','bedroomWindowInside','bedroomWindowOutside','kitchenWindow']){
+  for(const cameraView of ['stair','stairDoor','leftPassage','bedroomWindowInside','bedroomWindowOutside','kitchenWindow']){
    await page.evaluate(view=>{
     const select=document.getElementById('clientView');
     select.value=view;select.dispatchEvent(new Event('change',{bubbles:true}));
