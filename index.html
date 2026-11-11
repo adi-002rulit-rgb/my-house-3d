@@ -504,9 +504,21 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <div id="nav"><span></span><button data-move="up">▲</button><span></span><button data-move="left">◀</button><button data-move="down">▼</button><button data-move="right">▶</button></div>
 <div id="rot"><button data-move="turnleft">↶</button><button data-move="turnright">↷</button></div>
 <div id="source">Зал и кухня: по одному входу из коридора · кухня: одно окно во двор</div>
+<div id="sharedProjectToolbar" style="position:fixed;z-index:8;left:12px;bottom:12px;display:flex;gap:6px">
+<button id="sharedProjectOpen" type="button" title="Прочитать общую модель редактора">⇄ Данные проекта</button>
+<button id="sharedProjectImport" type="button" title="Прочитать общий JSON без изменения 3D">↑ Общий JSON</button>
+</div>
+<input id="sharedProjectInput" type="file" accept=".json,application/json" hidden>
+<div id="sharedProjectPanel" hidden style="position:fixed;z-index:9;left:12px;bottom:60px;max-width:min(370px,90vw);max-height:50dvh;overflow:auto;background:#142631f5;border:1px solid #b9a685;border-radius:12px;padding:13px;box-shadow:0 10px 30px #0007">
+<strong>Общие данные ADKH House</strong>
+<p id="sharedProjectSummary" style="line-height:1.6;font-size:12px;white-space:pre-line"></p>
+<p style="font-size:11px;line-height:1.5;color:#efca95">Режим сверки: 3D-презентация пока использует свою прежнюю геометрию. Импорт не перестраивает стены, окна или лестницу.</p>
+<button id="sharedProjectClose" type="button">Закрыть</button>
+</div>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -2354,5 +2366,48 @@ camera.rotation.set(pitch,yaw,0,'YXZ');
 }else orbit.update();
 renderer.render(scene,camera)}
 function resize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}addEventListener('resize',resize);
-overview();showInfo();updateWallSwatch();applyInteriorOptions(false);applyDesign2026(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();animate(0);E('loading').style.display='none';
+overview();showInfo();updateWallSwatch();applyInteriorOptions(false);applyDesign2026(false);loadPresetsFromDevice();if(!readSharedDesign())loadCurrentDesign();updateABStatus();saveCurrentDesign();
+function renderSharedProject(input){
+ const summary=getSharedSummary(input);
+ E('sharedProjectSummary').textContent=
+  'Название: '+summary.title+'\\n'+
+  'Высота этажа в модели: '+summary.height.toFixed(2)+' м\\n'+
+  'Помещений: '+summary.rooms+' · стен: '+summary.walls+' · проёмов: '+summary.openings+'\\n'+
+  'Лестниц: '+summary.stairs+' · мебели: '+summary.furniture+'\\n'+
+  'Комнаты: '+summary.roomNames.join(', ');
+ E('sharedProjectPanel').hidden=false;
+}
+function showSharedProjectFromStorage(){
+ try{
+  const raw=localStorage.getItem(SHARED_STORAGE_KEY);
+  if(!raw)throw Error('Общий проект не найден. Экспортируй его из редактора.');
+  if(raw.length>MAX_SHARED_BYTES)throw Error('Слишком большой общий проект');
+  renderSharedProject(parseSharedProject(JSON.parse(raw)));
+ }catch(err){
+  E('sharedProjectSummary').textContent='Не удалось прочитать общие данные: '+err.message;
+  E('sharedProjectPanel').hidden=false;
+ }
+}
+E('sharedProjectOpen').onclick=showSharedProjectFromStorage;
+E('sharedProjectClose').onclick=()=>{E('sharedProjectPanel').hidden=true};
+E('sharedProjectImport').onclick=()=>E('sharedProjectInput').click();
+E('sharedProjectInput').onchange=async event=>{
+ const file=event.target.files?.[0];
+ if(!file)return;
+ try{
+  if(file.size>MAX_SHARED_BYTES)throw Error('Слишком большой файл');
+  const shared=parseSharedProject(JSON.parse(await file.text()));
+  const serialized=JSON.stringify(shared);
+  // File imports are read-only previews: do not overwrite editor data on this device.
+  renderSharedProject(shared);
+  toast('JSON проверен. 3D-геометрия презентации не менялась.');
+ }catch(err){
+  E('sharedProjectSummary').textContent='Ошибка общего JSON: '+err.message;
+  E('sharedProjectPanel').hidden=false;
+ }finally{event.target.value=''}
+};
+window.addEventListener('storage',event=>{
+ if(event.key===SHARED_STORAGE_KEY&&!E('sharedProjectPanel').hidden)showSharedProjectFromStorage();
+});
+animate(0);E('loading').style.display='none';
 </script></body></html>
