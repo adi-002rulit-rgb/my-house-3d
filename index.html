@@ -615,6 +615,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
+import {presentationDoorSpecs,normalizedDoorSwing,doorLeafPose} from './shared/presentation-doors.mjs';
 import {freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,furnitureFitsRoom} from './shared/presentation-furniture.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
@@ -1481,13 +1482,7 @@ addApprovedStair();
 // INTERIOR DOOR SHOWROOM: reversible door-leaf visualization in existing apertures.
 // Architectural opening count/size and wall collisions are unchanged.
 const doorDisplayGroup=new THREE.Group();model.add(doorDisplayGroup);
-const roomDoorSpecs=[
- {room:'living',x:9.6,z:2.00,axis:'z',width:1.40,leafCount:2},
- {room:'kitchen',x:13.52,z:1.30,axis:'z',width:1.40,leafCount:2},
- {room:'bedroom',x:5.725,z:-2.07,axis:'z',width:.95,leafCount:1},
- {room:'bathroom',x:7.30,z:-2.675,axis:'x',width:1.0,leafCount:1},
- {room:'wardrobe',x:13.595,z:-2.36,axis:'z',width:1.12,leafCount:1}
-];
+const roomDoorSpecs=presentationDoorSpecs;
 // Door leaf centers are derived from each segmented() opening's start+at (not at+width/2). The previous 3D leaves were misaligned by half an opening.
 // The set above matches the source of truth: segmented() door openings.
 // No leaf added at the vestibule passage or at the external front entrance.
@@ -1497,13 +1492,13 @@ const doorColorHex={
 };
 const hardwareHex={black:'#252A2E',chrome:'#B4BEC2',brass:'#B99A60',bronze:'#655345'};
 const doorAssignments={};
-for(const d of roomDoorSpecs)doorAssignments[d.room]={design:'flush',color:'linen',metal:'black',opening:'open'};
+for(const d of roomDoorSpecs)doorAssignments[d.room]={design:'flush',color:'linen',metal:'black',opening:'open',...normalizedDoorSwing(d.room)};
 function addDoorShape(parent,x,y,z,w,h,d,material){
  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),material);
  m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
 }
-function buildDoorLeaf(root,wide,style,color,metal){
- const h=2.17,w=wide-.055;
+function buildDoorLeaf(root,wide,style,color,metal,height=2.17){
+ const h=height,w=wide-.055;
  const paint=new THREE.MeshStandardMaterial({color:doorColorHex[color]||'#F0E9DF',roughness:.48,metalness:0});
  const trim=new THREE.MeshStandardMaterial({color:hardwareHex[metal]||'#252A2E',metalness:.7,roughness:.33});
  const contrast=new THREE.MeshStandardMaterial({color:'#514b45',metalness:.25,roughness:.52});
@@ -1550,37 +1545,42 @@ function buildDoorLeaf(root,wide,style,color,metal){
  }
 }
 function buildDoorFor(spec){
- const cfg=doorAssignments[spec.room],g=new THREE.Group();g.userData.room=spec.room;
+ const cfg=doorAssignments[spec.room],g=new THREE.Group();
+ g.name='showroom-door-'+spec.room;
+ g.userData.room=spec.room;g.userData.approvedOpening=spec.id;
  doorDisplayGroup.add(g);
- // Door count is an explicit architectural specification, never inferred from width.
- // Living + kitchen: 2 × 0.70 m. All other interior doors: a single leaf.
- const leafCount=spec.leafCount;
- const usable=spec.width;
- const leafWidth=usable/leafCount;
+ const leafCount=spec.leafCount,usable=spec.width,leafWidth=usable/leafCount;
  if(![1,2].includes(leafCount))throw Error('Invalid door configuration');
  if(leafCount===2&&Math.abs(leafWidth-.70)>1e-8)throw Error('Double leaves must be 700 mm each');
- // Pivot aligned with wall plane, actual slab(s) kept light and open by default.
- const xRotation=spec.axis==='z'?-Math.PI/2:0;
- g.position.set(spec.x,0,spec.z);g.rotation.y=xRotation;
+ // Geometry and position originate exclusively from editor-approved openings.
+ g.position.set(spec.x,0,spec.z);
+ g.rotation.y=spec.axis==='z'?-Math.PI/2:0;
  if(cfg.opening==='hide')return;
- const start=-usable/2;
- for(let i=0;i<leafCount;i++){
-   const pivot=new THREE.Group();
-   pivot.position.set(start+i*leafWidth,0,0);
-   g.add(pivot);
-   buildDoorLeaf(pivot,leafWidth,cfg.design,cfg.color,cfg.metal);
-   const sign=i===0?1:-1;
-   // Open double leaves in opposite directions away from the central meeting.
-   pivot.rotation.y=cfg.opening==='open'?sign*1.12:0;
- }
- // Frame around existing opening, material match.
- const isHidden=cfg.design==='hidden';
- if(!isHidden){
-  const frame=new THREE.MeshStandardMaterial({color:doorColorHex[cfg.color],roughness:.65});
-  for(const offset of [-usable/2,usable/2]){
-    const bar=addDoorShape(g,offset,1.10,.07,.045,2.23,.07,frame);
+ const frameMat=M(doorColorHex[cfg.color]||'#f0e9df',.66);
+ const frameHeight=Math.min(spec.head-.025,2.20);
+ const frame=spec.design!=='hidden';
+ if(frame){
+  for(const side of [-1,1]){
+   const jamb=addDoorShape(g,side*usable/2,frameHeight/2,0,.035,frameHeight,.043,frameMat);
+   jamb.userData.doorJamb=true;
   }
-  addDoorShape(g,0,2.22,.07,usable+.05,.045,.07,frame);
+  const lintel=addDoorShape(g,0,frameHeight,0,usable+.025,.035,.043,frameMat);
+  lintel.userData.doorLintel=true;
+ }
+ const leafHeight=Math.min(2.17,spec.head-.085);
+ for(let i=0;i<leafCount;i++){
+  const pose=doorLeafPose(spec,cfg,i),pivot=new THREE.Group();
+  pivot.name=spec.room+'-hinge-'+i;
+  pivot.position.set(pose.at,0,0);
+  pivot.rotation.y=cfg.opening==='open'?pose.radians:0;
+  g.add(pivot);
+  // A mirrored geometry keeps the RIGHT panel attached to the right jamb.
+  const panel=new THREE.Group();
+  panel.scale.x=pose.mirror?-1:1;
+  pivot.add(panel);
+  buildDoorLeaf(panel,pose.leafW,cfg.design,cfg.color,cfg.metal,leafHeight);
+  pivot.userData.hingeX=pose.at;
+  pivot.userData.swingAngle=cfg.opening==='open'?pose.radians:0;
  }
 }
 function rebuildClientDoors(){
