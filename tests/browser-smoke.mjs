@@ -166,6 +166,10 @@ try{
      bedDoor:d.doors?.bedroom,layoutCount:d.furnitureLayout?.items?.length,
      stair:d.stair,design2026:d.design2026,wall:d.wall,floor:d.floor,tile:d.tile,
      fabric:d.fabric,curtains:d.curtains,moldings:d.moldings,lighting:d.lighting}:null,
+    validation:furniture.validateFurnitureLayout(d?.furnitureLayout?.items),
+    kitchen:furniture.kitchenLayoutAudit(d?.furnitureLayout?.items),
+    collisions:furniture.furnitureCollisionAudit(d?.furnitureLayout?.items),
+    itemPositions:d?.furnitureLayout?.items?.map(x=>[x.id,x.x,x.z,x.rot]),
     safety:migrated?furniture.layoutSafetyAudit(migrated):'migration failed',
     doors:migrated?doors.doorFurnitureAudit(migrated,d.doors):null
    };
