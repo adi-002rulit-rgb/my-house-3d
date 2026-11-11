@@ -89,6 +89,27 @@ export function architectureGeometry(input){
   if(to-from>.02)slabs.push(rect(s.id,'stair-slab',g.left+g.w/2,
    m.elevation+m.height-.09,(from+to)/2,g.w,.18,to-from));
  }
+ // Editor's upper-storey slab decomposition, copied as pure numeric layout.
+ // The opening follows the stair, not the old presentation's fixed footprint.
+ const stair=m.stairs[0];
+ if(stair){
+  const g=staircaseLayout(stair,m.height);
+  const L=.2,R=18.83,B=-5.30,F=5.30;
+  const x0=between(g.left,L,R),x1=between(g.left+g.w,L,R);
+  const x2=between(g.right-g.w,L,R),x3=between(g.right,L,R);
+  const z0=between(g.rear,B,F),z1=between(g.front,B,F);
+  const z2=between(g.front+Math.max(stair.lower,g.backRun*g.visibleLastN/g.lastN),B,F);
+  const upperRect=(a,b,c,d)=>{
+   if(b-a>.03&&d-c>.03)slabs.push(rect('upper-floor','upper-slab',(a+b)/2,
+    m.elevation+m.height-.09,(c+d)/2,b-a,.18,d-c));
+  };
+  upperRect(L,x0,B,F);upperRect(x0,x1,B,z0);upperRect(x0,x1,z2,F);
+  upperRect(x1,x2,B,z0);upperRect(x1,x2,z1,F);
+  upperRect(x2,x3,B,z0);upperRect(x2,x3,z2,F);upperRect(x3,R,B,F);
+ }else{
+  slabs.push(rect('upper-floor','upper-slab',(L+R)/2,
+    m.elevation+m.height-.09,(B+F)/2,R-L,.18,F-B));
+ }
  return {schema:1,sourceHeight:m.height,elevation:m.elevation,
   segments,openings,floors,treads,slabs,counts:{
    walls:m.walls.length,openings:m.openings.length,rooms:m.rooms.length,stairs:m.stairs.length
