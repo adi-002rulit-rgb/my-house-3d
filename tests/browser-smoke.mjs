@@ -154,7 +154,15 @@ try{
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.87);
   await page.locator('#viewA').evaluate(el=>el.click());
-  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal');
+  const restoreDetails=await page.evaluate(()=>({
+   toast:document.getElementById('toast')?.textContent,
+   currentView:document.getElementById('clientView')?.value,
+   preset:((d)=>d?{style:d.style,view:d.view,furnitureDesign:d.furnitureDesign,
+      bedDoor:d.doors?.bedroom,layoutCount:d.furnitureLayout?.items?.length}:null)(
+       JSON.parse(localStorage.getItem('my-house-3d-presets-v1')||'{}')?.a)
+  }));
+  assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal',
+   JSON.stringify(restoreDetails));
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82);
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
   // Collision with sofa must be rejected without modifying persisted state.
