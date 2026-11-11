@@ -143,10 +143,56 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 #showroom #openFullEditor{display:block;text-decoration:none;text-align:center;padding:12px 8px;border:1px solid #e0bd8a;background:#bfa275;color:#162736;font-weight:750;border-radius:10px;margin:8px 0 5px}
 #showroom #openFullEditor:hover{background:#e5c69b}
 #showroom .editorHint{font-size:10px;color:#e0d6c9;line-height:1.4;margin-bottom:10px}
+
+/* Stage 3C: client-facing viewer. Fixed to the viewport, no editor panels needed. */
+#guidedBar{position:fixed;z-index:24;left:50%;bottom:14px;transform:translateX(-50%);
+ display:flex;align-items:center;gap:6px;max-width:calc(100vw - 20px);padding:9px;
+ border:1px solid rgba(240,230,212,.23);border-radius:18px;
+ background:rgba(22,32,39,.90);box-shadow:0 12px 35px #0005;backdrop-filter:blur(16px);
+ color:#fff;font:13px system-ui,sans-serif}
+#guidedBar button,#guidedBar select{flex:none;min-height:39px;border:1px solid #ffffff30;
+ border-radius:10px;color:#f4f2ed;background:#32434a;font:600 12px system-ui,sans-serif;
+ padding:8px 11px;cursor:pointer}
+#guidedBar button:focus-visible,#guidedBar select:focus-visible{outline:2px solid #f1c477;outline-offset:2px}
+#guidedBar button.active{background:#ad854c;color:#111c1e;border-color:#edcf96}
+#guidedBar button:disabled{opacity:.4;cursor:not-allowed}
+#guidedBar select{max-width:142px}
+#guidedBar .guidedDivider{height:26px;border-left:1px solid #ffffff3a}
+#guidedBarTitle{position:fixed;z-index:23;left:50%;bottom:78px;transform:translateX(-50%);
+ padding:9px 17px;border-radius:13px;background:#17262ddd;color:#fff8ed;
+ font:600 14px system-ui,sans-serif;pointer-events:none;text-align:center;max-width:80vw}
+#guidedBar[hidden],#guidedBarTitle[hidden]{display:none!important}
+body.guided-mode #showroom,body.guided-mode #studio,body.guided-mode #controls,
+body.guided-mode #techToggle,body.guided-mode #clientQuickBar,body.guided-mode #rooms,
+body.guided-mode #inspectPanel,body.guided-mode #nav,body.guided-mode #rot,
+body.guided-mode #hint,body.guided-mode #source,body.guided-mode #projectMark,
+body.guided-mode #roomInfo,body.guided-mode #minimap,body.guided-mode #miniToggle,
+body.guided-mode #sharedProjectToolbar,body.guided-mode #auditPanel,
+body.guided-mode #title{display:none!important}
+@media(max-width:760px){
+ #guidedBar{left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));transform:none;
+  width:auto;overflow-x:auto;scrollbar-width:thin;justify-content:flex-start;padding:6px;
+  border-radius:13px}
+ #guidedBar button,#guidedBar select{min-height:44px}
+ #guidedBarTitle{bottom:76px;font-size:12px;max-width:90vw}
+}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
 <canvas id="scene"></canvas>
+<div id="guidedBar" aria-label="Удобный просмотр дома" hidden>
+ <button id="guidedExit" type="button" title="Вернуться к обычному интерфейсу">✕ Выйти</button>
+ <button id="guidedPrev" type="button" title="Предыдущий ракурс">←</button>
+ <select id="guidedViews" aria-label="Выбрать ракурс"></select>
+ <button id="guidedNext" type="button" title="Следующий ракурс">→</button>
+ <span class="guidedDivider" aria-hidden="true"></span>
+ <button id="guidedPlay" type="button" aria-pressed="false">▶ Автообзор</button>
+ <button id="guidedStop" type="button" title="Остановить автообзор">■ Стоп</button>
+ <button id="guidedReset" type="button">↺ Обзор</button>
+ <button id="guidedDay" type="button">☾ Вечер</button>
+ <button id="guidedFull" type="button">⛶ Экран</button>
+</div>
+<div id="guidedBarTitle" role="status" aria-live="polite" hidden></div>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
 <div id="title"><strong>Дом · дизайн-презентация · V55</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
@@ -154,6 +200,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 
 <button id="techToggle" aria-pressed="false">⚙ Режим архитектора</button>
 <nav id="clientQuickBar" aria-label="Быстрые инструменты клиента">
+ <button id="guidedLaunch" type="button" title="Чистый интерфейс и плавный обзор">◉ Показ</button>
  <button id="quickPlan" aria-expanded="false" title="Нажмите комнату на плане">▦ План комнат</button>
  <button id="quickTour" aria-pressed="false" title="Последовательный показ дома">▶ Тур по дому</button>
  <button id="quickPrevious" title="Предыдущая точка тура">←</button>
