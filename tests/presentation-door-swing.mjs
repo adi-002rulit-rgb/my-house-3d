@@ -39,6 +39,14 @@ assert.equal(normalizedDoorSwing('living',{angle:33}).angle,35);
 for(const id of ['clientDoorHinge','clientDoorSwing','clientDoorAngle','clientDoorAngleLabel'])
  assert.ok(main.includes('id="'+id+'"'),'missing UI '+id);
 assert.match(main,/const roomDoorSpecs=presentationDoorSpecs/);
+assert.match(main,/if\(o\.id&&\['livingD','kitchenD','bedD','bathD','wardrobeD'\]\.includes\(o\.id\)\)continue;/,
+ 'styled interior doors must not have duplicate legacy jambs or leaves');
+const segmentBlock=main.slice(main.indexOf('function segmented('),main.indexOf('function segmented(')+3500);
+assert.ok(segmentBlock.indexOf("archDoorCenters.push(")<segmentBlock.indexOf("if(o.id&&['livingD'"),
+ 'room doorway selection metadata must remain present before old legacy geometry skip');
+assert.ok(segmentBlock.indexOf("if(o.id&&['livingD'")<segmentBlock.indexOf("let mid=(start+end)/2;piece("),
+ 'skip old frame before legacy jambs are emitted');
+
 assert.match(main,/const pose=doorLeafPose\(spec,cfg,i\)/);
 assert.match(main,/panel\.scale\.x=pose\.mirror\?-1:1/);
 assert.match(main,/const frameHeight=Math\.min\(spec\.head-\.025,2\.20\)/);
