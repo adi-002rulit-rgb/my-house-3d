@@ -33,6 +33,30 @@ try{
     throw Error(mode+' showroom failed to load: '+JSON.stringify(debug)+
       '; browser errors='+pageErrors.join(' | ')+'; '+error.message);
    });
+  // Architectural door positions are unchanged. Test per-room hinge, angle and
+  // swing controls without relying on a particular initial design tab.
+  await page.locator('#clientDoorTarget').evaluate(el=>{
+   el.value='bedroom';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  assert.equal(await page.locator('#clientDoorHinge').isDisabled(),false);
+  await page.locator('#clientDoorHinge').evaluate(el=>{
+   el.value='right';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.locator('#clientDoorSwing').evaluate(el=>{
+   el.value='hall';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.locator('#clientDoorAngle').evaluate(el=>{
+   el.value='45';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal(await page.locator('#clientDoorHinge').inputValue(),'right');
+  assert.equal(await page.locator('#clientDoorSwing').inputValue(),'hall');
+  assert.equal(await page.locator('#clientDoorAngleLabel').innerText(),'45°');
+  await page.locator('#clientDoorTarget').evaluate(el=>{
+   el.value='living';el.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  assert.equal(await page.locator('#clientDoorHinge').isDisabled(),true,
+   'double doors have fixed outer hinges');
+  await page.screenshot({path:'artifacts/approved-door-presentation-'+mode+'.png'});
   // Editable showroom furniture must work without opening the technical editor.
   assert.equal(await page.locator('body').getAttribute('data-furniture-layout'),'editable-v1');
   assert.equal(await page.locator('body').getAttribute('data-furniture-count'),'11');
