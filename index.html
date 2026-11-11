@@ -2410,9 +2410,53 @@ function buildSyncedArchitecture(input){
  const doorMat=M('#ac9481',.74);
  const cache={};
  const colorMat=color=>cache[color]??(cache[color]=M(color,.81));
+ const furnitureDetail=(parent,id,x,y,z,w,h,d,material)=>syncedBox(parent,{id,x,y,z,w,h,d},material);
+ function addSyncedFurniture(item){
+  // Match the editor buildFurniture shapes, using dimensions from the shared JSON.
+  const root=new THREE.Group();
+  root.position.set(item.x,item.y,item.z);root.rotation.y=item.rot||0;
+  root.userData.sourceId=item.id;group.add(root);
+  const c=colorMat(item.color);
+  const part=(x,y,z,w,h,d,m=c)=>furnitureDetail(root,item.id,x,y,z,w,h,d,m);
+  const {w,d,h,type}=item;
+  if(type==='rug'){part(0,.045,0,w,.045,d);return}
+  if(type==='plant'){
+   part(0,.25,0,.35,.5,.35,colorMat('#b4a18c'));
+   const crown=new THREE.Mesh(new THREE.SphereGeometry(Math.max(.25,w/2),10,10),colorMat('#617965'));
+   crown.position.y=.95;crown.userData.sourceId=item.id;root.add(crown);return;
+  }
+  if(type==='sofa'){
+   part(0,.38,0,w,.55,d);part(0,.81,-d/2+.12,w,.54,.23);
+   for(const side of [-1,1])part(side*(w/2-.11),.58,0,.22,.45,d);
+   return;
+  }
+  if(type==='bed'){
+   part(0,.28,0,w,.34,d);part(0,.57,-d/2+.1,w,.56,.18);
+   part(0,.50,.20,w-.12,.14,d-.5,colorMat('#ded6cc'));return;
+  }
+  if(type==='cabinet'){
+   part(0,h/2,0,w,h,d);
+   for(let x=-w/2+.5;x<w/2;x+=.55)
+    part(x,h/2,d/2+.015,.018,h-.08,.02,colorMat('#9e8d78'));
+   return;
+  }
+  if(type==='chair'){
+   part(0,.42,0,w,.26,d);part(0,.81,-d/2+.07,w,.62,.17);return;
+  }
+  part(0,h,0,w,.10,d);
+  for(const x of [-w/2+.13,w/2-.13])for(const z of [-d/2+.13,d/2-.13])
+   part(x,h/2,z,.10,h,.10,colorMat('#555a57'));
+ }
  try{
   for(const p of geometry.floors)syncedBox(group,p,colorMat(p.color));
-  for(const p of geometry.segments)syncedBox(group,p,wallMat);
+  for(const p of geometry.segments){
+   // Same six-sided material convention as editor buildWall.
+   const side=p.sideColors;
+   const wallFaces=side?[
+    wallMat,wallMat,wallMat,wallMat,colorMat(side.negative),colorMat(side.positive)
+   ]:wallMat;
+   syncedBox(group,p,wallFaces);
+  }
   for(const op of geometry.openings){
    if(op.type==='passage')continue;
    const root=new THREE.Group();
@@ -2445,6 +2489,7 @@ function buildSyncedArchitecture(input){
    }else syncedBox(group,p,stairMat);
   }
   for(const p of geometry.slabs)syncedBox(group,p,stairMat);
+  for(const item of geometry.furniture)addSyncedFurniture(item);
  }catch(err){
   group.traverse(o=>{if(o.isMesh)o.geometry?.dispose()});
   for(const m of [wallMat,floorMat,stairMat,frameMat,glassMat,doorMat,...Object.values(cache)])m.dispose();
@@ -2459,11 +2504,13 @@ function buildSyncedArchitecture(input){
  document.body.dataset.architectureWallCount=String(geometry.counts.walls);
  document.body.dataset.architectureDisplayYOffset=String(-geometry.elevation);
  document.body.dataset.architectureOpenings=String(geometry.counts.openings);
+ document.body.dataset.architectureFurniture=String(geometry.furniture.length);
+ document.body.dataset.architectureFinishMode='editor';
  document.body.dataset.architectureFirstWall=geometry.segments[0]?.x.toFixed(4)||'';
  syncedArchitectureActive=true;
  E('legacyArchitecture').hidden=false;E('syncedArchitecture').hidden=true;
  overview();
- E('status').textContent='Синхронная архитектура · размеры из редактора · '+geometry.counts.walls+' стен';
+ E('status').textContent='Синхронная архитектура · '+geometry.counts.walls+' стен · '+geometry.furniture.length+' предметов мебели';
  return geometry;
 }
 E('syncedArchitecture').onclick=()=>{
