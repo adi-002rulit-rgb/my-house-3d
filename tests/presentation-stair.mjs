@@ -27,6 +27,15 @@ assert.equal(g.treads.filter(t=>t.kind==='winder').length,6);
 assert.equal(g.treads.filter(t=>t.flight===3).length,6);
 assert.equal(g.slabs.filter(t=>t.kind==='stair-slab').length,1);
 assert.match(showroom,/stairsGroup\.visible=false/);
+assert.match(showroom,/const approvedStairFinish=finish\('stone','#e4ded5',1\.35,\.54\)/);
+assert.match(showroom,/const approvedStairConcrete=finish\('stone','#d3ccc2',1\.05,\.86\)/);
+assert.match(showroom,/function addApprovedStairRiser\(t,top,base\)/);
+assert.match(showroom,/addApprovedStairRiser\(t,top,base\)/);
+assert.match(showroom,/document\.body\.dataset\.presentationStairFinish='stone-satin-v1'/);
+assert.equal(g.treads.filter(t=>t.kind==='tread').length,14,
+ 'only 14 rectangular steps should get extra finishing, 6 winders remain untouched');
+assert.ok(g.treads.filter(t=>t.kind==='tread').every(t=>t.w>.025&&t.d>.025),
+ 'finish placement requires positive inboard clearance');
 assert.match(showroom,/document\.body\.dataset\.presentationStair='editor-approved'/);
 assert.match(showroom,/import \{APPROVED_HOUSE_V1\} from '\.\/shared\/approved-house-v1\.mjs'/);
 console.log('PASS: cold-start presentation uses exact editor staircase snapshot, no geometry drift');
