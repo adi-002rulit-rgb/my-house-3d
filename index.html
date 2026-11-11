@@ -434,6 +434,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <option value="bedroomWindowOutside">Окно спальни · снаружи</option>
 <option value="stair">Лестница</option>
 <option value="stairDoor">Лестница · проход к кладовой</option>
+<option value="leftPassage">Лестница · левый проход в спальню</option>
 <option value="courtyard">Двор</option>
 </select>
 <div class="showGrid">
@@ -2004,10 +2005,19 @@ function clientCamera(v){
  }
  else if(v==='stairDoor'){
    enter('stair');
-   // Look diagonally down the cleared ~0.9m walkway toward the wardrobe door.
-   camera.position.set(13.05,1.65,-1.19);
-   yaw=-.53;pitch=-.08;camera.rotation.set(pitch,yaw,0,'YXZ');
-   E('status').textContent='Лестница: правый проход к кладовой свободен';
+   // Stand in the corridor rather than beside the wardrobe wall.
+   // The former x=13.05 camera mostly displayed the wall at arm's length.
+   camera.position.set(11.75,1.65,-1.25);
+   yaw=-.85;pitch=-.03;camera.rotation.set(pitch,yaw,0,'YXZ');
+   E('status').textContent='Лестница · правый проход к кладовой, без преград';
+ }
+ else if(v==='leftPassage'){
+   enter('stair');
+   // Source passage centre is x=9.525, z=-2.07, width .95m.
+   // Face it from the open hall, without standing inside the wall.
+   camera.position.set(11.30,1.65,-1.42);
+   yaw=1.25;pitch=0;camera.rotation.set(pitch,yaw,0,'YXZ');
+   E('status').textContent='Лестница · открытый левый проход в спальню · 95 см';
  }
  else if(v==='bedroomWindowInside'){
    enter('bedroom');
