@@ -154,13 +154,22 @@ try{
   });
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.87);
   await page.locator('#viewA').evaluate(el=>el.click());
-  const restoreDetails=await page.evaluate(()=>({
-   toast:document.getElementById('toast')?.textContent,
-   currentView:document.getElementById('clientView')?.value,
-   preset:((d)=>d?{style:d.style,view:d.view,furnitureDesign:d.furnitureDesign,
-      bedDoor:d.doors?.bedroom,layoutCount:d.furnitureLayout?.items?.length}:null)(
-       JSON.parse(localStorage.getItem('my-house-3d-presets-v1')||'{}')?.a)
-  }));
+  const restoreDetails=await page.evaluate(async()=>{
+   const d=JSON.parse(localStorage.getItem('my-house-3d-presets-v1')||'{}')?.a;
+   const furniture=await import('/shared/presentation-furniture.mjs');
+   const doors=await import('/shared/furniture-door-clearance.mjs');
+   const migrated=d?.furnitureLayout?furniture.migrateFurnitureLayout(d.furnitureLayout.items):null;
+   return {
+    toast:document.getElementById('toast')?.textContent,
+    currentView:document.getElementById('clientView')?.value,
+    preset:d?{style:d.style,view:d.view,furnitureDesign:d.furnitureDesign,
+     bedDoor:d.doors?.bedroom,layoutCount:d.furnitureLayout?.items?.length,
+     stair:d.stair,design2026:d.design2026,wall:d.wall,floor:d.floor,tile:d.tile,
+     fabric:d.fabric,curtains:d.curtains,moldings:d.moldings,lighting:d.lighting}:null,
+    safety:migrated?furniture.layoutSafetyAudit(migrated):'migration failed',
+    doors:migrated?doors.doorFurnitureAudit(migrated,d.doors):null
+   };
+  });
   assert.equal(await page.locator('body').getAttribute('data-furniture-design'),'minimal',
    JSON.stringify(restoreDetails));
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').x,4.82);
