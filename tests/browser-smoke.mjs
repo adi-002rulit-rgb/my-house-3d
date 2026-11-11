@@ -157,6 +157,10 @@ try{
   assert.equal((await storage()).items.find(x=>x.id==='livingSofa').rot,195);
   // Collision with sofa must be rejected without modifying persisted state.
   await page.locator('#furnitureChoice').selectOption('livingChairL');
+  await page.locator('#furnitureZ').evaluate(el=>{
+   el.value='3.6';el.dispatchEvent(new Event('input',{bubbles:true}));
+  });
+  assert.equal((await storage()).items.find(x=>x.id==='livingChairL').z,3.6);
   await page.locator('#furnitureX').evaluate(el=>{
    el.value='4.6';el.dispatchEvent(new Event('input',{bubbles:true}));
   });
