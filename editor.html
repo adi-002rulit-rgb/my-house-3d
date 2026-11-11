@@ -299,7 +299,7 @@ body.focus3d #focusView{background:#467a6c}
 @media(max-width:480px){body.focus3d .center{height:calc(100dvh - 110px);min-height:320px}}
 </style></head><body>
 <header><div><strong>ADKH HOUSE · РЕДАКТОР</strong><small>Параметрический план 2D + синхронная модель 3D · прототип V6.6</small></div>
-<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="shareProject" title="Отправить JSON через меню iPhone">📤 Поделиться</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
+<div class="right"><button id="undo" title="Ctrl+Z">↶ Отмена</button><button id="redo" title="Ctrl+Y">↷ Повтор</button><button id="focusView" title="Скрыть панели и увеличить 3D-сцену">📱 Большой 3D</button><button id="save" class="primary">💾 Сохранить</button><button id="snapshot" title="Контрольная копия в браузере">📌 Копия</button><button id="restoreSnapshot" title="Вернуть контрольную копию">↶ К копии</button><button id="restoreEmergency" title="Восстановление после импорта или сброса">🛟 Восстановить</button><button id="export">↓ JSON</button><button id="sharedExport" title="Единый формат проекта для редактора и презентации">⇄ Общий JSON</button><button id="shareProject" title="Отправить JSON через меню iPhone">📤 Поделиться</button><button id="import">↑ Загрузить</button><button id="restoreDefault" title="Вернуть исходный пример после подтверждения">↺ Исходный план</button><a href="./?v=55"><button>← Презентация</button></a></div></header>
 <div class="shell">
 <aside class="left">
 <section><h2>Инструменты</h2><div class="actions">
@@ -371,6 +371,7 @@ body.focus3d #focusView{background:#467a6c}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {TransformControls} from 'three/addons/controls/TransformControls.js';
+import {createSharedProject,SHARED_STORAGE_KEY} from './shared/project-contract.mjs';
 const $=id=>document.getElementById(id);
 const STORAGE='adkh-house-parametric-editor-v1';
 const CHECKPOINT=STORAGE+'-checkpoint-v1';
@@ -521,13 +522,20 @@ function replaceProjectSafely(next,backupKey){
   throw Error('Замена отменена: '+err.message);
  }
  state=next;selected=null;history=[nextText];historyAt=0;
- syncActions();refreshAll();fitPlan();
+ syncActions();refreshAll();fitPlan();publishSharedSnapshot();
+}
+function publishSharedSnapshot(){
+ try{
+  const value=JSON.stringify(createSharedProject(state));
+  writeVerified(SHARED_STORAGE_KEY,value);
+  return true;
+ }catch(err){status('Редактор сохранён, но общая копия не обновлена: '+err.message);return false}
 }
 function saveState(){
  try{
   validate(state);
   writeVerified(STORAGE,JSON.stringify(state));
-  status('✓ Сохранено в браузере · экспорт JSON для внешней копии');
+  if(publishSharedSnapshot())status('✓ Сохранено в браузере и в общей модели · экспорт JSON для внешней копии');
   return true;
  }catch(e){status('Ошибка сохранения: '+e.message+' · скачай JSON, чтобы не потерять изменения');return false}
 }
@@ -1744,6 +1752,14 @@ function downloadProjectFile(file){
  a.href=url;a.download=file.name;document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
+$('sharedExport').onclick=()=>{
+ try{
+  const payload=JSON.stringify(createSharedProject(state),null,2);
+  const file=new File([payload],'ADKH-House-shared-v1.json',{type:'application/json'});
+  downloadProjectFile(file);
+  status('Общий JSON экспортирован; презентация может прочитать его без изменения собственной геометрии');
+ }catch(err){status('Ошибка общего экспорта: '+err.message)}
+};
 $('export').onclick=()=>{
  try{downloadProjectFile(projectFile())}
  catch(err){status('Ошибка экспорта: '+err.message)}
@@ -1923,5 +1939,5 @@ try{
  }catch(_){}
  status('Ошибка загрузки сохранённого проекта: '+e.message+' · неисправный JSON сохранён отдельно');
 }
-history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();tick();
+history=[JSON.stringify(state)];historyAt=0;syncActions();refreshAll();fitPlan();publishSharedSnapshot();tick();
 </script></body></html>

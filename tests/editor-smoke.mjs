@@ -65,6 +65,8 @@ function storageHarness(failKey=null){
   const STORAGE='house-test',CHECKPOINT='house-checkpoint',BEFORE_IMPORT='house-before-import';
   let state=structuredClone(original),selected='room',history=[JSON.stringify(state)],historyAt=0;
   const syncActions=()=>{},refreshAll=()=>{},fitPlan=()=>{};
+  const status=()=>{},createSharedProject=model=>({format:'adkh-house-project',formatVersion:1,model});
+  const SHARED_STORAGE_KEY='house-shared';
   ${storageTestCode}
   return {replaceProjectSafely,getState:()=>state, getHistory:()=>history};
  `);
