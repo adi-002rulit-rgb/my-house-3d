@@ -2536,6 +2536,16 @@ function changeWoodFloor(){
     m.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.83;
     m.metalness=0;m.needsUpdate=true;
   }
+  // The detached summer-kitchen floor also uses this shared legacy material.
+  const shared= floorFinishes.wood;
+  const replacement=createFloorMap(THREE,renderer,{
+    color:woodChoices[clientFloor],pattern:floorPattern,cover:floorCover,
+    width:5.4,depth:9.5
+  });
+  if(shared.map)shared.map.dispose();
+  shared.map=replacement;shared.color.set('#ffffff');
+  shared.metalness=0;shared.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.83;
+  shared.needsUpdate=true;
   E('floorSwatch').style.background=woodChoices[clientFloor];
   syncDesign();
 }
