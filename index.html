@@ -176,6 +176,27 @@ body.guided-mode #title{display:none!important}
  #guidedBar button,#guidedBar select{min-height:44px}
  #guidedBarTitle{bottom:76px;font-size:12px;max-width:90vw}
 }
+
+#furniturePanel{position:fixed;z-index:26;right:12px;top:110px;width:min(320px,calc(100vw - 24px));
+ padding:15px;border-radius:15px;background:#172832f5;color:#f8f0e4;
+ border:1px solid #d6ba835e;box-shadow:0 12px 35px #0006;font:13px system-ui}
+#furniturePanel[hidden]{display:none!important}
+#furniturePanel h3{font-size:16px;margin:0 0 7px}
+#furniturePanel p{font-size:11px;line-height:1.45;color:#d5cabc;margin:5px 0 12px}
+#furniturePanel label{display:block;margin:8px 0 4px;font-size:12px}
+#furniturePanel select,#furniturePanel input[type="range"]{width:100%;box-sizing:border-box}
+#furniturePanel select{background:#304653;color:#fff;border:1px solid #ffffff30;
+ border-radius:8px;padding:9px}
+#furniturePanel input{accent-color:#d1b081}
+#furniturePanel .furnitureActions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px}
+#furniturePanel button,#furnitureLaunch{border-radius:9px;border:1px solid #ffffff42;
+ background:#354d59;color:#fff4df;padding:9px 10px;cursor:pointer}
+#furniturePanel button:focus-visible,#furnitureLaunch:focus-visible{outline:2px solid #ebc388}
+#furniturePosition{color:#dfbb7e;font-variant-numeric:tabular-nums;font-size:11px}
+#furnitureLaunch{position:fixed;z-index:23;right:12px;bottom:15px}
+body.guided-mode #furnitureLaunch,body.guided-mode #furniturePanel{display:none!important}
+@media(max-width:760px){#furniturePanel{top:80px;right:8px;max-height:68dvh;overflow:auto}
+ #furnitureLaunch{right:10px;bottom:85px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
 </head><body>
@@ -193,6 +214,28 @@ body.guided-mode #title{display:none!important}
  <button id="guidedFull" type="button">⛶ Экран</button>
 </div>
 <div id="guidedBarTitle" role="status" aria-live="polite" hidden></div>
+<button type="button" id="furnitureLaunch" aria-expanded="false" title="Выбрать, переместить и сохранить предметы мебели">▣ Мебель</button>
+<section id="furniturePanel" hidden aria-label="Расстановка мебели">
+ <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+ <h3>Расстановка мебели</h3><button id="furnitureClose" type="button" aria-label="Закрыть">✕</button></div>
+ <p>Выбери предмет, затем перетащи его мышью на общем виде сверху. Точные координаты и поворот можно настроить ниже. Стены, проёмы и лестница заблокированы.</p>
+ <label for="furnitureChoice">Предмет</label>
+ <select id="furnitureChoice"></select>
+ <label for="furnitureX">По горизонтали X <output id="furnitureXLabel"></output></label>
+ <input type="range" id="furnitureX" min="0" max="19" step=".05">
+ <label for="furnitureZ">По глубине Z <output id="furnitureZLabel"></output></label>
+ <input type="range" id="furnitureZ" min="-5.5" max="5.5" step=".05">
+ <label for="furnitureRotation">Поворот <output id="furnitureRotationLabel"></output></label>
+ <input type="range" id="furnitureRotation" min="0" max="345" step="15">
+ <div id="furniturePosition" role="status"></div>
+ <div class="furnitureActions">
+  <button id="furnitureOverview" type="button">▦ Вид сверху</button>
+  <button id="furnitureReset" type="button">↺ Сбросить</button>
+  <button id="furnitureExport" type="button">↓ JSON</button>
+  <button id="furnitureImport" type="button">↑ Загрузить JSON</button>
+ </div>
+ <input type="file" id="furnitureImportFile" accept=".json,application/json" hidden>
+</section>
 <div id="loading"><span>🏡<br>Загружаем объёмный проект дома…</span></div><div id="error">Не удалось загрузить 3D-движок. Открой ссылку в Safari или Chrome с доступом в интернет и обнови страницу.</div>
 <div id="title"><strong>Дом · дизайн-презентация · V55</strong><small id="status">Первый этаж · объёмный обзор</small></div>
 <div id="controls"><button class="active" id="overview">⌂ Обзор</button><button id="inside">◉ Внутри</button><button id="roof">▱ Крыша</button><button id="reset" title="Вернуться к общему обзору">↺</button></div>
