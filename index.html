@@ -2638,7 +2638,7 @@ function setGuidedMode(value){
 }
 guidedEl('Launch').onclick=()=>setGuidedMode(true);
 guidedEl('Exit').onclick=()=>setGuidedMode(false);
-guidedEl('Views').onchange=e=>{guidedStop();guidedGo(guidedRoutes.findIndex(r=>r.id===e.target.value))};
+guidedEl('Views').onchange=e=>{const id=e.target.value;guidedStop();guidedGo(guidedRoutes.findIndex(r=>r.id===id))};
 guidedEl('Prev').onclick=()=>{guidedStop();guidedGo(guidedIndex-1)};
 guidedEl('Next').onclick=()=>{guidedStop();guidedGo(guidedIndex+1)};
 guidedEl('Play').onclick=()=>{
