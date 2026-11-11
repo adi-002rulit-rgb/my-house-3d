@@ -84,6 +84,10 @@ try{
   for(const style of styles){
    await page.locator('#furnitureDesign').selectOption(style);
    assert.equal(await page.locator('body').getAttribute('data-furniture-design'),style);
+   const profiles={minimal:'low-modular',warm:'rounded-cushions',
+    classic:'framed-rolled',graphite:'floating-linear'};
+   assert.equal(await page.locator('body').getAttribute('data-furniture-profile'),
+    profiles[style],'real furniture silhouette must change');
    assert.equal(await page.evaluate(()=>localStorage.getItem('adkh-house-furniture-design-v1')),style);
    await page.screenshot({path:'artifacts/furniture-design-'+style+'-'+mode+'.png'});
   }
