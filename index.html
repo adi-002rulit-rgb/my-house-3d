@@ -639,6 +639,7 @@ import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 import {presentationDoorSpecs,normalizedDoorSwing,doorLeafPose} from './shared/presentation-doors.mjs';
 import {FURNITURE_LAYOUT_VERSION,freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,migrateFurnitureLayout,furnitureFitsRoom,kitchenLayoutAudit,layoutSafetyAudit} from './shared/presentation-furniture.mjs';
+import {doorFurnitureAudit} from './shared/furniture-door-clearance.mjs';
 import {FURNITURE_DESIGNS,DEFAULT_FURNITURE_DESIGN,furnitureDesignIds,isFurnitureDesign,furnitureFinish} from './shared/furniture-designs.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
@@ -1229,7 +1230,7 @@ function changePresentationFurniture(id,values){
  const candidate={...presentationFurniture[pos],...values};
  if(!furnitureFitsRoom(candidate))return false;
  const proposed=presentationFurniture.map((it,i)=>i===pos?candidate:it);
- if(!layoutSafetyAudit(proposed).ok)return false;
+ if(!layoutSafetyAudit(proposed).ok||!doorFurnitureAudit(proposed,doorAssignments).ok)return false;
  presentationFurniture[pos]=candidate;
  updatePresentationFurniture(candidate);
  savePresentationFurniture();
@@ -1326,7 +1327,8 @@ E('furnitureImportFile').onchange=async e=>{
      ![1,FURNITURE_LAYOUT_VERSION].includes(obj.version))
     throw Error('Неподходящий файл расстановки');
   const imported=migrateFurnitureLayout(obj.items);
-  if(!imported||!layoutSafetyAudit(imported).ok)throw Error('Неверные размеры или пересечение мебели и проходов');
+  if(!imported||!layoutSafetyAudit(imported).ok||!doorFurnitureAudit(imported,doorAssignments).ok)
+   throw Error('Неверные размеры или мебель пересекает проход, дверь или другой предмет');
   presentationFurniture=imported;
   for(const item of presentationFurniture)updatePresentationFurniture(item);
   savePresentationFurniture();refreshFurnitureControls();
@@ -2178,14 +2180,20 @@ function syncDoorControls(){
  ' · '+E('clientDoorColor').selectedOptions[0].textContent;
 }
 function setDoorDetail(property,value){
+ const proposed=Object.fromEntries(Object.entries(doorAssignments).map(([room,config])=>
+  [room,{...config}]));
  for(const spec of roomDoorSpecs){
   if(chosenDoorRoom==='all'||chosenDoorRoom===spec.room){
-   const cfg=doorAssignments[spec.room];
+   const cfg=proposed[spec.room];
    if(['hinge','swing','angle'].includes(property))Object.assign(cfg,
     normalizedDoorSwing(spec.room,{...cfg,[property]:value}));
    else cfg[property]=value;
   }
  }
+ if(!doorFurnitureAudit(presentationFurniture,proposed).ok){
+  toast('Дверь пересекает мебель — сначала освободи место');syncDoorControls();return;
+ }
+ for(const room of Object.keys(proposed))Object.assign(doorAssignments[room],proposed[room]);
  rebuildClientDoors();syncDoorControls();saveCurrentDesign();
 }
 E('clientDoorTarget').onchange=e=>{chosenDoorRoom=e.target.value;syncDoorControls()};
@@ -2564,7 +2572,8 @@ function validConcept(d){
  &&(d.furnitureDesign===undefined||isFurnitureDesign(d.furnitureDesign))
  &&(d.furnitureLayout===undefined||(
   [1,FURNITURE_LAYOUT_VERSION].includes(d.furnitureLayout?.version)&&
-  !!migrateFurnitureLayout(d.furnitureLayout?.items)))
+  !!migrateFurnitureLayout(d.furnitureLayout?.items)&&
+  doorFurnitureAudit(migrateFurnitureLayout(d.furnitureLayout.items),d.doors||doorAssignments).ok))
  &&(!d.stair||(validStairSettings(d.stair)&&stairGeometryCheck(d.stair).allowed))
  &&(!d.fabric||Object.prototype.hasOwnProperty.call(fabricOptions,d.fabric))
  &&(!d.curtains||Object.prototype.hasOwnProperty.call(curtainOptions,d.curtains))
