@@ -79,6 +79,8 @@ try{
    assert.equal(await page.locator('#pane2d').evaluate(x=>getComputedStyle(x).display),'none');
    await page.screenshot({path:'artifacts/mobile-focus-3d.png'});
   }
+  // Focus mode intentionally hides export buttons: leave it before exporting.
+  if(isMobile)await page.locator('#focusView').click();
   // Editor publishes an actual shared contract snapshot without changing geometry.
   const shared=await page.evaluate(()=>JSON.parse(localStorage.getItem('adkh-house-shared-project-v1')));
   assert.equal(shared.format,'adkh-house-project');
