@@ -434,6 +434,7 @@ body:not(.technical) #studio button{min-width:100px;padding:10px}
 <option value="bedroomWindowOutside">Окно спальни · снаружи</option>
 <option value="stair">Лестница</option>
 <option value="stairDoor">Лестница · проход к кладовой</option>
+<option value="leftPassage">Лестница · левый проход в спальню</option>
 <option value="courtyard">Двор</option>
 </select>
 <div class="showGrid">
@@ -524,6 +525,8 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
+import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
+import {staircaseLayout} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -667,7 +670,10 @@ const uniq=[...new Set(bounds.map(v=>Math.round(v*10000)/10000))];
 function piece(start,end,low,high,m){if(end-start<.035||high-low<.04)return;let cx=axis==='x'?x1+sign*(start+end)/2:x1;let cz=axis==='z'?z1+sign*(start+end)/2:z1;box(model,cx,(low+high)/2,cz,axis==='x'?end-start:thickness,high-low,axis==='z'?end-start:thickness,m);if(low<1.1&&high>.1){const rx=(axis==='x'?end-start:thickness)/2,rz=(axis==='z'?end-start:thickness)/2;collisionWalls.push({minX:cx-rx,maxX:cx+rx,minZ:cz-rz,maxZ:cz+rz})}}
 for(let i=0;i<uniq.length-1;i++){let start=uniq[i],end=uniq[i+1],center=(start+end)/2,o=openings.find(p=>center>p.at&&center<p.at+p.width);
 if(!o)piece(start,end,0,H,material);
-else if(o.kind==='door'){piece(start,end,2.35,H,material);
+else if(o.kind==='door'||o.kind==='passage'){
+ const head=o.head??2.35;
+ piece(start,end,head,H,material);
+ if(o.kind==='passage')continue;
 if(x1>=0&&x1<=19.03&&x2>=0&&x2<=19.03){
  const pc=(start+end)/2;
  archDoorCenters.push({x:axis==='x'?x1+sign*pc:x1,z:axis==='z'?z1+sign*pc:z1,width:end-start,axis});
@@ -769,7 +775,7 @@ const archDoorCenters=[];
 // not the rear of the main house. Retain other rear-facing openings unchanged.
 segmented(.2,-5.5,18.83,-5.5,[
 {at:6.55,width:1.05,kind:'window'}, // bathroom
-{at:10.53,width:1.65,kind:'window',sill:1.82,head:3.52}, // stairwell: high TWO-PANE window behind upper flight; size/height visually estimated from built-house photo
+approvedOpeningSpec('stairWindow',.2,-5.5,18.83,-5.5), // stairwell: high TWO-PANE window behind upper flight; size/height visually estimated from built-house photo
 {at:15.5,width:1.65,kind:'window'}],exteriorInteriorFaces('back'),.4);
 // Courtyard frontage confirmed on detailed plan IMG_6662:
 // living room 1650 + 2300 + 1100 + 2300 + 1650 = 9000 mm;
@@ -777,22 +783,22 @@ segmented(.2,-5.5,18.83,-5.5,[
 // kitchen 955 + 3000 + 955 = 4910 mm.
 // 'at' is measured relative to x=.20, the exterior wall segment start.
 segmented(.2,5.5,18.83,5.5,[
-{at:1.85,width:2.30,kind:'window',sill:.28,head:3.19,transom:true}, // living 1: low glazing, 2.91 m tall; provisional vertical levels from photo
-{at:5.25,width:2.30,kind:'window',sill:.28,head:3.19,transom:true}, // living 2: same low sill and tall glazing
-{at:10.21,width:2.30,kind:'door',glass:true}, // entrance x=10.41..12.71
-{at:14.475,width:3.00,kind:'window',sill:.28,head:3.19,transom:true} // ONLY kitchen window x=14.675..17.675; same low sill + tall glazing as living room
+approvedOpeningSpec('livingW1',.2,5.5,18.83,5.5,{transom:true}), // living 1: low glazing, 2.91 m tall; provisional vertical levels from photo
+approvedOpeningSpec('livingW2',.2,5.5,18.83,5.5,{transom:true}), // living 2: same low sill and tall glazing
+approvedOpeningSpec('frontEntry',.2,5.5,18.83,5.5,{glass:true}), // entrance x=10.41..12.71
+approvedOpeningSpec('kitchenW',.2,5.5,18.83,5.5,{transom:true}) // ONLY kitchen window x=14.675..17.675; same low sill + tall glazing as living room
 ],exteriorInteriorFaces('front'),.4);
 // Bedroom's ONE window is moved to the west (left) exterior wall.
 // Provisional width 1.65m carried over from the earlier model; exact new-plan
 // dimensions and vertical elevation still require confirmation.
 segmented(.2,-5.5,.2,5.5,[
-{at:1.45,width:1.65,kind:'window'} // bedroom: z=-4.05 ... -2.40
+approvedOpeningSpec('bedWindow',.2,-5.5,.2,5.5) // approved bedroom west window
 ],exteriorInteriorFaces('left'),.4); // west external 400mm
 // Presentation-only outline of the revised west bedroom window.
 // Shown ONLY in dedicated window-inspection camera views, never on normal client views.
 const bedroomWindowFocus=new THREE.Group();model.add(bedroomWindowFocus);
 const focusMaterial=new THREE.MeshBasicMaterial({color:'#e8ac4b',depthTest:false,depthWrite:false});
-const bedroomWindowZ=-3.225;
+const bedroomWindowZ=approvedOpeningsAudit().find(o=>o.id==='bedWindow').z;
 const outlines=[
  [.2,.83,bedroomWindowZ,.53,.045,1.72],
  [.2,2.40,bedroomWindowZ,.53,.045,1.72],
@@ -816,18 +822,18 @@ segmented(.4,-.9,9.6,-.9,[],interiorMats.dove,.4); // 400mm front/rear partition
 // Left front hall wall = 9.40..9.80 (400 mm); rear bath/stair wall = 9.40..9.65 (250 mm).
 // Corridor living-room doorway: only one at z≈2.0; left rear vestibule has its separate opening.
 segmented(9.525,-5.5,9.525,-1.05,[
- {at:3.13,width:1.13,kind:'door',leaf:false} // left vestibule opening from stair hall
+ approvedOpeningSpec('stairArch',9.525,-5.5,9.525,-1.05) // open 0.95m passage; do not draw door frame
 ],interiorMats.cashmere,.25);
 segmented(9.6,-1.05,9.6,5.5,[
- {at:3.05,width:1.40,kind:'door',leaf:false} // ONLY living room entrance: double door, two 700 mm leaves
+ approvedOpeningSpec('livingD',9.6,-1.05,9.6,5.5,{leaf:false}) // approved 1.40m opening
 ],interiorMats.cashmere,.4);
 // Right front hall wall = 13.32..13.72 (400 mm).
 // Right rear stair/wardrobe partition = 13.47..13.72 (250 mm).
 segmented(13.595,-5.5,13.595,-1.05,[
- {at:3.14,width:1.12,kind:'door',leaf:false} // wardrobe opening toward stair hall
+ approvedOpeningSpec('wardrobeD',13.595,-5.5,13.595,-1.05,{leaf:false}) // approved wardrobe door
 ],interiorMats.linen,.25);
 segmented(13.52,-1.05,13.52,5.5,[
- {at:2.35,width:1.40,kind:'door',leaf:false} // ONLY kitchen entrance: double door, two 700 mm leaves
+ approvedOpeningSpec('kitchenD',13.52,-1.05,13.52,5.5,{leaf:false}) // approved 1.40m kitchen door
 ],interiorMats.linen,.4);
 // Full open axis from entrance to staircase: no cross-wall between x=9.6 and 13.52.
 // Only the right-side wardrobe/kitchen divider remains, with its room door.
@@ -835,16 +841,30 @@ segmented(13.52,-1.05,13.52,5.5,[
 // Rear wall toward the wardrobe is completely solid; no secondary kitchen doorway.
 segmented(13.72,-.975,18.63,-.975,[],interiorMats.char,.25); // kitchen/wardrobe 250mm wall
 // Bedroom opens from the LEFT circulation passage, not through a blocking stair wall.
-segmented(5.725,-5.5,5.725,-1.05,[{at:3.43,width:.95,kind:'door',leaf:false}],interiorMats.cashmere,.25); // bedroom / vestibule 250mm wall
+segmented(5.725,-5.5,5.725,-1.05,[approvedOpeningSpec('bedD',5.725,-5.5,5.725,-1.05,{leaf:false})],interiorMats.cashmere,.25); // bedroom / vestibule 250mm wall
 // REMOVED: this longitudinal wall crossed the bathroom and left vestibule on the 19.03 x 11.40 ground-floor plan.
 // Four-way upper lobby surrounding staircase, access to bedroom/bath/wardrobe
 // Bath wall remains, but accessible passage and stair junction stay open.
  // The short dividing wall contains only the bathroom access door.
 // Bathroom is 3.55m wide by 2.50m deep. Its front wall separates the bathroom
 // from the open left-side distribution vestibule; enter via an unobstructed doorway.
-segmented(5.85,-2.675,9.4,-2.675,[{at:1.45,width:1.0,kind:'door',leaf:false}],interiorMats.linen,.25); // bathroom front 250mm
+segmented(5.85,-2.675,9.4,-2.675,[approvedOpeningSpec('bathD',5.85,-2.675,9.4,-2.675,{leaf:false})],interiorMats.linen,.25); // bathroom front 250mm
 // Floor for the small vestibule joining bedroom, bathroom and the stair hall.
 slab(7.62,-1.91,3.55,1.20,floorFinishes.tile,.068);
+// Inspection-only attributes: used for automated parity checks, never affect geometry.
+const approvedApertureAudit=approvedOpeningsAudit();
+const presentationOpenings=['livingD','kitchenD','wardrobeD','bedD','bathD','frontEntry'];
+document.body.dataset.approvedDoorCount=String(presentationOpenings.length);
+document.body.dataset.approvedPassageWidth=String(
+ approvedApertureAudit.find(o=>o.id==='stairArch').width);
+document.body.dataset.approvedPassageHead=String(
+ approvedApertureAudit.find(o=>o.id==='stairArch').head);
+document.body.dataset.showroomDoorError=Math.max(...presentationOpenings.map(id=>{
+ const expected=approvedApertureAudit.find(o=>o.id===id);
+ const observed=archDoorCenters.find(o=>Math.hypot(o.x-expected.x,o.z-expected.z)<.002);
+ return observed?Math.hypot(observed.x-expected.x,observed.z-expected.z):999;
+})).toFixed(4);
+
 // Low-profile plaster wall finish sample zones, on existing interior walls only.
 // Small, flush panels add depth without creating a new partition or blocking any entrance.
 box(model,2.85,1.65,-.825,3.45,2.80,.025,interiorMats.mushroom,false); // living accent wall
@@ -1130,6 +1150,15 @@ function addApprovedStair(){
    approvedStairConcrete,false);
   slab.userData.editorId=p.id;
  }
+ // The editor finishes its upper-storey slab at the return flight with a
+ // 20cm transition edge. Show only this detail, not the full upper floor
+ // (the latter would cover the entire staged cutaway interior from above).
+ const g=staircaseLayout(source,approvedStairSource.model.height);
+ const exitZ=g.front+Math.max(source.lower,g.backRun*g.visibleLastN/g.lastN);
+ const lip=box(approvedStairGroup,g.left+g.w/2,
+  approvedStairGeometry.elevation+approvedStairSource.model.height+.013,
+  exitZ+.10,Math.max(.15,g.w-.04),.022,.20,approvedStairConcrete,false);
+ lip.userData.editorId='upper-stair-transition';
  if(approvedStairGroup.children.length<25)throw Error('Incomplete approved staircase');
  stairsGroup.visible=false;
  document.body.dataset.presentationStair='editor-approved';
@@ -1976,10 +2005,19 @@ function clientCamera(v){
  }
  else if(v==='stairDoor'){
    enter('stair');
-   // Look diagonally down the cleared ~0.9m walkway toward the wardrobe door.
-   camera.position.set(13.05,1.65,-1.19);
-   yaw=-.53;pitch=-.08;camera.rotation.set(pitch,yaw,0,'YXZ');
-   E('status').textContent='Лестница: правый проход к кладовой свободен';
+   // Stand in the corridor rather than beside the wardrobe wall.
+   // The former x=13.05 camera mostly displayed the wall at arm's length.
+   camera.position.set(11.75,1.65,-1.25);
+   yaw=-.85;pitch=-.03;camera.rotation.set(pitch,yaw,0,'YXZ');
+   E('status').textContent='Лестница · правый проход к кладовой, без преград';
+ }
+ else if(v==='leftPassage'){
+   enter('stair');
+   // Source passage centre is x=9.525, z=-2.07, width .95m.
+   // Face it from the open hall, without standing inside the wall.
+   camera.position.set(11.10,1.65,-2.07);
+   yaw=Math.PI/2;pitch=0;camera.rotation.set(pitch,yaw,0,'YXZ');
+   E('status').textContent='Лестница · открытый левый проход в спальню · 95 см';
  }
  else if(v==='bedroomWindowInside'){
    enter('bedroom');

@@ -27,6 +27,23 @@ try{
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair'),'editor-approved');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-source'),'stair1');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-treads'),'20');
+  assert.equal(await page.locator('body').getAttribute('data-approved-door-count'),'6');
+  assert.equal(await page.locator('body').getAttribute('data-approved-passage-width'),'0.95');
+  assert.equal(await page.locator('body').getAttribute('data-approved-passage-head'),'2.99');
+  assert.equal(await page.locator('body').getAttribute('data-showroom-door-error'),'0.0000',
+   'Legacy presentation openings must align with the approved door centers');
+  // Named camera poses capture architectural issues at useful scale.
+  // No internal scene edits: public UI camera routes only.
+  for(const cameraView of ['stair','stairDoor','leftPassage','bedroomWindowInside','bedroomWindowOutside','kitchenWindow']){
+   await page.evaluate(view=>{
+    const select=document.getElementById('clientView');
+    select.value=view;select.dispatchEvent(new Event('change',{bubbles:true}));
+   },cameraView);
+   await page.waitForTimeout(350);
+   await page.screenshot({path:'artifacts/3a-'+mode+'-'+cameraView+'.png'});
+  }
+  await page.evaluate(()=>document.getElementById('overview').click());
+
   assert.equal(await page.evaluate(()=>localStorage.getItem('adkh-house-shared-project-v1')),null,
    'new visitors must see the updated stair without importing any JSON');
   await page.screenshot({path:'artifacts/default-presentation-stair-'+mode+'.png'});
