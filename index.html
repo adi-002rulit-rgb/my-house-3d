@@ -2383,6 +2383,7 @@ function clearSyncedArchitecture(){
 function restoreLegacyArchitecture(){
  syncedArchitectureActive=false;
  clearSyncedArchitecture();model.visible=true;roofs.visible=roofMode.on;
+ E('roof').disabled=false;delete document.body.dataset.architectureMode;
  E('legacyArchitecture').hidden=true;
  E('syncedArchitecture').hidden=false;
  E('status').textContent='Исходная интерьерная презентация восстановлена';
@@ -2447,6 +2448,11 @@ function buildSyncedArchitecture(input){
  clearSyncedArchitecture();
  syncedArchitectureGroup=group;syncedGeometry=geometry;
  world.add(group);model.visible=false;roofs.visible=false;
+ E('roof').disabled=true;
+ document.body.dataset.architectureMode='synced';
+ document.body.dataset.architectureWallCount=String(geometry.counts.walls);
+ document.body.dataset.architectureOpenings=String(geometry.counts.openings);
+ document.body.dataset.architectureFirstWall=geometry.segments[0]?.x.toFixed(4)||'';
  syncedArchitectureActive=true;
  E('legacyArchitecture').hidden=false;E('syncedArchitecture').hidden=true;
  overview();
@@ -2500,7 +2506,17 @@ E('sharedProjectInput').onchange=async event=>{
  }finally{event.target.value=''}
 };
 window.addEventListener('storage',event=>{
- if(event.key===SHARED_STORAGE_KEY&&!E('sharedProjectPanel').hidden)showSharedProjectFromStorage();
+ if(event.key!==SHARED_STORAGE_KEY)return;
+ if(syncedArchitectureActive){
+  try{
+   if(!event.newValue)throw Error('Общий JSON удалён');
+   const updated=parseSharedProject(JSON.parse(event.newValue));
+   architectureGeometry(updated);
+   selectedSharedProject=updated;
+   buildSyncedArchitecture(updated);
+  }catch(err){toast('Синхронизация не применена: '+err.message)}
+ }
+ if(!E('sharedProjectPanel').hidden)showSharedProjectFromStorage();
 });
 animate(0);E('loading').style.display='none';
 </script></body></html>
