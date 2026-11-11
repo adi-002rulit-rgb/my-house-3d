@@ -13,8 +13,30 @@ const original=new Function(
 const before=JSON.stringify(original);
 const geometry=architectureGeometry(createSharedProject(original));
 assert.equal(JSON.stringify(original),before,'never mutate approved architecture');
-assert.deepEqual(geometry.counts,{walls:13,openings:12,rooms:7,stairs:1});
+assert.deepEqual(geometry.counts,{walls:13,openings:12,rooms:7,stairs:1,furniture:5});
 assert.equal(geometry.floors.length,7);
+assert.equal(geometry.furniture.length,original.furniture.length);
+assert.deepEqual(geometry.furniture.map(x=>x.id),original.furniture.map(x=>x.id));
+for(const item of original.furniture){
+ const projected=geometry.furniture.find(x=>x.id===item.id);
+ assert.ok(projected, 'missing furniture '+item.id);
+ for(const key of ['x','z','w','d','h','rot'])assert.equal(projected[key],item[key],item.id+' '+key);
+ assert.equal(projected.y,original.elevation);
+ assert.equal(projected.color,item.color);
+}
+for(const room of original.rooms){
+ const floor=geometry.floors.find(x=>x.id===room.id);
+ assert.equal(floor.color,room.floor);
+ assert.equal(floor.w,room.w);assert.equal(floor.d,room.h);
+}
+assert.ok(geometry.segments.every(w=>w.sideColors&&w.sideColors.positive.startsWith('#')
+ &&w.sideColors.negative.startsWith('#')), 'all wall faces carry editor paint colors');
+const newFurniture=structuredClone(original);newFurniture.furniture[0].x+=.35;
+const moved=architectureGeometry(createSharedProject(newFurniture));
+assert.equal(moved.furniture[0].x,original.furniture[0].x+.35);
+assert.equal(geometry.furniture[0].x,original.furniture[0].x,
+ 'moving an item must not mutate previous snapshots');
+
 assert.ok(geometry.segments.length>13);
 assert.equal(geometry.openings.length,12);
 assert.equal(geometry.openings.find(x=>x.id==='stairArch').type,'passage');
