@@ -27,4 +27,5 @@ jobs:
           node tests/guided-presentation.mjs
           node tests/presentation-furniture.mjs
           node tests/furniture-design-variants.mjs
+          node tests/technical-stabilization.mjs
           node tests/presentation-door-swing.mjs
