@@ -24,6 +24,42 @@ try{
   assert.equal(cold.status(),200,mode+' standalone showroom');
   await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
    null,{timeout:60000});
+  // Stage 3C: a visitor can start a clean, guided presentation immediately.
+  await page.locator('#guidedLaunch').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-view'),'overview');
+  assert.equal(await page.locator('#guidedBar').isHidden(),false);
+  assert.equal(await page.locator('#showroom').evaluate(e=>getComputedStyle(e).display),'none');
+  assert.equal(await page.locator('#guidedViews option').count(),10);
+  await page.locator('#guidedViews').selectOption('stair');
+  await page.waitForFunction(()=>document.body.dataset.guidedTransition==='false',
+   null,{timeout:6000});
+  assert.equal(await page.locator('body').getAttribute('data-guided-view'),'stair');
+  await page.screenshot({path:'artifacts/3c-guided-stair-'+mode+'.png'});
+  await page.locator('#guidedNext').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-view'),'stairUpper');
+  await page.waitForFunction(()=>document.body.dataset.guidedTransition==='false',
+   null,{timeout:6000});
+  await page.locator('#guidedReset').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-view'),'overview');
+  await page.locator('#guidedPlay').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'true');
+  await page.locator('#guidedStop').click();
+  assert.equal(await page.locator('body').getAttribute('data-guided-tour'),'false');
+  await page.locator('#guidedDay').click();
+  assert.match(await page.locator('#guidedDay').innerText(),/День/);
+  await page.locator('#guidedDay').click();
+  assert.match(await page.locator('#guidedDay').innerText(),/Вечер/);
+  if(isMobile){
+   const bounds=await page.locator('#guidedBar').evaluate(el=>({
+    width:el.getBoundingClientRect().width,viewport:innerWidth,
+    scrollWidth:el.scrollWidth,clientWidth:el.clientWidth
+   }));
+   assert.ok(bounds.width<=bounds.viewport,'mobile bar must fit screen');
+   assert.ok(bounds.scrollWidth>=bounds.clientWidth,'mobile toolbar may scroll horizontally');
+  }
+  await page.locator('#guidedExit').click();
+  assert.equal(await page.locator('#guidedBar').isHidden(),true);
+  assert.equal(await page.locator('#showroom').evaluate(e=>getComputedStyle(e).display)!=='none',true);
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair'),'editor-approved');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-source'),'stair1');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-treads'),'20');
