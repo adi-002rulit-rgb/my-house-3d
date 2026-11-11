@@ -18,4 +18,6 @@ jobs:
         with:
           node-version: '22'
       - name: Run architectural smoke tests
-        run: node tests/editor-smoke.mjs
+        run: |
+          node tests/editor-smoke.mjs
+          node tests/shared-contract.mjs
