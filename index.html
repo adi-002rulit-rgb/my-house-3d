@@ -572,6 +572,7 @@ import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {parseSharedProject,getSharedSummary,SHARED_STORAGE_KEY,MAX_SHARED_BYTES} from './shared/project-contract.mjs';
 import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
+import {freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,furnitureFitsRoom} from './shared/presentation-furniture.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
@@ -971,24 +972,79 @@ for(let xx of [9.63,13.46]){
 function table(x,z,w,d,top=.75,m=mat.wood){box(model,x,top,z,w,.11,d,m);for(let sx of [-1,1])for(let sz of [-1,1])box(model,x+sx*(w/2-.13),top/2,z+sz*(d/2-.13),.12,top,.12,mat.black)}
 function seat(x,z,w,d,m=mat.cloth){box(model,x,.36,z,w,.42,d,m);box(model,x,.73,z-d/2+.12,w,.48,.22,m);for(let sx of [-1,1])box(model,x+sx*(w/2-.12),.57,z,.22,.25,d,m)}
 function plant(x,z){cylinder(model,x,.20,z,.24,.42,mat.wood);const crown=new THREE.Mesh(new THREE.SphereGeometry(.42,10,8),mat.darkgreen);crown.position.set(x,.75,z);crown.castShadow=true;model.add(crown)}
-// Living room: 9m x 6m, sofas face central coffee table and left wall media cabinet
-seat(4.9,.55,3.6,1.05,mat.cloth);seat(1.7,2.2,.95,1,mat.cloth2);seat(8.0,2.2,.95,1,mat.cloth2);
-table(4.9,2.35,1.85,.98,.52,mat.stone);
-box(model,.48,1.23,2.35,.11,1.0,2.5,mat.black);
-plant(8.65,4.55);plant(.8,4.5);box(model,4.9,.095,2.2,6.15,.035,3.9,mat.cloth);
-// Kitchen on right-hand side, separate entrance from central hallway
-box(model,18.30,.44,1.3,.55,.85,4.25,mat.wood);
-box(model,16.2,.44,-.45,3.7,.85,.62,mat.wood);
-table(16.1,3.05,2.35,1.13);
-for(let j=0;j<3;j++){seat(14.8+j*1.25,4.05,.50,.49);seat(14.8+j*1.25,2.15,.50,.49)}
-// Rear bedroom
-box(model,2.95,.25,-3.65,2.45,.43,2.32,mat.wood);
-box(model,2.95,.52,-3.65,2.30,.22,2.10,mat.cloth);
-box(model,2.95,.68,-4.52,2.30,.21,.40,mat.water);
-box(model,1.2,.39,-4.2,.64,.68,.48,mat.oak);
-box(model,4.8,.39,-4.2,.64,.68,.48,mat.oak);
-box(model,5.20,1.06,-3.1,.42,2.1,2.65,mat.wood);
-// Rear bathroom
+// Curated living/kitchen/bedroom furniture is built as individually editable groups.
+// The legacy ungrouped objects are retired; walls, lighting and doors stay untouched.
+const presentationFurnitureRoot=new THREE.Group();
+presentationFurnitureRoot.name='presentation-furniture-editable';
+model.add(presentationFurnitureRoot);
+const furnitureRoots=new Map();
+const furnitureRayTargets=[];
+const furnitureHighlight=M('#d8b578',.62,.18);
+function drawPresentationFurniture(item){
+ const g=new THREE.Group();
+ g.name=item.name;g.userData.furnitureId=item.id;
+ g.position.set(item.x,0,item.z);
+ g.rotation.y=item.rot*Math.PI/180;
+ presentationFurnitureRoot.add(g);furnitureRoots.set(item.id,g);
+ const matBase=M(item.color||'#d4c7b6',.81);
+ const dark=M('#4b5051',.48,.18),top=M('#b6a590',.61),linen=M('#ede8df',.93);
+ const cube=(x,y,z,w,h,d,m=matBase)=>box(g,x,y,z,w,h,d,m,false);
+ const {w,d,h}=item;
+ if(item.type==='sofa'||item.type==='chair'){
+  cube(0,.34,0,w,.42,d);
+  cube(0,.72,-d/2+.11,w,.42,.22);
+  for(const side of [-1,1])cube(side*(w/2-.10),.54,0,.18,.36,d);
+  if(item.type==='sofa')for(const v of [-.27,.27])cube(v*w,.64,.04,.35,.13,d*.36,linen);
+ }else if(item.type==='table'){
+  cube(0,h-.055,0,w,.11,d,top);
+  for(const x of [-1,1])for(const z of [-1,1])
+   cube(x*(w/2-.14),h/2,z*(d/2-.14),.085,h-.10,.085,dark);
+ }else if(item.type==='tv'){
+  cube(0,.30,0,w,.47,d,matBase);
+  // Screen mounted against the rear feature wall, not across a doorway.
+  cube(0,1.34,-.055,Math.min(w*.82,2.2),1.04,.065,dark);
+ }else if(item.type==='bed'){
+  cube(0,.24,0,w,.42,d,matBase);
+  cube(0,.52,0,w-.13,.20,d-.17,linen);
+  cube(0,.71,-d/2+.12,w,.48,.20,matBase);
+  for(const x of [-.25,.25])cube(x*w,.69,-d*.30,.43,.12,.38,linen);
+ }else if(item.type==='cabinet'){
+  cube(0,h/2,0,w,h,d,matBase);
+  for(let x=-w/2+.45;x<w/2-.05;x+=.5)
+   cube(x,h/2,d/2+.008,.016,h-.10,.013,dark);
+ }
+ g.traverse(obj=>{if(obj.isMesh){obj.userData.furnitureId=item.id;
+  furnitureRayTargets.push(obj);}});
+}
+const furnitureStorageKey='adkh-house-presentation-furniture-v1';
+let presentationFurniture=freshFurnitureLayout();
+try{
+ const saved=JSON.parse(localStorage.getItem(furnitureStorageKey)||'null');
+ if(saved&&saved.version===1&&validateFurnitureLayout(saved.items))
+  presentationFurniture=normalizedFurnitureLayout(saved.items);
+}catch(e){}
+for(const piece of presentationFurniture)drawPresentationFurniture(piece);
+function updatePresentationFurniture(item){
+ const root=furnitureRoots.get(item.id);
+ if(root){root.position.set(item.x,0,item.z);root.rotation.y=item.rot*Math.PI/180}
+}
+function savePresentationFurniture(){
+ try{localStorage.setItem(furnitureStorageKey,JSON.stringify({
+  version:1,items:presentationFurniture.map(({id,x,z,rot})=>({id,x,z,rot,
+   room:presentationFurniture.find(v=>v.id===id).room,type:presentationFurniture.find(v=>v.id===id).type}))
+ }))}catch(e){toast('Память браузера недоступна: экспортируй расстановку JSON')}
+}
+function changePresentationFurniture(id,values){
+ const pos=presentationFurniture.findIndex(v=>v.id===id);
+ if(pos<0)return false;
+ const candidate={...presentationFurniture[pos],...values};
+ if(!furnitureFitsRoom(candidate))return false;
+ presentationFurniture[pos]=candidate;
+ updatePresentationFurniture(candidate);
+ savePresentationFurniture();
+ return true;
+}
+// Keep bathroom sanitary fixtures independent of furniture layout.
 box(model,7.05,.34,-4.15,1.55,.67,.93,mat.water);
 box(model,7.05,.7,-4.15,1.28,.1,.7,mat.tile);
 box(model,8.3,.41,-2.6,.40,.83,.62,mat.water);
@@ -1393,13 +1449,13 @@ for(const [a,b] of [[.6,9.1],[13.9,18.6]]){
  box(model,(a+b)/2,.18,5.36,b-a,.12,.07,mat.edge,false);
  box(model,(a+b)/2,3.17,5.36,b-a,.09,.09,mat.edge,false)
 }
-rug(4.9,2.15,5.3,3.2,textile);rug(11.55,2.0,1.8,4.7,textile);
+rug(4.72,2.55,5.0,3.5,textile);rug(11.55,2.0,1.8,4.7,textile);
 pendant(4.8,2.5);pendant(16.2,3);pendant(11.5,2.5);
 frameArt(4.9,1.8,-.83,1.2,.88);
 for(const p of [[1.25,1.2],[8.4,1.1],[14.2,4.7],[18.1,4.5]])plant(p[0],p[1]);
 // Desk and reading nook for bedroom
-table(4.8,-1.95,.9,.53,.71,mat.oak);
-box(model,1.6,.11,-3.5,2.6,.02,2.5,textile,false);
+// Desk removed from default bedroom staging to keep the doorway circulation clear.
+box(model,2.95,.11,-3.35,3.25,.02,2.80,textile,false);
 // Entrance: two floor vases and warm lamp tones
 plant(10.1,4.55);plant(12.8,4.55);
 
@@ -1444,14 +1500,7 @@ for(const cx of [2.05,4.9,7.75]){
  moldedFrame(livingMoldings.minimal,cx,1.92,2.30,2.00,false);
  moldedFrame(livingMoldings.classic,cx,1.92,2.30,2.00,true);
 }
-// Small sofa details make upholstery changes tangible in presentation.
-const pillowMat=M('#d4c6b6',.97);
-for(const x of [3.50,4.35,5.20,6.05]){
- box(model,x,.80,.46,.63,.19,.50,pillowMat,false);
-}
-for(const x of [3.13,6.68]){
- box(model,x,.61,.55,.22,.46,1.08,mat.cloth,false);
-}
+// Sofa cushions are now children of their editable parent: no floating remnants.
 // Additional warm sconces: emissive bulbs with unshadowed low-cost point lights.
 const sconceGlow=new THREE.MeshStandardMaterial({
   color:'#ffe6c0',emissive:'#ffcf8e',emissiveIntensity:.75,roughness:.48
