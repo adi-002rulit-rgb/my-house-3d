@@ -678,10 +678,10 @@ if(x1>=0&&x1<=19.03&&x2>=0&&x2<=19.03){
  const pc=(start+end)/2;
  archDoorCenters.push({x:axis==='x'?x1+sign*pc:x1,z:axis==='z'?z1+sign*pc:z1,width:end-start,axis});
 }
-let mid=(start+end)/2;piece(start,start+.06,0,2.35,mat.oak);piece(end-.06,end,0,2.35,mat.oak);// Doorway intentionally OPEN in architectural cutaway. A leaf is shown swung to the side.
+let mid=(start+end)/2;piece(start,start+.06,0,head,mat.oak);piece(end-.06,end,0,head,mat.oak);// Door jambs reach the approved opening head; never cross the lintel.
 const cx=axis==='x'?x1+sign*(start+.13):x1;
 const cz=axis==='z'?z1+sign*(start+.13):z1;
-if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const hinge=box(model,cx,1.11,cz,axis==='x'?.075:.78,2.19,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
+if(o.leaf!==false && !(x1>5&&x1<14.2&&z1>-5.45&&z1<5.45)){const leafHeight=Math.max(.2,head-.08);const hinge=box(model,cx,leafHeight/2,cz,axis==='x'?.075:.78,leafHeight,axis==='z'?.075:.78,o.glass?mat.glass:mat.wood);hinge.rotation.y=axis==='x'?Math.PI/2.5:-Math.PI/2.5;}}
 else{
  // Slim thermally-broken aluminium design, inspired by Reynaers MasterLine 8.
  // 53 mm is the visible frame face, 77 mm the construction depth: they are NOT interchangeable.

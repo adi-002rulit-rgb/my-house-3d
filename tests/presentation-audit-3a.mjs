@@ -58,6 +58,16 @@ const index=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 assert.match(index,/if\(o\.kind==='passage'\)continue/,'passage must not have decorative door jambs');
 assert.match(index,/approvedOpeningSpec\('stairArch'/,'left passage linked to approved editor source');
 assert.match(index,/upper-stair-transition/,'upper floor stair transition edge installed');
+assert.match(index,/piece\(start,start\+\.06,0,head,mat\.oak\)/,
+ 'door jambs must stop at actual approved lintel height');
+assert.match(index,/piece\(end-\.06,end,0,head,mat\.oak\)/,
+ 'opposite door jamb must respect opening head');
+assert.match(index,/const leafHeight=Math\.max\(\.2,head-\.08\)/,
+ 'presentation swing leaf height must derive from approved aperture head');
+const doorHeads=APPROVED_HOUSE_V1.model.openings.filter(o=>o.type==='door').map(o=>o.head);
+assert.ok(new Set(doorHeads).size>1,'fixture must exercise distinct door head heights');
+assert.ok(doorHeads.includes(2.55)&&doorHeads.includes(2.2),
+ 'verify tall entry and lower internal door heads');
 assert.equal(JSON.stringify(APPROVED_HOUSE_V1),base,'approved source must be unchanged');
 const invalid=()=>approvedOpeningSpec('livingD',8,-2,9,-2);
 assert.throws(invalid,/Wall axis mismatch/);
