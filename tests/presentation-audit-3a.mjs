@@ -22,7 +22,14 @@ const specs=[
 for(const [id,x1,z1,x2,z2] of specs){
  const spec=approvedOpeningSpec(id,x1,z1,x2,z2);
  const actual=openingWorldCenterFromSpec(spec,x1,z1,x2,z2),expected=audit.find(o=>o.id===id);
- assert.ok(Math.hypot(actual.x-expected.x,actual.z-expected.z)<1e-10,'center '+id);
+ // Preserve the showroom's inset west facade (x=.2 vs editor x=0),
+ // while requiring exact longitudinal aperture alignment.
+ const alongError=id==='bedWindow'
+  ?Math.abs(actual.z-expected.z)
+  :Math.hypot(actual.x-expected.x,actual.z-expected.z);
+ assert.ok(alongError<1e-10,'center along wall '+id);
+ if(id==='bedWindow')assert.ok(Math.abs(actual.x-expected.x-.2)<1e-10,
+  'west showroom facade retains its documented 20cm staging inset');
  assert.equal(spec.width,expected.width,id+' width');
  assert.equal(spec.kind,expected.type,id+' type');
  assert.equal(spec.head,expected.head,id+' head');
