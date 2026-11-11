@@ -27,6 +27,9 @@ try{
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair'),'editor-approved');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-source'),'stair1');
   assert.equal(await page.locator('body').getAttribute('data-presentation-stair-treads'),'20');
+  assert.equal(await page.locator('body').getAttribute('data-presentation-stair-finish'),'stone-satin-v1');
+  assert.equal(await page.locator('body').getAttribute('data-presentation-stair-details'),'14');
+
   assert.equal(await page.locator('body').getAttribute('data-approved-door-count'),'6');
   assert.equal(await page.locator('body').getAttribute('data-approved-passage-width'),'0.95');
   assert.equal(await page.locator('body').getAttribute('data-approved-passage-head'),'2.99');
@@ -41,6 +44,9 @@ try{
    },cameraView);
    await page.waitForTimeout(350);
    await page.screenshot({path:'artifacts/3a-'+mode+'-'+cameraView+'.png'});
+   if(cameraView==='stair'||cameraView==='leftPassage')
+    await page.screenshot({path:'artifacts/3b-stair-finish-'+mode+'-'+cameraView+'.png'});
+
   }
   await page.evaluate(()=>document.getElementById('overview').click());
 
