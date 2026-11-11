@@ -194,8 +194,18 @@ body.guided-mode #title{display:none!important}
 #furniturePanel button:focus-visible,#furnitureLaunch:focus-visible{outline:2px solid #ebc388}
 #furniturePosition{color:#dfbb7e;font-variant-numeric:tabular-nums;font-size:11px}
 #furnitureLaunch{position:fixed;z-index:23;right:12px;bottom:15px}
-body.guided-mode #furnitureLaunch,body.guided-mode #furniturePanel{display:none!important}
+#furnitureDesignDock{position:fixed;z-index:23;right:112px;bottom:15px;
+ display:flex;align-items:center;gap:7px;border:1px solid #e5ce9e66;border-radius:11px;
+ background:#172832e8;padding:6px 10px;color:#f8efdc;backdrop-filter:blur(10px)}
+#furnitureDesignDock select{border:1px solid #f8efdc40;border-radius:8px;
+ padding:7px;background:#283d48;color:#fff;font-size:12px;max-width:205px}
+#furnitureDesignDock select:focus-visible{outline:2px solid #dcb879}
+#furnitureDesignDock label{font-size:12px;white-space:nowrap}
+#furnitureDesignDock[hidden]{display:none!important}
+body.guided-mode #furnitureLaunch,body.guided-mode #furniturePanel,body.guided-mode #furnitureDesignDock{display:none!important}
 @media(max-width:760px){#furniturePanel{top:80px;right:8px;max-height:68dvh;overflow:auto}
+ #furnitureDesignDock{right:10px;bottom:135px;max-width:calc(100vw - 20px)}
+ #furnitureDesignDock select{max-width:180px}
  #furnitureLaunch{right:10px;bottom:85px}}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
@@ -214,11 +224,17 @@ body.guided-mode #furnitureLaunch,body.guided-mode #furniturePanel{display:none!
  <button id="guidedFull" type="button">⛶ Экран</button>
 </div>
 <div id="guidedBarTitle" role="status" aria-live="polite" hidden></div>
+<div id="furnitureDesignDock" aria-label="Четыре дизайна мебели">
+ <label for="furnitureDesign">Дизайн мебели</label>
+ <select id="furnitureDesign" aria-label="Стиль всей мебели"></select>
+</div>
 <button type="button" id="furnitureLaunch" aria-expanded="false" title="Выбрать, переместить и сохранить предметы мебели">▣ Мебель</button>
 <section id="furniturePanel" hidden aria-label="Расстановка мебели">
  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
  <h3>Расстановка мебели</h3><button id="furnitureClose" type="button" aria-label="Закрыть">✕</button></div>
  <p>Выбери предмет, затем перетащи его мышью на общем виде сверху. Точные координаты и поворот можно настроить ниже. Стены, проёмы и лестница заблокированы.</p>
+ <label for="furnitureDesignInfo">Текущий стиль</label>
+ <p id="furnitureDesignInfo">Цвета и материалы меняются сразу во всех комнатах. Положение мебели сохраняется.</p>
  <label for="furnitureChoice">Предмет</label>
  <select id="furnitureChoice"></select>
  <label for="furnitureX">По горизонтали X <output id="furnitureXLabel"></output></label>
@@ -623,6 +639,7 @@ import {architectureGeometry} from './shared/architecture-geometry.mjs';
 import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
 import {presentationDoorSpecs,normalizedDoorSwing,doorLeafPose} from './shared/presentation-doors.mjs';
 import {FURNITURE_LAYOUT_VERSION,freshFurnitureLayout,validateFurnitureLayout,normalizedFurnitureLayout,migrateFurnitureLayout,furnitureFitsRoom,kitchenLayoutAudit} from './shared/presentation-furniture.mjs';
+import {FURNITURE_DESIGNS,DEFAULT_FURNITURE_DESIGN,furnitureDesignIds,isFurnitureDesign,furnitureFinish} from './shared/furniture-designs.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
@@ -1033,7 +1050,19 @@ presentationFurnitureRoot.name='presentation-furniture-editable';
 model.add(presentationFurnitureRoot);
 const furnitureRoots=new Map();
 const furnitureRayTargets=[];
-// Reused by the existing upholstery colour control, now attached to moving sofas.
+const furnitureDesignStorageKey='adkh-house-furniture-design-v1';
+let activeFurnitureDesign=DEFAULT_FURNITURE_DESIGN;
+try{const saved=localStorage.getItem(furnitureDesignStorageKey);
+ if(isFurnitureDesign(saved))activeFurnitureDesign=saved;}catch(e){}
+const furnitureThemeSelect=E('furnitureDesign');
+for(const id of furnitureDesignIds){
+ const option=document.createElement('option');option.value=id;
+ option.textContent=FURNITURE_DESIGNS[id].name;
+ furnitureThemeSelect.appendChild(option);
+}
+furnitureThemeSelect.value=activeFurnitureDesign;
+document.body.dataset.furnitureDesign=activeFurnitureDesign;
+// Reused by the existing upholstery colour control for unchanged legacy trim.
 const pillowMat=M('#d4c6b6',.97);
 function drawPresentationFurniture(item){
  const g=new THREE.Group();
@@ -1041,34 +1070,55 @@ function drawPresentationFurniture(item){
  g.position.set(item.x,0,item.z);
  g.rotation.y=item.rot*Math.PI/180;
  presentationFurnitureRoot.add(g);furnitureRoots.set(item.id,g);
- const matBase=M(item.color||'#d4c7b6',.81);
- const dark=M('#4b5051',.48,.18),top=M('#b6a590',.61),linen=M('#ede8df',.93);
+ const finish=furnitureFinish(item,activeFurnitureDesign);
+ const matBase=M(finish.main,finish.roughness);
+ const dark=M(finish.metal,.43,.16);
+ const top=M(item.type==='table'?finish.wood:finish.counter,.43,.08);
+ const linen=M(finish.accent,.86);
+ const woodFinish=M(finish.wood,finish.roughness);
+ const cabinetAccent=M(finish.woodDark,.60);
+ const stoneFinish=M(finish.counter,.38,.12);
  const cube=(x,y,z,w,h,d,m=matBase)=>box(g,x,y,z,w,h,d,m,false);
  const {w,d,h}=item;
  if(item.type==='sofa'||item.type==='chair'){
   cube(0,.34,0,w,.42,d);
   cube(0,.72,-d/2+.11,w,.42,.22);
   for(const side of [-1,1])cube(side*(w/2-.10),.54,0,.18,.36,d);
-  if(item.type==='sofa')for(const v of [-.27,.27])cube(v*w,.64,.04,.35,.13,d*.36,pillowMat);
+  if(item.type==='sofa')for(const v of [-.27,.27])
+   cube(v*w,.64,.04,.35,.13,d*.36,linen);
+  if(finish.style==='classic'){
+   for(const x of [-w/2+.18,w/2-.18])cube(x,.22,0,.10,.23,.10,woodFinish);
+  }else if(finish.style==='graphite'){
+   cube(0,.12,0,w-.23,.085,d-.15,dark);
+  }
  }else if(item.type==='table'){
   cube(0,h-.055,0,w,.11,d,top);
-  for(const x of [-1,1])for(const z of [-1,1])
-   cube(x*(w/2-.14),h/2,z*(d/2-.14),.085,h-.10,.085,dark);
+  for(const x of [-1,1])for(const z of [-1,1]){
+   const side=finish.leg==='classic'?.13:finish.leg==='slim'?.055:.085;
+   cube(x*(w/2-.14),h/2,z*(d/2-.14),side,h-.10,side,
+    finish.leg==='classic'?woodFinish:dark);
+  }
+  if(finish.style==='warm')cube(0,h+.012,0,w-.06,.027,d-.06,stoneFinish);
  }else if(item.type==='tv'){
-  cube(0,.30,0,w,.47,d,matBase);
+  cube(0,.30,0,w,.47,d,woodFinish);
+  if(finish.style==='classic')for(const x of [-.32,.32])
+   cube(x*w,.31,d/2+.015,.012,.36,.016,dark);
   // Screen mounted against the rear feature wall, not across a doorway.
   cube(0,1.34,-.055,Math.min(w*.82,2.2),1.04,.065,dark);
  }else if(item.type==='bed'){
   cube(0,.24,0,w,.42,d,matBase);
   cube(0,.52,0,w-.13,.20,d-.17,linen);
-  cube(0,.71,-d/2+.12,w,.48,.20,matBase);
+  cube(0,.71,-d/2+.12,w,.48,.20,finish.style==='warm'?woodFinish:matBase);
+  if(finish.style==='classic')for(const x of [-w/2+.12,w/2-.12])
+   cube(x,.71,-d/2+.08,.038,.40,.028,woodFinish);
   for(const x of [-.25,.25])cube(x*w,.69,-d*.30,.43,.12,.38,linen);
  }else if(item.type==='kitchen-run'){
   // An editable complete kitchen module: base carcass, inset toe-kick,
   // stone worktop and front panels all move/rotate together.
-  const stone=M('#d9d2c6',.37,.08);
-  const accent=M('#6a655e',.48,.22);
+  const stone=stoneFinish;
+  const accent=dark;
   cube(0,h*.49,0,w,h-.09,d,matBase);
+  if(finish.style==='classic')cube(0,.17,0,w-.12,.08,d-.08,woodFinish);
   cube(0,.055,0,w-.06,.11,d-.10,dark);
   cube(0,h,0,w+.035,.055,d+.035,stone);
   const sideways=item.id!=='kitchenRear';
@@ -1078,12 +1128,18 @@ function drawPresentationFurniture(item){
    const t=(i+.5)/slots-.5;
    if(!sideways){
     cube(t*(w-.08),.48,d/2+.009,(w-.09)/slots-.014,.75,.018,matBase);
-    cube(t*(w-.08),.48,d/2+.023,.016,.45,.009,accent);
+    if(finish.handle==='brass')cube(t*(w-.08),.71,d/2+.026,.18,.018,.016,accent);
+    if(finish.style==='classic')cube(t*(w-.08),.48,d/2+.028,
+      (w-.09)/slots-.075,.64,.007,woodFinish);
    }else{
     // Both runs expose their inner-facing side rather than the outer wall.
     const facing=item.id==='kitchenLeft'?w/2:-w/2;
     cube(facing,.48,t*(d-.08),.020,.75,(d-.09)/slots-.015,matBase);
-    cube(facing+(item.id==='kitchenLeft'?.014:-.014),.48,t*(d-.08),.009,.45,.014,accent);
+    if(finish.handle==='brass')
+     cube(facing+(item.id==='kitchenLeft'?.017:-.017),.71,t*(d-.08),
+      .018,.018,.16,accent);
+    if(finish.style==='classic')cube(facing+(item.id==='kitchenLeft'?.014:-.014),
+      .48,t*(d-.08),.008,.62,(d-.09)/slots-.065,woodFinish);
    }
   }
   if(item.id==='kitchenRear'){
@@ -1105,7 +1161,8 @@ function drawPresentationFurniture(item){
    cube(w/2-.04,1.70,.64,.016,.58,.026,accent);
   }
  }else if(item.type==='cabinet'){
-  cube(0,h/2,0,w,h,d,matBase);
+  cube(0,h/2,0,w,h,d,item.room==='bedroom'?woodFinish:matBase);
+  if(finish.style==='classic')cube(0,h/2,d/2+.017,w-.09,h-.15,.022,matBase);
   for(let x=-w/2+.45;x<w/2-.05;x+=.5)
    cube(x,h/2,d/2+.008,.016,h-.10,.013,dark);
  }
@@ -1122,6 +1179,34 @@ try{
  }
 }catch(e){}
 for(const piece of presentationFurniture)drawPresentationFurniture(piece);
+function applyFurnitureDesign(id,save=true){
+ if(!isFurnitureDesign(id))return false;
+ activeFurnitureDesign=id;
+ // Rebuild only furniture groups; preserve their immutable IDs and positions.
+ // Dispose geometries, and dispose per-item materials; shared legacy pillowMat
+ // is not owned by furniture groups anymore.
+ for(const root of furnitureRoots.values()){
+  root.traverse(node=>{if(node.isMesh){
+   node.geometry?.dispose();
+   const materials=Array.isArray(node.material)?node.material:[node.material];
+   for(const mat of materials)mat?.dispose?.();
+  }});
+  presentationFurnitureRoot.remove(root);
+ }
+ furnitureRoots.clear();furnitureRayTargets.length=0;
+ for(const piece of presentationFurniture)drawPresentationFurniture(piece);
+ const selected=selectedFurnitureId;
+ if(typeof furnitureOutline!=='undefined'&&furnitureRoots.has(selected)){
+  furnitureOutline.setFromObject(furnitureRoots.get(selected));
+ }
+ furnitureThemeSelect.value=id;
+ E('furnitureDesignInfo').textContent=FURNITURE_DESIGNS[id].description+
+  ' · Перемещения и углы предметов не меняются.';
+ document.body.dataset.furnitureDesign=id;
+ if(save)try{localStorage.setItem(furnitureDesignStorageKey,id)}catch(e){}
+ return true;
+}
+
 function updatePresentationFurniture(item){
  const root=furnitureRoots.get(item.id);
  if(root){root.position.set(item.x,0,item.z);root.rotation.y=item.rot*Math.PI/180}
@@ -1152,6 +1237,12 @@ let selectedFurnitureId=presentationFurniture[0].id;
 let furnitureDrag=null;
 const furnitureOutline=new THREE.BoxHelper(furnitureRoots.get(selectedFurnitureId),0xe0ac58);
 furnitureOutline.visible=false;scene.add(furnitureOutline);
+furnitureThemeSelect.onchange=e=>{
+ if(!applyFurnitureDesign(e.target.value))return;
+ furnitureSelection(selectedFurnitureId);
+};
+E('furnitureDesignInfo').textContent=FURNITURE_DESIGNS[activeFurnitureDesign].description+
+ ' · Перемещения и углы предметов не меняются.';
 const furnitureChoice=E('furnitureChoice');
 for(const item of presentationFurniture){
  const option=document.createElement('option');
