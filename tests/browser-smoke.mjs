@@ -23,7 +23,16 @@ try{
   const cold=await page.goto(host+'/',{waitUntil:'domcontentloaded',timeout:60000});
   assert.equal(cold.status(),200,mode+' standalone showroom');
   await page.waitForFunction(()=>document.getElementById('loading').style.display==='none',
-   null,{timeout:60000});
+   null,{timeout:18000}).catch(async error=>{
+    const debug=await page.evaluate(()=>({
+     loading:document.getElementById('loading')?.style.display,
+     error:document.getElementById('error')?.style.display,
+     status:document.getElementById('status')?.textContent,
+     ready:document.readyState
+    }));
+    throw Error(mode+' showroom failed to load: '+JSON.stringify(debug)+
+      '; browser errors='+pageErrors.join(' | ')+'; '+error.message);
+   });
   // Editable showroom furniture must work without opening the technical editor.
   assert.equal(await page.locator('body').getAttribute('data-furniture-layout'),'editable-v1');
   assert.equal(await page.locator('body').getAttribute('data-furniture-count'),'11');
