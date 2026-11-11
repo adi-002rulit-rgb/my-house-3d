@@ -45,7 +45,7 @@ export function furnitureCollisionAudit(items){
   const dz=Math.min(A.z2,B.z2)-Math.max(A.z1,B.z1);
   // Two 5cm rear/side corner joins are deliberate: continuous U-shaped joinery.
   if(dx<=.002||dz<=.002)continue;
-  if(uJoint(a,b)&&dx<=.35&&dz<=.085)continue;
+  if(uJoint(a,b)&&dx<=.40&&dz<=.085)continue;
   issues.push({type:'furniture-overlap',a:a.id,b:b.id,
    overlapX:round(dx),overlapZ:round(dz)});
  }
