@@ -27,7 +27,7 @@ for(const signature of [
  "profile.table==='sled'",
  "profile.bed==='upholstered'",
  "profile.bed==='panelled'",
- "profile.bed==='floating'",
+ "profile.bed==='platform'",
  "profile.cabinet==='fine-wood'",
  "profile.cabinet==='inset'",
  "profile.cabinet==='ribbon'",
