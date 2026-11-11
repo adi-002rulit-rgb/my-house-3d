@@ -108,6 +108,7 @@ try{
   await page.evaluate(()=>document.getElementById('syncedArchitecture').click());
   await page.waitForFunction(()=>document.body.dataset.architectureMode==='synced',{timeout:15000}).catch(async err=>{throw Error(mode+' synced mode: '+await page.locator('#toast').innerText()+'; '+err.message)});
   assert.equal(await page.locator('body').getAttribute('data-architecture-wall-count'),'13');
+  assert.equal(await page.locator('body').getAttribute('data-architecture-display-y-offset'),'-0.6');
   assert.equal(await page.locator('body').getAttribute('data-architecture-openings'),'12');
   assert.equal(await page.locator('#legacyArchitecture').isHidden(),false);
   await page.screenshot({path:'artifacts/synced-house-'+mode+'.png'});
