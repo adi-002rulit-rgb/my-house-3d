@@ -28,7 +28,7 @@ const original=new Function(
  'const mkWall=(id,name,x1,z1,x2,z2,t=.25)=>({id,type:"wall",name,x1,z1,x2,z2,t});'+
  'const mkOpen=(id,type,name,wall,offset,width,sill=0,head=2.25,leaves=1)=>({id,type,name,wall,offset,width,sill,head,leaves});'+
  part('function defaultStair(){','let state=original()')+'return original()')();
-const validate=new Function('wallLength',part('function validate(s){','function saveState()')+'return validate')(
+const validate=new Function('wallLength','const PROJECT_SCHEMA_VERSION=1;'+part('function validate(s){','function writeVerified(')+'return validate')(
  w=>Math.hypot(w.x2-w.x1,w.z2-w.z1)
 );
 assert.doesNotThrow(()=>validate(original));
@@ -44,12 +44,49 @@ const errors=[
  ['opening over ceiling',s=>s.openings[0].head=100],
  ['unsupported floor pattern',s=>s.rooms[0].floorPattern='invalid'],
  ['passage incorrectly moved into furniture',s=>s.furniture[0].type='passage'],
- ['opening too wide for wall',s=>s.openings[0].width=100]
+ ['opening too wide for wall',s=>s.openings[0].width=100],
+ ['invalid title',s=>s.title=42],
+ ['nonstring object ID',s=>s.walls[0].id=123]
 ];
 for(const [name,change] of errors){
  const copy=structuredClone(original);change(copy);
  assert.throws(()=>validate(copy),undefined,'must reject '+name);
 }
+
+const storageTestCode=part('function writeVerified(key,value){','function saveState(){');
+function storageHarness(failKey=null){
+ const items=new Map();
+ const localStorage={
+  getItem:key=>items.has(key)?items.get(key):null,
+  setItem:(key,value)=>{if(key===failKey)throw Error('QuotaExceededError');items.set(key,value)},
+  removeItem:key=>items.delete(key)
+ };
+ const ctor=new Function('localStorage','validate','original',`
+  const STORAGE='house-test',CHECKPOINT='house-checkpoint',BEFORE_IMPORT='house-before-import';
+  let state=structuredClone(original),selected='room',history=[JSON.stringify(state)],historyAt=0;
+  const syncActions=()=>{},refreshAll=()=>{},fitPlan=()=>{};
+  ${storageTestCode}
+  return {replaceProjectSafely,getState:()=>state, getHistory:()=>history};
+ `);
+ return {localStorage,items,...ctor(localStorage,validate,original)};
+}
+{
+ const h=storageHarness();
+ const next=structuredClone(original);next.title='Новая версия';
+ h.replaceProjectSafely(next,'house-before-import');
+ assert.equal(h.getState().title,'Новая версия');
+ assert.equal(JSON.parse(h.items.get('house-before-import')).title,'Мой дом');
+ assert.equal(JSON.parse(h.items.get('house-test')).title,'Новая версия');
+}
+for(const failKey of ['house-before-import','house-test']){
+ const h=storageHarness(failKey);
+ const next=structuredClone(original);next.title='Не должно примениться';
+ assert.throws(()=>h.replaceProjectSafely(next,'house-before-import'),/QuotaExceededError/);
+ assert.equal(h.getState().title,'Мой дом','failed storage must not change live state');
+ assert.equal(h.getHistory().length,1,'failed storage must not reset undo history');
+ assert.equal(h.items.has('house-test'),false,'failed write must not leave new project in storage');
+}
+
 const stairGeometry=new Function('state',
  part('function stairGeometry(o){','function stairPolygon(')+'return stairGeometry')(
  {height:original.height}
@@ -67,4 +104,4 @@ assert.match(editor,/const thirdEnd=g\.front\+g\.backRun\*g\.visibleLastN\/g\.la
 assert.match(editor,/\['door','window','passage'\]\.includes\(p\.type\)/);
 assert.match(editor,/function restoreEmergency\(\)/);
 assert.match(editor,/function makeCheckpoint\(\)/);
-console.log('PASS: two JavaScript modules, unique HTML IDs, DOM references, model data, eight invalid JSON cases, stair footprint, emergency recovery');
+console.log('PASS: two JavaScript modules, unique HTML IDs, DOM references, model data, ten invalid JSON cases and transactional storage failure cases, stair footprint, emergency recovery');
