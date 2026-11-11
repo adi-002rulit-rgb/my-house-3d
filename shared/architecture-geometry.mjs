@@ -38,8 +38,9 @@ export function architectureGeometry(input){
  // Match the editor's room lookup on both sides of each wall.
  function wallSideColors(w,a,b){
   const len=Math.hypot(w.x2-w.x1,w.z2-w.z1);
-  const x=w.x1+(w.x2-w.x1)*(a+b)/(2*len);
-  const z=w.z1+(w.z2-w.z1)*(a+b)/(2*len);
+  // The editor samples the WHOLE wall midpoint, not individual solid spans.
+  const x=(w.x1+w.x2)/2;
+  const z=(w.z1+w.z2)/2;
   const nx=-(w.z2-w.z1)/len,nz=(w.x2-w.x1)/len;
   const findRoom=sign=>{
    const px=x+nx*sign*(w.t/2+.13),pz=z+nz*sign*(w.t/2+.13);
