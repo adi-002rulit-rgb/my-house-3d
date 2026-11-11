@@ -643,6 +643,7 @@ import {doorFurnitureAudit} from './shared/furniture-door-clearance.mjs';
 import {FURNITURE_DESIGNS,DEFAULT_FURNITURE_DESIGN,furnitureDesignIds,isFurnitureDesign,furnitureFinish,furnitureProfile} from './shared/furniture-designs.mjs';
 import {approvedOpeningSpec,approvedOpeningsAudit} from './shared/presentation-openings.mjs';
 import {staircaseLayout} from './shared/architecture-geometry.mjs';
+import {createFloorMap} from './shared/floor-patterns.mjs';
 const E=id=>document.getElementById(id),canvas=E('scene');
 let renderer,scene,camera,orbit;
 try{
@@ -880,6 +881,8 @@ const rooms=[
 {id:'courtyard',name:'Двор',area:'',cx:-6,cz:3,range:[-11.5,-2,-4.5,10],floor:mat.stone,eye:[-8.5,1.65,4],yaw:0}
 ];
 
+// Individual wood materials keep the physical board size consistent between rooms.
+for(const room of rooms){if(room.floor===floorFinishes.wood)room.floor=floorFinishes.wood.clone();}
 for(const r of rooms){const [a,b,c,d]=r.range;slab((a+b)/2,(c+d)/2,b-a,d-c,r.floor);}
 // One continuous floor finish from front entrance to stairwell, no threshold wall.
 slab(11.56,-.12,3.52,10.55,floorFinishes.tile,.065);
@@ -2519,46 +2522,32 @@ function retexture(m,kind,hex,repeat=2.4){
  else m.color.set(hex);
  m.needsUpdate=true;
 }
-function woodFloorMap(hex,layout,cover){
- const size=768,c=document.createElement('canvas');c.width=c.height=size;
- const ctx=c.getContext('2d');ctx.fillStyle=hex;ctx.fillRect(0,0,size,size);
- let random=117;function rnd(){random=(random*1664525+1013904223)>>>0;return random/4294967296}
- // A visual approximation of boards/wood grain, not a scanned manufacturer texture.
- const gap=layout==='wide'?112:layout==='plank'?68:85;
- const plank=(x,y,w,h,angle=0)=>{
- ctx.save();ctx.translate(x,y);ctx.rotate(angle);
- ctx.fillStyle='rgba(255,245,230,'+(rnd()*.065)+')';ctx.fillRect(0,0,w,h);
- ctx.strokeStyle='rgba(61,46,30,.19)';ctx.lineWidth=2;ctx.strokeRect(0,0,w,h);
- for(let i=0;i<17;i++){const yy=rnd()*h;ctx.beginPath();ctx.strokeStyle='rgba(77,50,30,'+(.025+rnd()*.075)+')';ctx.lineWidth=.35+rnd();ctx.moveTo(4,yy);ctx.bezierCurveTo(w*.33,yy+6*rnd(),w*.66,yy-6*rnd(),w-4,yy);ctx.stroke()}
- ctx.restore();
- };
- if(layout==='herringbone'||layout==='chevron'){
-  const slant=layout==='chevron'?Math.PI/4:Math.PI/3;
-  for(let row=-12;row<20;row++)for(let col=-12;col<20;col++){
-   const x=col*100+row*44,y=row*96+col*13;
-   plank(x,y,135,44,slant);plank(x+62,y+60,135,44,-slant)
-  }
- }else{
-  for(let y=0,row=0;y<size;y+=gap,row++){
-   const offset=(row%3)*-160;
-   for(let x=offset-100;x<size+230;x+=270)plank(x,y,267,gap-1)
-  }
- }
- if(cover==='laminate'||cover==='lvt'){
-  ctx.fillStyle='rgba(255,255,255,.045)';ctx.fillRect(0,0,size,size);
- }
- const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
- tex.repeat.set(layout==='wide'?2.4:layout==='plank'?2.6:3.2,layout==='wide'?2.4:layout==='plank'?2.6:3.2);
- tex.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);return tex;
-}
 function changeWoodFloor(){
- const m=floorFinishes.wood;
- if(m.map)m.map.dispose();
- m.map=woodFloorMap(woodChoices[clientFloor],floorPattern,floorCover);
- m.color.set('#ffffff');m.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.88;
- m.needsUpdate=true;
- E('floorSwatch').style.background=woodChoices[clientFloor];
- syncDesign();
+  // Update each wooden room independently, maintaining a consistent metric scale.
+  for(const room of rooms){
+    if(!['living','bedroom','wardrobe','summer'].includes(room.id))continue;
+    const m=room.floor,[x1,x2,z1,z2]=room.range;
+    const next=createFloorMap(THREE,renderer,{
+      color:woodChoices[clientFloor],pattern:floorPattern,cover:floorCover,
+      width:x2-x1,depth:z2-z1
+    });
+    if(m.map)m.map.dispose();
+    m.map=next;m.color.set('#ffffff');
+    m.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.83;
+    m.metalness=0;m.needsUpdate=true;
+  }
+  // The detached summer-kitchen floor also uses this shared legacy material.
+  const shared= floorFinishes.wood;
+  const replacement=createFloorMap(THREE,renderer,{
+    color:woodChoices[clientFloor],pattern:floorPattern,cover:floorCover,
+    width:5.4,depth:9.5
+  });
+  if(shared.map)shared.map.dispose();
+  shared.map=replacement;shared.color.set('#ffffff');
+  shared.metalness=0;shared.roughness=floorCover==='lvt'?.64:floorCover==='laminate'?.72:.83;
+  shared.needsUpdate=true;
+  E('floorSwatch').style.background=woodChoices[clientFloor];
+  syncDesign();
 }
 function setClientFloor(v){clientFloor=v;changeWoodFloor()}
 function setClientTile(v){
