@@ -75,14 +75,21 @@ export function auditStairGeometry(model){
   if(g.lastN<=4||g.visibleLastN<=0||g.rise<=0||
    Math.abs(g.upperStart+g.visibleLastN*g.upperRise-model.height)>.001)
    issues.push(issue('stair-level-continuity','high',{id:s.id}));
+  // The renderer redistributes rise across its remaining visible upper treads.
+  // A large jump here may be a presentation defect, not a construction dimension.
+  if(Math.abs(g.upperRise-g.rise)>.025)
+   issues.push(issue('visible-stair-riser-discontinuity','high',{id:s.id,
+    lowerRiseM:round(g.rise),upperRiseM:round(g.upperRise),
+    differenceM:round(g.upperRise-g.rise)}));
   // 2R+G in metres is only a preliminary ergonomic indicator.
   // Winder/return flight geometry and headroom demand on-site measurements.
   const flightDepths=[s.lower/g.firstN,g.bridge/g.midN,(s.returnRun||s.lower)/g.lastN];
   for(let i=0;i<flightDepths.length;i++){
-   const comfort=2*g.rise+flightDepths[i];
+   const effectiveRise=i===2?g.upperRise:g.rise;
+   const comfort=2*effectiveRise+flightDepths[i];
    if(comfort<.59||comfort>.67)
     issues.push(issue('stair-comfort-review','advisory',{id:s.id,flight:i+1,
-     riserM:round(g.rise),treadDepthM:round(flightDepths[i]),twiceRisePlusGoingM:round(comfort)}));
+     riserM:round(effectiveRise),treadDepthM:round(flightDepths[i]),twiceRisePlusGoingM:round(comfort)}));
   }
  }
  return issues;
