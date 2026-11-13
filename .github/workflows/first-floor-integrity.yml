@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - audit/first-floor-integrity-2026-11-13
+      - feature/first-floor-wall-projection-2026-11-13
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,6 +24,8 @@ jobs:
         run: node tests/first-floor-safety.mjs
       - name: Check safe preview of wall union and stair landing gap
         run: node tests/first-floor-repair-preview.mjs
+      - name: Verify opt-in wall render projection
+        run: node tests/first-floor-wall-projection.mjs
       - name: Verify editor-showroom geometry sync
         run: node tests/geometry-sync.mjs
       - name: Verify current kitchen and furniture boundaries
