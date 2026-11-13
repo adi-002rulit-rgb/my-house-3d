@@ -33,4 +33,13 @@ assert.equal(projected.wallProjection.reason,'apertures-require-review');
 assert.equal(projected.segments.some(s=>s.presentationOnly),false);
 const direct=consolidatedPinnedWallProjection(APPROVED_HOUSE_V1.model,legacy.segments);
 assert.equal(direct.applied,true);
+const separated=structuredClone(APPROVED_HOUSE_V1.model);
+separated.walls.find(w=>w.id==='bedFront').z1=-1.5;
+separated.walls.find(w=>w.id==='bedFront').z2=-1.5;
+assert.equal(consolidatedPinnedWallProjection(separated,legacy.segments).reason,
+ 'no-overlap-to-fix','avoid rewriting already separated walls');
+const missingPaint=structuredClone(legacy.segments);
+missingPaint.find(s=>s.sourceWall==='livingBack').sideColors=null;
+assert.equal(consolidatedPinnedWallProjection(APPROVED_HOUSE_V1.model,missingPaint).reason,
+ 'missing-wall-face-materials','paint must not disappear silently');
 console.log('PASS: opt-in wall projection preserves architectural source, openings, stairs and furniture');
