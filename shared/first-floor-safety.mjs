@@ -101,7 +101,8 @@ export function auditPresentationClearances(items=DEFAULT_PRESENTATION_FURNITURE
  const layout=layoutSafetyAudit(items);
  if(!layout.ok)issues.push(issue('furniture-layout-unsafe','high',{reason:layout.reason}));
  const doors=doorFurnitureAudit(items,doorConfig);
- for(const d of doors.issues)issues.push(issue('door-swing-furniture','high',{...d}));
+ for(const d of doors.issues)issues.push(issue('door-swing-furniture','high',
+  {room:d.room,opening:d.opening,leaf:d.leaf,object:d.object}));
  return issues;
 }
 
