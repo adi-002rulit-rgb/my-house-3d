@@ -13,8 +13,10 @@ assert.equal(baseline.checks.apertures.length,0,'12 approved openings must be se
 assert.equal(baseline.checks.identity.length,0,'all source records have unique IDs');
 assert.equal(baseline.checks.rooms.filter(x=>x.severity==='high').length,0,
  'room footprints must stay inside the pinned exterior');
-assert.ok(baseline.checks.stairs.every(x=>x.severity==='advisory'),
- 'stair comfort warnings must not masquerade as structural pass/fail');
+assert.ok(baseline.checks.stairs.some(x=>x.type==='visible-stair-riser-discontinuity'&&x.severity==='high'),
+ 'Known stretched last flight must remain visible to safety audit');
+assert.ok(baseline.checks.stairs.filter(x=>x.type==='stair-comfort-review')
+ .every(x=>x.severity==='advisory'),'Ergonomic commentary is advisory');
 assert.equal(JSON.stringify(APPROVED_HOUSE_V1),original,'audit is read-only');
 
 // 1. Volumetric opening collisions (same wall, both horizontal and vertical).
