@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADKH House · Проверка стен и лестницы</title>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.1/examples/jsm/"}}</script>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:#0d151c;color:#f3f6f7}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh}header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 18px;background:#172632;border-bottom:1px solid #3f5561}
+h1{font-size:18px;margin:0}small{font-size:12px;color:#b8cbd1}
+.controls{display:flex;flex-wrap:wrap;gap:6px}button{border:1px solid #526b75;border-radius:9px;background:#233943;color:#eff7f6;padding:9px 12px;font-size:13px;cursor:pointer}button[aria-pressed=true]{background:#a4d2bb;border-color:#d3ecde;color:#0e241d;font-weight:700}
+main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 260px;height:calc(100dvh - 72px);min-height:500px}
+#stage{position:relative;min-width:0;min-height:0}canvas{width:100%;height:100%;display:block;touch-action:none}
+.overlay{position:absolute;left:12px;top:12px;max-width:350px;background:#14242ce8;border:1px solid #52707d;border-radius:10px;padding:11px 13px;font-size:13px;line-height:1.55;pointer-events:none}
+aside{padding:18px;background:#14232d;border-left:1px solid #334b58;overflow:auto}aside h2{font-size:15px;margin:0 0 8px}aside p{font-size:13px;line-height:1.55;color:#c4d1d4}
+.value{font-size:24px;font-weight:800;color:#a7dbc1}.metric{margin-bottom:16px}
+.warn{background:#5b482744;border:1px solid #987744;border-radius:10px;padding:10px;color:#ffe1a1;font-size:12px;line-height:1.5}
+#error{position:absolute;inset:0;background:#15252b;color:#ffb8ae;padding:25px;display:none;z-index:10}
+@media(max-width:700px){main{grid-template-columns:1fr;height:auto}#stage{height:65dvh;min-height:370px}aside{border-left:0;border-top:1px solid #334b58}header{padding:12px}button{font-size:12px;padding:8px}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>ADKH HOUSE · АУДИТ 3D</h1><small>Независимый экспериментальный просмотр · без записи в проект</small></div>
+<div class="controls" role="group" aria-label="Режим и камера">
+<button id="before" aria-pressed="false">До исправления</button>
+<button id="after" aria-pressed="true">После исправления</button>
+<button id="top">Сверху</button>
+<button id="side">Сбоку</button>
+<button id="orbit">3D ракурс</button>
+</div>
+</header>
+<main>
+<div id="stage">
+<div class="overlay"><strong id="modeLabel">После исправления · предварительный вариант</strong><div>Бирюзовая стена — устранённое наложение.<br>Янтарные ступени — верхний марш.<br>Синий цвет — проём второго этажа.</div></div>
+<div id="error" role="alert"></div>
+</div>
+<aside>
+<h2>Результаты расчёта</h2>
+<div class="metric"><div class="value" id="steps">10</div><small>ступеней верхнего марша</small></div>
+<div class="metric"><div class="value" id="rise">155,8 мм</div><small>расчётная высота подъёма</small></div>
+<div class="metric"><div class="value" id="area">2,053 м²</div><small>перекрытие стен, убранное из представления</small></div>
+<div class="metric"><div class="value" id="cutout">1,054 м</div><small>дополнительное открытие перекрытия</small></div>
+<div class="warn">Это геометрический прототип, не строительный чертёж. Проверка проходов, дверей, высоты над головой и реальных размеров ещё требуется. Последние локальные материалы Warm Premium здесь не показаны.</div>
+<p>Перетягивай сцену пальцем или мышью. Прокрутка меняет масштаб. Исходная модель и основная презентация не изменяются.</p>
+</aside>
+</main>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {APPROVED_HOUSE_V1} from './shared/approved-house-v1.mjs';
+import {architectureGeometry} from './shared/architecture-geometry.mjs';
+import {experimentalFirstFloorGeometry} from './shared/experimental-first-floor.mjs';
+
+const stage=document.getElementById('stage'),err=document.getElementById('error');
+const showError=e=>{err.style.display='block';err.textContent='Ошибка загрузки 3D: '+String(e?.message||e)};
+let renderer,scene,camera,controls,group;
+const model=APPROVED_HOUSE_V1.model;
+try{
+ renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));
+ renderer.outputColorSpace=THREE.SRGBColorSpace;
+ renderer.setClearColor('#14252f');
+ stage.appendChild(renderer.domElement);
+ scene=new THREE.Scene();
+ camera=new THREE.PerspectiveCamera(46,1,.1,130);
+ camera.position.set(25,23,28);
+ controls=new OrbitControls(camera,renderer.domElement);
+ controls.enableDamping=true;
+ controls.target.set(9.5,1,0);
+ controls.maxDistance=70;
+ controls.minDistance=4;
+ scene.add(new THREE.HemisphereLight('#eff9ff','#43555b',2.7));
+ const sunlight=new THREE.DirectionalLight('#fff4dc',2.0);
+ sunlight.position.set(10,28,17);scene.add(sunlight);
+ const floorGrid=new THREE.GridHelper(24,24,'#45606b','#273941');
+ floorGrid.position.set(9.5,.02,0);scene.add(floorGrid);
+ group=new THREE.Group();scene.add(group);
+}catch(e){showError(e)}
+
+const mats={
+ wall:new THREE.MeshStandardMaterial({color:'#b7c7c6',transparent:true,opacity:.36,roughness:.88,depthWrite:false,side:THREE.DoubleSide}),
+ wallFixed:new THREE.MeshStandardMaterial({color:'#4be2ca',transparent:true,opacity:.85,roughness:.64,side:THREE.DoubleSide}),
+ treads:new THREE.MeshStandardMaterial({color:'#d4c9b6',roughness:.74,side:THREE.DoubleSide}),
+ treadsFixed:new THREE.MeshStandardMaterial({color:'#f4b45c',roughness:.65,side:THREE.DoubleSide}),
+ slabs:new THREE.MeshStandardMaterial({color:'#597cbb',transparent:true,opacity:.38,roughness:.8,depthWrite:false,side:THREE.DoubleSide}),
+ slabStair:new THREE.MeshStandardMaterial({color:'#c979b2',transparent:true,opacity:.65,roughness:.8,side:THREE.DoubleSide}),
+ floor:new THREE.MeshStandardMaterial({color:'#758985',transparent:true,opacity:.18,roughness:.9,depthWrite:false,side:THREE.DoubleSide}),
+ opening:new THREE.MeshStandardMaterial({color:'#65b6ec',roughness:.6})
+};
+const matFor=obj=>{
+ if(obj.presentationOnly)return mats.wallFixed;
+ if(obj.kind==='wall')return mats.wall;
+ if(obj.kind==='stair-slab')return mats.slabStair;
+ if(obj.kind==='upper-slab')return mats.slabs;
+ if(obj.kind==='floor')return mats.floor;
+ return obj.flight===3?mats.treadsFixed:mats.treads;
+};
+const lineMat=new THREE.LineBasicMaterial({color:'#ffdf9f'});
+function shape(obj){
+ if(obj.kind==='winder'&&Array.isArray(obj.polygon)){
+  const sh=new THREE.Shape();
+  obj.polygon.forEach(([x,z],i)=>i?sh.lineTo(x,z):sh.moveTo(x,z));
+  sh.closePath();
+  const mesh=new THREE.Mesh(new THREE.ShapeGeometry(sh),mats.treads);
+  mesh.rotation.x=Math.PI/2;
+  mesh.position.y=obj.y;
+  return mesh;
+ }
+ if(![obj.x,obj.y,obj.z,obj.w,obj.h,obj.d].every(Number.isFinite))return null;
+ if(obj.w<=0||obj.h<=0||obj.d<=0)return null;
+ const mesh=new THREE.Mesh(new THREE.BoxGeometry(obj.w,obj.h,obj.d),matFor(obj));
+ mesh.position.set(obj.x,obj.y,obj.z);
+ if(Number.isFinite(obj.angle))mesh.rotation.y=obj.angle;
+ return mesh;
+}
+function clear(){
+ if(!group)return;
+ while(group.children.length){
+  const c=group.children[0];group.remove(c);
+  c.traverse?.(n=>{n.geometry?.dispose()});
+ }
+}
+function view(isFixed){
+ if(!group)return;
+ clear();
+ const legacy=architectureGeometry(APPROVED_HOUSE_V1);
+ const candidate=experimentalFirstFloorGeometry(APPROVED_HOUSE_V1);
+ if(isFixed&&!candidate.applied)throw Error('Экспериментальная геометрия отклонена: '+JSON.stringify(candidate.reasons));
+ const mesh=isFixed?candidate.geometry:legacy;
+ // Render floor first, then solids and highlighted features
+ for(const o of [...mesh.floors,...mesh.segments,...mesh.slabs,...mesh.treads]){
+  const item=shape(o);if(item){item.userData.source=o;group.add(item)}
+ }
+ document.getElementById('before').setAttribute('aria-pressed',String(!isFixed));
+ document.getElementById('after').setAttribute('aria-pressed',String(isFixed));
+ document.getElementById('modeLabel').textContent=isFixed?'После исправления · эксперимент':'До исправления · исходная геометрия';
+ document.getElementById('steps').textContent=mesh.treads.filter(x=>x.flight===3).length;
+ document.getElementById('rise').textContent=(isFixed?candidate.geometry.stairProjection.riserM:((model.height-(model.height/24)*14)/6)*1000).toFixed(1)+' мм';
+ document.getElementById('area').textContent=isFixed?mesh.wallProjection.duplicateAreaM2.toFixed(3)+' м²':'Наложение есть';
+ document.getElementById('cutout').textContent=isFixed?mesh.stairProjection.ceilingOpeningExtensionM.toFixed(3)+' м':'Без изменения';
+}
+function resize(){
+ if(!renderer)return;
+ const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;
+ renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+}
+function animate(){
+ if(!renderer)return;
+ requestAnimationFrame(animate);resize();controls.update();renderer.render(scene,camera);
+}
+try{
+ if(renderer){
+  view(true);
+  document.getElementById('before').onclick=()=>{try{view(false)}catch(e){showError(e)}};
+  document.getElementById('after').onclick=()=>{try{view(true)}catch(e){showError(e)}};
+  document.getElementById('top').onclick=()=>{camera.position.set(9.5,34,0.1);controls.target.set(9.5,0,0);controls.update()};
+  document.getElementById('side').onclick=()=>{camera.position.set(20,6,-17);controls.target.set(10,2,-2);controls.update()};
+  document.getElementById('orbit').onclick=()=>{camera.position.set(25,23,28);controls.target.set(9.5,1,0);controls.update()};
+  animate();
+ }
+}catch(e){showError(e)}
+</script>
+</body></html>
