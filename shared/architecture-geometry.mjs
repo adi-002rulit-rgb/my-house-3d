@@ -4,6 +4,7 @@
  * No writes or mutations to source objects.
  */
 import {parseSharedProject} from './project-contract.mjs';
+import {consolidatedPinnedWallProjection} from './first-floor-wall-projection.mjs';
 const rect=(id,kind,x,y,z,w,h,d,meta={})=>({id,kind,x,y,z,w,h,d,...meta});
 const between=(n,min,max)=>Math.max(min,Math.min(max,n));
 export function staircaseLayout(o,height){
@@ -25,7 +26,7 @@ export function staircaseLayout(o,height){
   visibleLastN,rise,upperStart,upperRise:(height-upperStart)/visibleLastN,
   firstTurn:fan(right-w,front,0),secondTurn:fan(left+w,front,-Math.PI/2)};
 }
-export function architectureGeometry(input){
+export function architectureGeometry(input,{consolidateOverlappingWalls=false}={}){
  const {model:m}=parseSharedProject(input),segments=[],openings=[],floors=[],treads=[],slabs=[],furniture=[];
  const furnitureTypes=new Set(['sofa','table','bed','cabinet','chair','island','rug','plant']);
  for(const o of m.furniture){
@@ -131,8 +132,13 @@ export function architectureGeometry(input){
   slabs.push(rect('upper-floor','upper-slab',(L+R)/2,
     m.elevation+m.height-.09,(B+F)/2,R-L,.18,F-B));
  }
+ const wallProjection=consolidateOverlappingWalls?
+  consolidatedPinnedWallProjection(m,segments):null;
  return {schema:1,sourceHeight:m.height,elevation:m.elevation,
-  segments,openings,floors,treads,slabs,furniture,counts:{
+  segments:wallProjection?.segments||segments,openings,floors,treads,slabs,furniture,
+  wallProjection:wallProjection?{applied:wallProjection.applied,
+   reason:wallProjection.reason||null,sourceWallIds:wallProjection.sourceWallIds||[],
+   duplicateAreaM2:wallProjection.duplicateAreaM2||0}:undefined,counts:{
    walls:m.walls.length,openings:m.openings.length,rooms:m.rooms.length,stairs:m.stairs.length,furniture:m.furniture.length
   }};
 }
