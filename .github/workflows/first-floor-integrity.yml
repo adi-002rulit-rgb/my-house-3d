@@ -21,6 +21,8 @@ jobs:
         run: node tests/first-floor-audit.mjs
       - name: Five safeguarding regression cases
         run: node tests/first-floor-safety.mjs
+      - name: Check safe preview of wall union and stair landing gap
+        run: node tests/first-floor-repair-preview.mjs
       - name: Verify editor-showroom geometry sync
         run: node tests/geometry-sync.mjs
       - name: Verify current kitchen and furniture boundaries
