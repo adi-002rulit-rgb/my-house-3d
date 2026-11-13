@@ -1,0 +1,27 @@
+name: First floor integrity (audit branch)
+on:
+  push:
+    branches:
+      - audit/first-floor-integrity-2026-11-13
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  geometry-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate source structure
+        run: node --check shared/first-floor-audit.mjs && node --check shared/first-floor-safety.mjs
+      - name: Check known structural overlap reporting
+        run: node tests/first-floor-audit.mjs
+      - name: Five safeguarding regression cases
+        run: node tests/first-floor-safety.mjs
+      - name: Verify editor-showroom geometry sync
+        run: node tests/geometry-sync.mjs
+      - name: Verify current kitchen and furniture boundaries
+        run: node tests/technical-stabilization.mjs
