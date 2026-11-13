@@ -21,6 +21,6 @@ assert.deepEqual(mesh.floors,base.floors);
 assert.equal(JSON.stringify(APPROVED_HOUSE_V1),before,'approved source unchanged');
 const changed=structuredClone(APPROVED_HOUSE_V1);
 changed.model.stairs[0].rot=.2;
-assert.equal(experimentalFirstFloorGeometry(changed).applied,false,
- 'unsupported stairs must not be accepted');
+assert.throws(()=>experimentalFirstFloorGeometry(changed),/Поворот лестницы/,
+ 'unsupported rotations must be rejected by core geometry');
 console.log('PASS: experimental wall + stair projection retains openings, rooms and furniture');
