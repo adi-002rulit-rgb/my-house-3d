@@ -31,6 +31,8 @@ jobs:
         run: node tests/stair-continuity-projection.mjs
       - name: Verify combined experimental first floor
         run: node tests/experimental-first-floor.mjs
+      - name: Verify isolated 3D inspector wiring
+        run: node tests/first-floor-geometry-preview.mjs
       - name: Verify editor-showroom geometry sync
         run: node tests/geometry-sync.mjs
       - name: Verify current kitchen and furniture boundaries
