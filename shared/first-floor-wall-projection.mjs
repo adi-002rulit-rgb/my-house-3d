@@ -32,8 +32,12 @@ export function consolidatedPinnedWallProjection(model,segments){
     sourceB.some(s=>Math.abs(s.h-model.height)>.001))
   return {segments:[...segments],applied:false,reason:'partial-height-walls'};
  const preview=overlappingWallUnionPreview(model,first.id,second.id);
- const colorPlus=sourceA[0].sideColors?.positive||'#ede6dc';
- const colorMinus=sourceB[0].sideColors?.negative||'#ede6dc';
+ if(preview.duplicateAreaM2<=.001)
+  return {segments:[...segments],applied:false,reason:'no-overlap-to-fix'};
+ if(!sourceA[0].sideColors?.positive||!sourceB[0].sideColors?.negative)
+  return {segments:[...segments],applied:false,reason:'missing-wall-face-materials'};
+ const colorPlus=sourceA[0].sideColors.positive;
+ const colorMinus=sourceB[0].sideColors.negative;
  const merged=preview.strips.map((s,index)=>({
   id:'living-bed-union-'+index,kind:'wall',
   x:r((s.x1+s.x2)/2),y:r(model.elevation+model.height/2),
